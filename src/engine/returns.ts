@@ -28,6 +28,12 @@ export interface Market {
   grossPre: Float64Array
   /** O mesmo com os pesos de depois da aposentadoria, quando o perfil os define. */
   grossPost: Float64Array | null
+  /** Pesos usados no sorteio (o mercado só serve para planos com os mesmos pesos). */
+  weightsPre: Float64Array
+  weightsPost: Float64Array | null
+  /** Média de ln(1 + gross) sobre todas as trajetórias e anos: base do retorno composto esperado. */
+  meanLogPre: number
+  meanLogPost: number | null
 }
 
 export function validateNu(nu: number): void {
@@ -164,7 +170,22 @@ export function generateMarket(
       }
     }
   }
-  return { paths, T, grossPre, grossPost }
+  return {
+    paths,
+    T,
+    grossPre,
+    grossPost,
+    weightsPre,
+    weightsPost,
+    meanLogPre: meanLog1p(grossPre),
+    meanLogPost: grossPost ? meanLog1p(grossPost) : null,
+  }
+}
+
+function meanLog1p(values: Float64Array): number {
+  let sum = 0
+  for (let i = 0; i < values.length; i++) sum += Math.log1p(values[i])
+  return sum / values.length
 }
 
 /** n vetores de retornos por classe (n × K), para a calibração (teste 7) e para diagnóstico. */
