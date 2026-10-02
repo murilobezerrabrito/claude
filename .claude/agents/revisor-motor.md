@@ -39,7 +39,7 @@ Relate a saída resumida de cada um.
 
 **Carteira e fluxos**
 - `R_t = (1 − f)(1 + Σ w_k r_k) − 1`, rebalanceado todo ano.
-- F = renda + aluguéis + dividendos + entradas − essencial − estilo de vida − saídas − doações.
+- F = renda + aluguéis + dividendos + entradas − essencial − estilo de vida − saídas. Não há doações no projeto (D-005).
 - Déficit no início do ano, superávit no fim; falha quando W + F < 0, e o patrimônio fica em zero dali em diante.
 - Eventos: única, anual e a cada N anos, com anos inclusivos. Venda de imóvel encerra o aluguel a partir do ano da venda.
 - Horizonte: até o mais jovem do casal completar a idade-limite (Andrade: 45 anos, W0 = R$ 13,8 mi).
@@ -55,7 +55,7 @@ Relate a saída resumida de cada um.
 - Probabilidade de sucesso e do legado, percentis P10/P25/P50/P75/P90, idade de esgotamento (P10 chega a zero).
 - Retorno composto = exp(média de ln(1 + R)) − 1 sobre todos os anos e trajetórias; folga usa esse número, nunca a média aritmética.
 - Benchmark pessoal: determinístico, bisseção entre −5% e +20%, condição `W_t + min(F_t, 0) ≥ 0 ∀t < T` e `W_T ≥ legado`; mensagens para "folga total" e "plano inviável".
-- Gasto sustentável: bisseção no multiplicador k do gasto total entre 0,3 e 3, mesma semente, 2.000 trajetórias na busca e confirmação com 5.000. Doação máxima e menor idade de aposentadoria também por bisseção.
+- Gasto sustentável: bisseção no multiplicador k do gasto total entre 0,3 e 3, mesma semente, 2.000 trajetórias na busca e confirmação com 5.000. Menor idade de aposentadoria também por bisseção.
 
 **Testes**
 - Os testes 1 a 14 existem, testam o que o SPEC diz (não uma versão mais fraca) e passam.

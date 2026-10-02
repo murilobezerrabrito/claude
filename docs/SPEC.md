@@ -1,6 +1,8 @@
 # Gêmeo Financeiro: especificação
 
 > Transcrição em Markdown do documento "Prompt do Gêmeo Financeiro" (02/10/2026, @Murilo), sem as seções "Como usar este prompt" e "Arquivo CLAUDE.md". Os dois diagramas do original aparecem aqui como descrição em texto.
+>
+> **Alteração em 02/10/2026 (Murilo):** as doações saíram do projeto (D-005 em `docs/DECISOES.md`). Fica só a linha do ITCMD em Impostos, que trata do imposto.
 
 ## Papel e missão
 
@@ -47,7 +49,7 @@ O produto tem três camadas: o **gêmeo financeiro** é o motor, o **benchmark p
 
 - **Gêmeo financeiro (motor).** Um modelo da vida financeira da família, projetado ano a ano até o fim do horizonte. Recebe a carteira CADM, o plano da família e as premissas do comitê, e roda milhares de cenários de mercado.
 - **Benchmark pessoal (métrica).** O retorno real (acima do IPCA) que a carteira precisa entregar para o plano dar certo. Substitui o CDI como régua principal. Vem acompanhado da probabilidade de sucesso e da trajetória em faixas.
-- **"E se?" (interface).** O cliente, ou o Alex na reunião, muda uma hipótese (aposentar antes, vender um imóvel, doar mais, uma crise no 1º ano) e vê o efeito na hora.
+- **"E se?" (interface).** O cliente, ou o Alex na reunião, muda uma hipótese (aposentar antes, vender um imóvel, uma crise no 1º ano) e vê o efeito na hora.
 
 Princípios que valem para todo o produto:
 
@@ -99,8 +101,8 @@ Responde em cinco segundos à pergunta "meu plano continua de pé?".
 
 ### 3. E se?
 
-- Controles: idade de aposentadoria, gasto essencial, gasto de estilo de vida, renda, aporte ou resgate pontual, venda de imóvel (valor e ano), doação anual, perfil de alocação (só perfis aprovados), choque de mercado no 1º ano e horizonte.
-- Cenários prontos em botões: aposentar 3 anos antes, vender um imóvel, doar R$ 200 mil por ano, crise como a de 2008 no 1º ano, inflação alta por 5 anos, gastar 10% a mais.
+- Controles: idade de aposentadoria, gasto essencial, gasto de estilo de vida, renda, aporte ou resgate pontual, venda de imóvel (valor e ano), perfil de alocação (só perfis aprovados), choque de mercado no 1º ano e horizonte.
+- Cenários prontos em botões: aposentar 3 anos antes, vender um imóvel, crise como a de 2008 no 1º ano, inflação alta por 5 anos, gastar 10% a mais.
 - Recalcula ao soltar o controle (espera de 250 ms), com indicador de cálculo. Mostra sempre a diferença para o plano oficial ("87% → 71%").
 - Compara até três cenários lado a lado: probabilidade, benchmark pessoal, patrimônio mediano aos 80 anos e no fim, e idade em que o dinheiro acaba no cenário ruim.
 - **Gasto sustentável**, calculado sob demanda: "Com 85% de chance, vocês podem gastar até R$ X por mês."
@@ -118,7 +120,7 @@ Responde em cinco segundos à pergunta "meu plano continua de pé?".
 
 - Linha do tempo da família: idades, aposentadoria, eventos e metas.
 - Fluxos: renda por fonte e prazo, gastos essenciais e de estilo de vida, eventos com valor, ano e recorrência.
-- Metas: manter o padrão de vida até certa idade, legado mínimo, doações.
+- Metas: manter o padrão de vida até certa idade e legado mínimo.
 - O cliente sugere mudanças; elas entram numa fila para o banker confirmar.
 
 ### 6. Como calculamos
@@ -169,7 +171,7 @@ O motor é uma simulação de Monte Carlo anual, em valores reais, com retornos 
 | Renda por fonte: valor real anual, início, fim | Banker | Pró-labore até os 62 |
 | Gasto essencial e de estilo de vida, por fase | Banker | R$ 55 mil e R$ 30 mil por mês |
 | Eventos: valor, ano, recorrência, entrada ou saída | Banker ou cliente | Faculdade de 2027 a 2031 |
-| Metas: idade-limite, legado mínimo, doação anual | Banker | Até 95 anos, legado de R$ 3 mi |
+| Metas: idade-limite e legado mínimo | Banker | Até 95 anos, legado de R$ 3 mi |
 | Perfil de alocação: pesos-alvo por classe | Comitê | Moderado |
 | Taxa de gestão (% ao ano) | Contrato do cliente | 0,80% |
 | Premissas (versão vigente) | Comitê | Versão 2026-10 |
@@ -261,7 +263,7 @@ Opcional na v1: pesos diferentes antes e depois da aposentadoria (dois conjuntos
 
 ### Fluxos de caixa
 
-O fluxo líquido do ano é F = renda + aluguéis + dividendos + entradas de eventos − gasto essencial − gasto de estilo de vida − saídas de eventos − doações. O patrimônio evolui assim:
+O fluxo líquido do ano é F = renda + aluguéis + dividendos + entradas de eventos − gasto essencial − gasto de estilo de vida − saídas de eventos. O patrimônio evolui assim:
 
 ```latex
 W_{t+1} = \begin{cases} W_t\,(1 + R_t) + F_t & \text{se } F_t \ge 0 \\ (W_t + F_t)\,(1 + R_t) & \text{se } F_t < 0 \end{cases}
@@ -372,7 +374,7 @@ export function simulate(inp: SimInput, cma: Cma, opt: SimOptions): SimResult {
 
       if (isRetired(inp, t)) lifestyle = applyGuardrails(inp.rules, { W, ref: refPath[t], wr0, lifestyle, t, T });
       const F = income(inp, t) + inflows(inp, t)
-              - essential(inp, t) - lifestyle - outflows(inp, t) - donations(inp, t);
+              - essential(inp, t) - lifestyle - outflows(inp, t);
       if (isRetired(inp, t) && Number.isNaN(wr0)) wr0 = Math.max(0, -F) / W;
 
       if (F >= 0) W = W * (1 + R) + F;
@@ -410,7 +412,7 @@ Alvo padrão de 90%. As faixas seguem a lógica dos guardrails por risco (limite
 
 | Faixa | Probabilidade | Cor do selo | O que o banker vê |
 |---|---|---|---|
-| Folga grande | 99% ou mais | Azul | Sugestão de conversa: dá para gastar, doar ou antecipar planos |
+| Folga grande | 99% ou mais | Azul | Sugestão de conversa: dá para gastar mais ou antecipar planos |
 | No caminho | De 85% a 99% | Verde | Nada a fazer |
 | Atenção | De 70% a 85% | Amarelo | Revisar na próxima reunião |
 | Plano em risco | Abaixo de 70% | Vermelho | Contato proativo, com o gasto sustentável já calculado |
@@ -438,16 +440,14 @@ O "E se?" altera hipóteses numa cópia do plano oficial. Nada volta para o plan
 | Renda até aposentar | `incomes[].amount` | 0 a 200% da atual | R$ 5 mil por mês |
 | Aporte ou resgate pontual | `events[]` | −50% a +100% do patrimônio | R$ 50 mil |
 | Venda de imóvel | `propertySales[]` | Imóveis declarados, ano | 1 ano |
-| Doação anual | `annualDonation` | 0 a R$ 2 mi por ano | R$ 25 mil |
 | Perfil de alocação | `profileId` | Perfis aprovados | — |
 | Choque no 1º ano | `firstYearShock` | 0% a −30% | 5 p.p. |
 | Horizonte | `horizonAge` | 85 a 105 anos | 1 ano |
 | Gasto flexível | `rules.enabled` | Ligado ou desligado | — |
 
-Além dos controles, três perguntas que o motor resolve por bisseção, sempre com a probabilidade-alvo (padrão 90%):
+Além dos controles, duas perguntas que o motor resolve por bisseção, sempre com a probabilidade-alvo (padrão 90%):
 
 - **Quanto posso gastar?** Maior gasto mensal total.
-- **Quanto posso doar?** Maior doação anual.
 - **Quando posso parar?** Menor idade de aposentadoria.
 
 ### Comparação
@@ -478,7 +478,6 @@ Esboço da ferramenta:
       "retirementAge": { "type": "integer", "minimum": 45, "maximum": 75 },
       "essentialMonthly": { "type": "number", "minimum": 0 },
       "lifestyleMonthly": { "type": "number", "minimum": 0 },
-      "annualDonation": { "type": "number", "minimum": 0 },
       "profileId": { "type": "string", "enum": ["conservador", "moderado", "arrojado"] },
       "propertySales": {
         "type": "array",
@@ -489,7 +488,7 @@ Esboço da ferramenta:
         }
       },
       "firstYearShock": { "type": "number", "minimum": -0.5, "maximum": 0 },
-      "solve": { "type": "string", "enum": ["none", "maxSpending", "maxDonation", "earliestRetirement"] },
+      "solve": { "type": "string", "enum": ["none", "maxSpending", "earliestRetirement"] },
       "clarifyingQuestion": { "type": "string", "description": "Use quando a pergunta for ambígua." }
     }
   }
@@ -501,7 +500,6 @@ Exemplos de tradução esperada:
 | Pergunta do cliente | Parâmetros propostos |
 |---|---|
 | E se eu parar de trabalhar 3 anos antes? | `{"retirementAge": 59}` |
-| Quanto posso doar por ano sem comprometer nada? | `{"solve": "maxDonation"}` |
 | E se a bolsa cair 30% e eu vender a casa de praia em 2028? | `{"firstYearShock": -0.30, "propertySales": [{"propertyId": "casa-praia", "year": 2028}]}` |
 | E se a gente gastar mais? | `{"clarifyingQuestion": "Quanto a mais por mês, e em quais anos?"}` |
 
@@ -524,7 +522,7 @@ Postgres. Toda tabela com dado de família tem `household_id` e política de ace
 | `other_assets` | id, household_id, kind, name, value, annual_income, can_be_sold | kind: imóvel, empresa, previdência, exterior |
 | `cash_flows` | id, household_id, kind, annual_amount_real, start_year, end_year, other_asset_id | kind: renda, gasto essencial, gasto de estilo de vida, aluguel, dividendos |
 | `events` | id, household_id, name, direction, amount_real, year, recurrence, every_n, end_year | Entradas e saídas pontuais ou recorrentes |
-| `goals` | id, household_id, kind, target_age, amount | kind: padrão de vida, legado, doação |
+| `goals` | id, household_id, kind, target_age, amount | kind: padrão de vida, legado |
 | `plan_versions` | id, household_id, created_by, snapshot (jsonb), created_at | Cada mudança no plano gera uma versão |
 | `plan_change_requests` | id, household_id, requested_by, payload (jsonb), status, reviewed_by | Sugestões do cliente |
 | `cma_versions` | id, label, effective_date, status, nu, approved_by, approved_at | status: rascunho, aprovada, vigente, arquivada |
