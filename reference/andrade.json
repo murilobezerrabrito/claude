@@ -1,0 +1,52 @@
+{
+  "household": {
+    "id": "andrade",
+    "name": "Família Andrade (fictícia)",
+    "bankerId": "alex",
+    "referenceDate": "2026-09-30",
+    "profileId": "moderado",
+    "suitability": "moderado",
+    "feeRate": 0.008,
+    "horizonAge": 95,
+    "legacyMin": 3000000
+  },
+  "people": [
+    { "id": "ricardo", "name": "Ricardo Andrade", "birthDate": "1974-03-15", "sex": "M", "role": "titular", "retirementAge": 62 },
+    { "id": "helena", "name": "Helena Andrade", "birthDate": "1976-08-02", "sex": "F", "role": "conjuge" },
+    { "id": "pedro", "name": "Pedro Andrade", "birthDate": "2009-05-10", "sex": "M", "role": "filho" },
+    { "id": "laura", "name": "Laura Andrade", "birthDate": "2012-11-21", "sex": "F", "role": "filho" }
+  ],
+  "cadmPositionsByClass": {
+    "POS": 3000000, "INF": 3000000, "PRE": 600000, "CRED": 1800000,
+    "MM": 1200000, "ACOES": 960000, "FII": 480000, "INTL": 960000
+  },
+  "otherAssets": [
+    { "id": "vgbl", "kind": "previdencia", "name": "VGBL", "value": 1800000, "classCode": "POS", "inSimulation": true },
+    { "id": "apto", "kind": "imovel", "name": "Apartamento (residência)", "value": 4500000, "canBeSold": false },
+    { "id": "casa-praia", "kind": "imovel", "name": "Casa de praia", "value": 3500000, "canBeSold": true, "netSaleValue": 3200000 },
+    { "id": "sala", "kind": "imovel", "name": "Sala comercial", "value": 1200000, "canBeSold": true, "annualIncome": 84000 },
+    { "id": "empresa", "kind": "empresa", "name": "Participação na empresa da família", "value": 6000000, "canBeSold": false }
+  ],
+  "cashFlows": [
+    { "kind": "renda", "name": "Pró-labore do Ricardo", "annualAmountReal": 1200000, "startYear": 2026, "endYear": 2035 },
+    { "kind": "dividendos", "name": "Dividendos da empresa", "annualAmountReal": 480000, "startYear": 2026, "endYear": 2035, "otherAssetId": "empresa" },
+    { "kind": "aluguel", "name": "Aluguel da sala", "annualAmountReal": 84000, "startYear": 2026, "endYear": 2071, "otherAssetId": "sala" },
+    { "kind": "gasto_essencial", "name": "Gasto essencial", "annualAmountReal": 660000, "startYear": 2026, "endYear": 2071 },
+    { "kind": "gasto_estilo", "name": "Estilo de vida", "annualAmountReal": 360000, "startYear": 2026, "endYear": 2071 }
+  ],
+  "events": [
+    { "name": "Faculdade do Pedro", "direction": "saida", "amountReal": 180000, "year": 2027, "recurrence": "anual", "endYear": 2031 },
+    { "name": "Faculdade da Laura", "direction": "saida", "amountReal": 180000, "year": 2031, "recurrence": "anual", "endYear": 2035 },
+    { "name": "Troca de carros", "direction": "saida", "amountReal": 400000, "year": 2028, "recurrence": "a_cada_n", "everyN": 5, "endYear": 2058 },
+    { "name": "Entrada do apartamento do Pedro", "direction": "saida", "amountReal": 800000, "year": 2035, "recurrence": "unica" }
+  ],
+  "goals": [
+    { "kind": "padrao_de_vida", "personId": "helena", "targetAge": 95 },
+    { "kind": "legado", "amount": 3000000 }
+  ],
+  "rules": {
+    "enabled": true, "mode": "trajetoria_referencia",
+    "lower": 0.8, "upper": 1.2, "cut": 0.1, "raise": 0.1,
+    "floor": 0.5, "cap": 1.3, "noCutLastYears": 15
+  }
+}

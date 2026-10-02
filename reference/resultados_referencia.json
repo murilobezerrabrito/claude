@@ -1,0 +1,98 @@
+{
+  "descricao": "Resultados de referência da Família Andrade (docs/SPEC.md, seção Resultados de referência). Lido pelo teste 13 e por npm run reference.",
+  "origem": "Transcrito da tabela do SPEC de 02/10/2026; o original é gerado por reference/motor_referencia.py com as premissas ilustrativas e 50.000 trajetórias.",
+  "dados": "reference/andrade.json",
+  "premissas": "ilustrativas (docs/SPEC.md, seção Classes de ativo e premissas)",
+  "trajetorias": 50000,
+  "unidades": "Taxas e probabilidades em fração decimal (0.0390 = 3,90%); valores em reais de hoje. A tolerância está na mesma unidade do valor.",
+  "metricas": [
+    {
+      "id": "retornoCompostoLiquido",
+      "descricao": "Retorno composto líquido do perfil moderado",
+      "valor": 0.039,
+      "tolerancia": 0.0005,
+      "unidade": "taxa",
+      "sorteio": true
+    },
+    {
+      "id": "benchmarkComLegado",
+      "descricao": "Benchmark pessoal, com legado de R$ 3 mi",
+      "valor": 0.0298,
+      "tolerancia": 0.0001,
+      "unidade": "taxa",
+      "sorteio": false
+    },
+    {
+      "id": "benchmarkSemLegado",
+      "descricao": "Benchmark pessoal, sem legado",
+      "valor": 0.0277,
+      "tolerancia": 0.0001,
+      "unidade": "taxa",
+      "sorteio": false
+    },
+    {
+      "id": "folga",
+      "descricao": "Folga (retorno composto líquido menos benchmark com legado)",
+      "valor": 0.0092,
+      "tolerancia": 0.0005,
+      "unidade": "taxa",
+      "sorteio": true
+    },
+    {
+      "id": "probSucessoSemRegras",
+      "descricao": "Probabilidade de sucesso, sem gasto flexível",
+      "valor": 0.929,
+      "tolerancia": 0.02,
+      "unidade": "probabilidade",
+      "sorteio": true
+    },
+    {
+      "id": "probLegadoSemRegras",
+      "descricao": "Probabilidade do legado, sem gasto flexível",
+      "valor": 0.89,
+      "tolerancia": 0.02,
+      "unidade": "probabilidade",
+      "sorteio": true
+    },
+    {
+      "id": "patrimonioMediano95SemRegras",
+      "descricao": "Patrimônio mediano aos 95 anos, sem gasto flexível",
+      "valor": 20500000,
+      "tolerancia": 1500000,
+      "unidade": "reais",
+      "sorteio": true
+    },
+    {
+      "id": "probSucessoComRegras",
+      "descricao": "Probabilidade de sucesso, com gasto flexível padrão",
+      "valor": 0.99,
+      "tolerancia": 0.01,
+      "unidade": "probabilidade",
+      "sorteio": true
+    },
+    {
+      "id": "chanceCorteTrajetoriaReferencia",
+      "descricao": "Chance de corte, régua da trajetória de referência",
+      "valor": 0.35,
+      "tolerancia": 0.05,
+      "unidade": "probabilidade",
+      "sorteio": true
+    },
+    {
+      "id": "chanceCorteGuytonKlinger",
+      "descricao": "Chance de corte, régua Guyton-Klinger",
+      "valor": 0.996,
+      "tolerancia": 0.01,
+      "unidade": "probabilidade",
+      "sorteio": true
+    },
+    {
+      "id": "gastoSustentavelMensal90",
+      "descricao": "Gasto sustentável com 90% de chance (gasto total por mês; hoje R$ 85 mil)",
+      "valor": 87000,
+      "tolerancia": 3000,
+      "unidade": "reais",
+      "sorteio": true
+    }
+  ]
+}
