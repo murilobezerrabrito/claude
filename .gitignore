@@ -1,0 +1,33 @@
+# Dependências e build
+node_modules
+dist
+dist-ssr
+coverage
+
+# Segredos: nunca no git (ver CLAUDE.md)
+*.local
+.env
+.env.*
+!.env.example
+
+# Planilhas de clientes nunca entram no repositório
+*.xlsx
+*.xls
+*.csv
+!reference/**/*.csv
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Python (motor de referência)
+__pycache__/
+*.pyc
+
+# Editores
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.sw?

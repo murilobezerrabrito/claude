@@ -1,0 +1,53 @@
+{
+  "notice": "Valores ilustrativos do SPEC; o comitê calibra com as séries históricas. Somam pontos percentuais ao retorno real sorteado de cada classe. Ano 1 é o primeiro ano simulado.",
+  "presets": [
+    {
+      "id": "crise-2008",
+      "name": "Crise como a de 2008",
+      "fromYear": 1,
+      "toYear": 1,
+      "deltas": {
+        "POS": 0,
+        "INF": -0.05,
+        "PRE": -0.03,
+        "CRED": -0.06,
+        "MM": -0.08,
+        "ACOES": -0.35,
+        "FII": -0.2,
+        "INTL": 0.05
+      }
+    },
+    {
+      "id": "inflacao-alta",
+      "name": "Inflação alta",
+      "fromYear": 1,
+      "toYear": 5,
+      "deltas": {
+        "POS": 0,
+        "INF": -0.01,
+        "PRE": -0.04,
+        "CRED": -0.01,
+        "MM": -0.01,
+        "ACOES": -0.03,
+        "FII": -0.02,
+        "INTL": 0.01
+      }
+    },
+    {
+      "id": "decada-perdida",
+      "name": "Década perdida",
+      "fromYear": 1,
+      "toYear": 10,
+      "deltas": {
+        "POS": 0,
+        "INF": -0.005,
+        "PRE": 0,
+        "CRED": -0.005,
+        "MM": -0.01,
+        "ACOES": -0.03,
+        "FII": -0.02,
+        "INTL": 0
+      }
+    }
+  ]
+}

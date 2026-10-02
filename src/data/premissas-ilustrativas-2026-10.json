@@ -1,0 +1,191 @@
+{
+  "version": "ilustrativa-2026-10",
+  "label": "Premissas ilustrativas (SPEC de 02/10/2026)",
+  "status": "ilustrativa",
+  "notice": "Números ilustrativos do SPEC, para desenvolvimento e testes. O comitê substitui pelos oficiais antes de qualquer uso com clientes. Premissas reais, líquidas de impostos; o motor desconta só a taxa de gestão.",
+  "nu": 5,
+  "classes": [
+    {
+      "code": "POS",
+      "name": "Pós-fixado",
+      "benchmark": "CDI",
+      "mu": 0.04,
+      "vol": 0.015
+    },
+    {
+      "code": "INF",
+      "name": "Inflação",
+      "benchmark": "IMA-B",
+      "mu": 0.05,
+      "vol": 0.08
+    },
+    {
+      "code": "PRE",
+      "name": "Prefixado",
+      "benchmark": "IRF-M",
+      "mu": 0.045,
+      "vol": 0.05
+    },
+    {
+      "code": "CRED",
+      "name": "Crédito privado",
+      "benchmark": "IDA (ANBIMA)",
+      "mu": 0.048,
+      "vol": 0.03
+    },
+    {
+      "code": "MM",
+      "name": "Multimercado",
+      "benchmark": "IHFA",
+      "mu": 0.048,
+      "vol": 0.06
+    },
+    {
+      "code": "ACOES",
+      "name": "Ações Brasil",
+      "benchmark": "Ibovespa",
+      "mu": 0.065,
+      "vol": 0.24
+    },
+    {
+      "code": "FII",
+      "name": "Imobiliário listado",
+      "benchmark": "IFIX",
+      "mu": 0.05,
+      "vol": 0.14
+    },
+    {
+      "code": "INTL",
+      "name": "Internacional, em reais",
+      "benchmark": "Ações globais em BRL",
+      "mu": 0.055,
+      "vol": 0.16
+    }
+  ],
+  "correlation": [
+    [
+      1,
+      0.1,
+      0.2,
+      0.5,
+      0.3,
+      -0.05,
+      0.0,
+      -0.1
+    ],
+    [
+      0.1,
+      1,
+      0.7,
+      0.3,
+      0.3,
+      0.45,
+      0.5,
+      -0.2
+    ],
+    [
+      0.2,
+      0.7,
+      1,
+      0.3,
+      0.3,
+      0.4,
+      0.4,
+      -0.25
+    ],
+    [
+      0.5,
+      0.3,
+      0.3,
+      1,
+      0.35,
+      0.3,
+      0.3,
+      -0.1
+    ],
+    [
+      0.3,
+      0.3,
+      0.3,
+      0.35,
+      1,
+      0.45,
+      0.3,
+      0.1
+    ],
+    [
+      -0.05,
+      0.45,
+      0.4,
+      0.3,
+      0.45,
+      1,
+      0.6,
+      -0.1
+    ],
+    [
+      0.0,
+      0.5,
+      0.4,
+      0.3,
+      0.3,
+      0.6,
+      1,
+      -0.1
+    ],
+    [
+      -0.1,
+      -0.2,
+      -0.25,
+      -0.1,
+      0.1,
+      -0.1,
+      -0.1,
+      1
+    ]
+  ],
+  "profiles": [
+    {
+      "id": "conservador",
+      "name": "Conservador",
+      "weightsPre": {
+        "POS": 0.4,
+        "INF": 0.2,
+        "PRE": 0.05,
+        "CRED": 0.2,
+        "MM": 0.1,
+        "ACOES": 0.0,
+        "FII": 0.0,
+        "INTL": 0.05
+      }
+    },
+    {
+      "id": "moderado",
+      "name": "Moderado",
+      "weightsPre": {
+        "POS": 0.25,
+        "INF": 0.25,
+        "PRE": 0.05,
+        "CRED": 0.15,
+        "MM": 0.1,
+        "ACOES": 0.08,
+        "FII": 0.04,
+        "INTL": 0.08
+      }
+    },
+    {
+      "id": "arrojado",
+      "name": "Arrojado",
+      "weightsPre": {
+        "POS": 0.1,
+        "INF": 0.2,
+        "PRE": 0.05,
+        "CRED": 0.1,
+        "MM": 0.1,
+        "ACOES": 0.2,
+        "FII": 0.07,
+        "INTL": 0.18
+      }
+    }
+  ]
+}
