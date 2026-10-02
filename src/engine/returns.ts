@@ -190,14 +190,18 @@ function meanLog1p(values: Float64Array): number {
   return sum / values.length
 }
 
-/** n vetores de retornos por classe (n × K), para a calibração (teste 7) e para diagnóstico. */
-export function sampleClassReturns(cma: Cma, n: number, seed: number): Float64Array {
+/**
+ * n vetores de retornos por classe (n × K), sorteados pelo mesmo esquema do mercado: blocos de `yearsPerPath`
+ * vetores, cada bloco numa sequência própria do gerador (uma "trajetória"). Para a calibração (teste 7).
+ */
+export function sampleClassReturns(cma: Cma, n: number, seed: number, yearsPerPath = 45): Float64Array {
   const p = classParams(cma)
   const rng = new Rng(seed)
   const g = new Float64Array(p.K)
   const r = new Float64Array(p.K)
   const out = new Float64Array(n * p.K)
   for (let i = 0; i < n; i++) {
+    if (i % yearsPerPath === 0) rng.reseed(seed, i / yearsPerPath + 1)
     drawClassReturns(p, rng, g, r)
     out.set(r, i * p.K)
   }

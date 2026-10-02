@@ -67,6 +67,27 @@ describe('T07 calibração dos sorteios', () => {
     expect(Math.abs(sd(k) / c.vol - 1)).toBeLessThan(0.1)
   })
 
+  it('sorteios independentes entre anos da mesma trajetória e entre trajetórias vizinhas', () => {
+    // Com blocos de 45 vetores por sequência (como no mercado): defasagem 1 = ano seguinte; 45 = trajetória seguinte.
+    const k = codes.indexOf('ACOES')
+    const lagCorr = (lag: number, sameBlockOnly: boolean) => {
+      let sxy = 0
+      let sxx = 0
+      let syy = 0
+      for (let i = 0; i + lag < n; i++) {
+        if (sameBlockOnly && Math.floor(i / 45) !== Math.floor((i + lag) / 45)) continue
+        const x = draws[i * K + k] - mean[k]
+        const y = draws[(i + lag) * K + k] - mean[k]
+        sxy += x * y
+        sxx += x * x
+        syy += y * y
+      }
+      return sxy / Math.sqrt(sxx * syy)
+    }
+    expect(Math.abs(lagCorr(1, true))).toBeLessThan(0.02)
+    expect(Math.abs(lagCorr(45, false))).toBeLessThan(0.02)
+  })
+
   it('correlações a ±0,02 da matriz do comitê', () => {
     let worst = 0
     for (let a = 0; a < K; a++) {

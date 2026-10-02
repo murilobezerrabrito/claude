@@ -15,12 +15,11 @@ function fmix32(x: number): number {
   return (h ^ (h >>> 16)) >>> 0
 }
 
-// Estado do splitmix32, usado só durante `reseed` (síncrono), para não criar uma função por trajetória.
-let splitmixState = 0
+const GOLDEN = 0x9e3779b9
 
-function splitmixNext(): number {
-  splitmixState = (splitmixState + 0x9e3779b9) | 0
-  let z = splitmixState
+/** k-ésima saída do splitmix32 a partir do estado `state`: mix(state + k·φ mod 2³²). Sem estado próprio. */
+function splitmix32(state: number, k: number): number {
+  let z = (state + Math.imul(k, GOLDEN)) | 0
   z = Math.imul(z ^ (z >>> 16), 0x21f0aaad)
   z = Math.imul(z ^ (z >>> 15), 0x735a2d97)
   return (z ^ (z >>> 15)) >>> 0
@@ -44,12 +43,12 @@ export class Rng {
     if (!Number.isInteger(stream) || stream < 0) throw new RangeError('A sequência precisa ser um inteiro maior ou igual a zero.')
     this.hasSpare = false
     // splitmix32 espalha a semente pelos 128 bits de estado (nunca todo zero).
-    splitmixState = seed >>> 0
-    if (stream > 0) splitmixState = (splitmixState ^ fmix32(stream ^ 0x5bd1e995)) >>> 0
-    this.s0 = splitmixNext()
-    this.s1 = splitmixNext()
-    this.s2 = splitmixNext()
-    this.s3 = splitmixNext()
+    let state = seed >>> 0
+    if (stream > 0) state = (state ^ fmix32(stream ^ 0x5bd1e995)) >>> 0
+    this.s0 = splitmix32(state, 1)
+    this.s1 = splitmix32(state, 2)
+    this.s2 = splitmix32(state, 3)
+    this.s3 = splitmix32(state, 4)
   }
 
   /** Inteiro sem sinal de 32 bits. */
