@@ -7,6 +7,7 @@ import { applyGuardrails, referencePath, resetGuardrails, type GuardrailState } 
 import { hashInputs } from './hash.ts'
 import { median, wealthPercentiles } from './metrics.ts'
 import { buildPlan, fullPlanFlows, type Plan } from './plan.ts'
+import { requiredReturn, slack } from './requiredReturn.ts'
 import { classParams, generateMarket, type Market } from './returns.ts'
 import type { SimInput, SimOptions, SimResult } from './types.ts'
 import { ENGINE_VERSION } from './version.ts'
@@ -40,6 +41,8 @@ export interface RunOutput {
   cutPaths: number
   /** Maior corte por trajetória, em fração do estilo de vida inicial; NaN sem corte. */
   maxCut: Float64Array
+  /** Anos com corte por trajetória (só conta trajetórias com corte; NaN sem corte). */
+  cutYears: Float64Array
   /** Patrimônio paths × (T + 1), quando pedido. */
   wealth: Float64Array | null
   /** Multiplicador do estilo de vida paths × T, quando pedido. */
@@ -91,6 +94,7 @@ export function runPaths(
   const wealth = opts.keepWealth ? new Float64Array(n * (T + 1)) : null
   const mults = opts.collectLifestyle ? new Float64Array(n * T) : null
   const maxCut = new Float64Array(n)
+  const cutYears = new Float64Array(n)
   const st: GuardrailState = { mult: 1, wr0: Number.NaN, cut: false }
   let successCount = 0
   let legacyCount = 0
@@ -102,7 +106,7 @@ export function runPaths(
     resetGuardrails(st)
     let W = W0
     let failed = false
-    let anyCut = false
+    let yearsCut = 0
     let minMult = 1
     if (wealth) wealth[i * (T + 1)] = W
     for (let t = 0; t < T; t++) {
@@ -117,7 +121,7 @@ export function runPaths(
       if (!failed) {
         if (rulesOn && retired) {
           applyGuardrails(rules, st, W, ref ? ref[t] : 0, t, T, base[t], lifestyle[t])
-          if (st.cut) anyCut = true
+          if (st.cut) yearsCut++
           if (st.mult < minMult) minMult = st.mult
         }
         const F = base[t] - lifestyle[t] * st.mult
@@ -132,23 +136,30 @@ export function runPaths(
     }
     if (!failed) successCount++
     if (legacy > 0 && W >= legacy) legacyCount++
-    if (anyCut) {
+    if (yearsCut > 0) {
       cutPaths++
       maxCut[i] = Math.max(0, 1 - minMult)
+      cutYears[i] = yearsCut
     } else {
       maxCut[i] = Number.NaN
+      cutYears[i] = Number.NaN
     }
   }
 
-  return { paths: n, successCount, legacyCount, sumLogR, sumLogExpected, cutPaths, maxCut, wealth, lifestyleMultipliers: mults }
+  return { paths: n, successCount, legacyCount, sumLogR, sumLogExpected, cutPaths, maxCut, cutYears, wealth, lifestyleMultipliers: mults }
 }
 
 export function summarize(input: SimInput, opt: SimOptions, plan: Plan, out: RunOutput): SimResult {
   const { T } = plan
   const n = out.paths
   const percentiles = wealthPercentiles(out.wealth as Float64Array, n, T)
+  // P10 zera no fim do ano em que o déficit não foi coberto: a idade é a desse ano (D-013).
   const zeroAt = percentiles.p10.findIndex((v) => v <= 0)
+  const depletionAge = zeroAt < 0 ? null : plan.ages[Math.max(0, zeroAt - 1)]
   const cuts = out.maxCut.filter((v) => !Number.isNaN(v))
+  const cutYears = out.cutYears.filter((v) => !Number.isNaN(v))
+  const expectedCompositeReturn = Math.exp(out.sumLogExpected / (n * T)) - 1
+  const required = requiredReturn(plan.W0, fullPlanFlows(plan), plan.legacy)
   return {
     engineVersion: ENGINE_VERSION,
     cmaVersion: input.cma.version,
@@ -164,11 +175,14 @@ export function summarize(input: SimInput, opt: SimOptions, plan: Plan, out: Run
     successProbability: out.successCount / n,
     legacyProbability: plan.legacy > 0 ? out.legacyCount / n : null,
     compositeReturn: Math.exp(out.sumLogR / (n * T)) - 1,
-    expectedCompositeReturn: Math.exp(out.sumLogExpected / (n * T)) - 1,
+    expectedCompositeReturn,
+    requiredReturn: required,
+    slack: slack(expectedCompositeReturn, required),
     percentiles,
-    depletionAge: zeroAt < 0 ? null : plan.ages[zeroAt],
+    depletionAge,
     cutProbability: plan.rules.enabled ? out.cutPaths / n : null,
     medianMaxCut: plan.rules.enabled && cuts.length > 0 ? median(cuts) : null,
+    medianCutYears: plan.rules.enabled && cutYears.length > 0 ? median(cutYears) : null,
     ...(out.lifestyleMultipliers ? { lifestyleMultipliers: out.lifestyleMultipliers } : {}),
     warnings: plan.warnings,
   }

@@ -21,6 +21,13 @@ describe('T11 gasto flexível', () => {
         expect(on.cutProbability).toBeGreaterThan(0)
       })
 
+      it('conta os anos com corte, só entre a aposentadoria e os últimos anos sem corte', () => {
+        const cutWindow = T - noCutLastYears - retiredFrom
+        expect(on.medianCutYears).toBeGreaterThanOrEqual(1)
+        expect(on.medianCutYears).toBeLessThanOrEqual(cutWindow)
+        expect(on.medianMaxCut).toBeGreaterThanOrEqual(0)
+      })
+
       it('estilo de vida sempre entre o piso e o teto, e igual ao plano antes da aposentadoria', () => {
         for (let i = 0; i < on.paths; i++) {
           for (let t = 0; t < T; t++) {
@@ -44,5 +51,6 @@ describe('T11 gasto flexível', () => {
   it('com regras desligadas não há corte nem métricas de corte', () => {
     expect(off.cutProbability).toBeNull()
     expect(off.medianMaxCut).toBeNull()
+    expect(off.medianCutYears).toBeNull()
   })
 })

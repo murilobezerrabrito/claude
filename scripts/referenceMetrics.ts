@@ -42,7 +42,7 @@ export function computeMetrics(input: SimInput, paths: number, seed: number): Re
     retornoCompostoLiquido: off.expectedCompositeReturn,
     benchmarkComLegado: withLegacy.rate,
     benchmarkSemLegado: withoutLegacy.rate,
-    folga: off.expectedCompositeReturn - withLegacy.rate,
+    folga: off.slack ?? Number.NaN,
     probSucessoSemRegras: off.successProbability,
     probLegadoSemRegras: off.legacyProbability ?? Number.NaN,
     patrimonioMediano95SemRegras: off.percentiles.p50[off.T],

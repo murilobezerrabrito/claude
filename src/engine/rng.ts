@@ -1,8 +1,29 @@
 // Gerador de números aleatórios com semente: xoshiro128** (Blackman e Vigna), estado inicial por splitmix32.
 // Uniformes com 53 bits de precisão; normais por Box-Muller, usando os dois valores de cada par.
+// Sequências (streams): cada par (semente, sequência) começa num estado próprio. O motor usa uma sequência
+// por trajetória, para que o sorteio do ano t de uma trajetória não dependa do horizonte (D-020).
 
 function rotl(x: number, k: number): number {
   return (x << k) | (x >>> (32 - k))
+}
+
+/** Finalizador do MurmurHash3: bijeção em 32 bits que espalha os bits. */
+function fmix32(x: number): number {
+  let h = x >>> 0
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b)
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35)
+  return (h ^ (h >>> 16)) >>> 0
+}
+
+// Estado do splitmix32, usado só durante `reseed` (síncrono), para não criar uma função por trajetória.
+let splitmixState = 0
+
+function splitmixNext(): number {
+  splitmixState = (splitmixState + 0x9e3779b9) | 0
+  let z = splitmixState
+  z = Math.imul(z ^ (z >>> 16), 0x21f0aaad)
+  z = Math.imul(z ^ (z >>> 15), 0x735a2d97)
+  return (z ^ (z >>> 15)) >>> 0
 }
 
 export class Rng {
@@ -13,21 +34,22 @@ export class Rng {
   private spare = 0
   private hasSpare = false
 
-  constructor(seed: number) {
+  constructor(seed: number, stream = 0) {
+    this.reseed(seed, stream)
+  }
+
+  /** Reinicia o gerador na sequência `stream` da semente, sem criar um objeto novo. */
+  reseed(seed: number, stream = 0): void {
     if (!Number.isInteger(seed)) throw new RangeError('A semente precisa ser um inteiro.')
+    if (!Number.isInteger(stream) || stream < 0) throw new RangeError('A sequência precisa ser um inteiro maior ou igual a zero.')
+    this.hasSpare = false
     // splitmix32 espalha a semente pelos 128 bits de estado (nunca todo zero).
-    let state = seed >>> 0
-    const next = (): number => {
-      state = (state + 0x9e3779b9) | 0
-      let z = state
-      z = Math.imul(z ^ (z >>> 16), 0x21f0aaad)
-      z = Math.imul(z ^ (z >>> 15), 0x735a2d97)
-      return (z ^ (z >>> 15)) >>> 0
-    }
-    this.s0 = next()
-    this.s1 = next()
-    this.s2 = next()
-    this.s3 = next()
+    splitmixState = seed >>> 0
+    if (stream > 0) splitmixState = (splitmixState ^ fmix32(stream ^ 0x5bd1e995)) >>> 0
+    this.s0 = splitmixNext()
+    this.s1 = splitmixNext()
+    this.s2 = splitmixNext()
+    this.s3 = splitmixNext()
   }
 
   /** Inteiro sem sinal de 32 bits. */

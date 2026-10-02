@@ -140,7 +140,7 @@ function drawClassReturns(p: ClassParams, rng: Rng, g: Float64Array, out: Float6
 }
 
 /**
- * Sorteia o mercado de todas as trajetórias. Os sorteios não dependem do plano da família,
+ * Sorteia o mercado de todas as trajetórias. Os sorteios não dependem do plano da família nem do horizonte,
  * então cenários e bisseções com a mesma semente usam exatamente os mesmos números (números aleatórios comuns).
  */
 export function generateMarket(
@@ -158,6 +158,8 @@ export function generateMarket(
   const grossPre = new Float64Array(paths * T)
   const grossPost = weightsPost ? new Float64Array(paths * T) : null
   for (let i = 0; i < paths; i++) {
+    // Uma sequência por trajetória: o ano t da trajetória i é o mesmo para qualquer horizonte.
+    rng.reseed(seed, i + 1)
     for (let t = 0; t < T; t++) {
       drawClassReturns(p, rng, g, r)
       let pre = 0

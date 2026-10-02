@@ -139,12 +139,30 @@ export function buildPlan(input: SimInput): Plan {
   if (couple.length === 0) throw new EngineInputError('sem_titular', 'O plano precisa de um titular.')
   const titular = couple.find((p) => p.role === 'titular') ?? couple[0]
   const youngest = couple.reduce((a, b) => (b.birthDate > a.birthDate ? b : a))
-  const horizonAge = sc.horizonAge ?? h.horizonAge
-  if (!Number.isInteger(horizonAge)) throw new EngineInputError('horizonte_invalido', 'A idade-limite do horizonte precisa ser um número inteiro.')
   const age0 = startYear - birthYear(youngest)
-  const T = horizonAge - age0
-  if (T < 1) throw new EngineInputError('horizonte_invalido', `A idade-limite (${horizonAge}) já foi atingida.`)
   const titularAge0 = startYear - birthYear(titular)
+  const lastYearFor = (person: Person, age: number, what: string): number => {
+    if (!Number.isInteger(age)) throw new EngineInputError('horizonte_invalido', `A idade-limite de ${what} precisa ser um número inteiro.`)
+    return birthYear(person) + age - 1
+  }
+
+  // Último ano simulado do plano oficial: o mais longo entre a idade-limite da família e a meta de padrão de vida (D-021).
+  let planLastYear = lastYearFor(youngest, h.horizonAge, 'horizonte')
+  for (const goal of hd.goals.filter((g) => g.kind === 'padrao_de_vida' && g.targetAge !== undefined)) {
+    const person = goal.personId === undefined ? youngest : hd.people.find((p) => p.id === goal.personId)
+    if (!person) throw new EngineInputError('meta_invalida', `A meta de padrão de vida cita a pessoa "${goal.personId}", que não está no plano.`)
+    const goalLastYear = lastYearFor(person, goal.targetAge as number, 'meta de padrão de vida')
+    if (goalLastYear !== planLastYear) {
+      warnings.push(`A meta de padrão de vida (${person.name}, ${goal.targetAge} anos) não coincide com o horizonte da família; foi usado o mais longo.`)
+      planLastYear = Math.max(planLastYear, goalLastYear)
+    }
+  }
+  // O "E se?" muda a idade-limite do membro mais jovem do casal.
+  const lastYear = sc.horizonAge === undefined ? planLastYear : lastYearFor(youngest, sc.horizonAge, 'horizonte')
+  const T = lastYear - startYear + 1
+  if (T < 1) throw new EngineInputError('horizonte_invalido', 'A idade-limite do horizonte já foi atingida.')
+  /** Fluxos que cobrem o fim do horizonte do plano acompanham um horizonte mais longo no "E se?" (D-019). */
+  const extendToHorizon = (to: number): number => (to >= planLastYear && lastYear > planLastYear ? Math.max(to, lastYear) : to)
 
   // Aposentadoria do titular. Sem idade informada, o titular já é considerado aposentado.
   const planRetirementAge = titular.retirementAge ?? null
@@ -192,11 +210,11 @@ export function buildPlan(input: SimInput): Plan {
 
   function addCashFlow(cf: CashFlow): void {
     let amount = cf.annualAmountReal
-    let to = cf.endYear
     requireAmount(amount, cf.name)
     if (!Number.isInteger(cf.startYear) || !Number.isInteger(cf.endYear)) {
       throw new EngineInputError('fluxo_invalido', `Anos inválidos no fluxo "${cf.name}".`)
     }
+    let to = extendToHorizon(cf.endYear)
     switch (cf.kind) {
       case 'renda':
       case 'dividendos':
@@ -246,10 +264,13 @@ export function buildPlan(input: SimInput): Plan {
   for (const [id, year] of sales) {
     const asset = hd.otherAssets.find((a) => a.id === id)
     if (!asset) continue
-    let value = asset.netSaleValue
+    const value = asset.netSaleValue
     if (value === undefined) {
-      value = asset.value
-      warnings.push(`O valor líquido de venda de "${asset.name}" não foi informado; foi usado o valor declarado.`)
+      // Sem o valor líquido de custos e impostos, a venda não entra (D-015): o valor declarado superestimaria a entrada.
+      throw new EngineInputError(
+        'venda_sem_valor_liquido',
+        `Para simular a venda de "${asset.name}", o banker precisa informar o valor líquido de custos e impostos.`,
+      )
     }
     requireAmount(value, asset.name)
     inflows[year - startYear] += value
@@ -274,8 +295,15 @@ export function buildPlan(input: SimInput): Plan {
   const rules: SpendingRules = { ...hd.rules, enabled: sc.rulesEnabled ?? hd.rules.enabled, mode: sc.rulesMode ?? hd.rules.mode }
   validateRules(rules)
 
-  const legacyGoal = hd.goals.find((g) => g.kind === 'legado')?.amount
-  const legacy = sc.legacyMin ?? h.legacyMin ?? legacyGoal ?? 0
+  // Legado: o maior entre o do cadastro da família e o da meta, com aviso se divergirem (D-021).
+  const legacyGoals = hd.goals.filter((g) => g.kind === 'legado' && g.amount !== undefined).map((g) => g.amount as number)
+  const planLegacyCandidates = [...(h.legacyMin === undefined ? [] : [h.legacyMin]), ...legacyGoals]
+  for (const v of planLegacyCandidates) requireAmount(v, 'legado mínimo')
+  const planLegacy = Math.max(0, ...planLegacyCandidates)
+  if (new Set(planLegacyCandidates).size > 1) {
+    warnings.push('O legado mínimo do cadastro não coincide com a meta de legado; foi usado o maior.')
+  }
+  const legacy = sc.legacyMin ?? planLegacy
   requireAmount(legacy, 'legado mínimo')
 
   const ages = Array.from({ length: T + 1 }, (_, t) => age0 + t)

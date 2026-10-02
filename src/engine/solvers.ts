@@ -82,10 +82,9 @@ export function sustainableSpending(original: SimInput, opts: SolverOptions): Su
   if (probability(SPENDING_K_MAX, confirmPaths) >= target) {
     return { status: 'acima_do_maximo', multiplier: null, monthlySpending: null, currentMonthlySpending: current, probability: probability(SPENDING_K_MAX, confirmPaths) }
   }
-  let k = SPENDING_K_MIN
-  if (probability(SPENDING_K_MAX, searchPaths) < target && probability(SPENDING_K_MIN, searchPaths) >= target) {
-    k = bisect(SPENDING_K_MIN, SPENDING_K_MAX, searchPaths)
-  }
+  // Busca com 2.000 trajetórias quando o intervalo [0,3; 3] também vale para elas; senão, direto com todas.
+  const searchBracketOk = probability(SPENDING_K_MAX, searchPaths) < target && probability(SPENDING_K_MIN, searchPaths) >= target
+  let k = bisect(SPENDING_K_MIN, SPENDING_K_MAX, searchBracketOk ? searchPaths : confirmPaths)
   // Confirmação com todas as trajetórias; se não confirmar, refina com elas abaixo do valor da busca.
   if (probability(k, confirmPaths) < target) k = bisect(SPENDING_K_MIN, k, confirmPaths)
   return { status: 'ok', multiplier: k, monthlySpending: k * current, currentMonthlySpending: current, probability: probability(k, confirmPaths) }
@@ -98,7 +97,11 @@ export interface EarliestRetirement {
   probability: number | null
 }
 
-/** Menor idade de aposentadoria do titular, da idade atual até 75, com probabilidade ≥ alvo. */
+/**
+ * Menor idade de aposentadoria do titular, da idade atual até 75, com probabilidade ≥ alvo: bisseção nas idades
+ * inteiras (D-022). Sem regras de gasto flexível, aposentar mais tarde nunca piora uma trajetória, então a
+ * probabilidade é monótona na idade e a bisseção acha a menor idade.
+ */
 export function earliestRetirement(original: SimInput, opts: SolverOptions): EarliestRetirement {
   const input = solverInput(original, opts)
   const target = opts.target ?? DEFAULT_TARGET_PROBABILITY
@@ -108,10 +111,17 @@ export function earliestRetirement(original: SimInput, opts: SolverOptions): Ear
   const market = marketFor(input, plan0, paths, opts.seed)
   const currentAge = plan0.titularAges[0]
   if (currentAge > MAX_RETIREMENT_AGE) throw new EngineInputError('aposentadoria_invalida', 'O titular já passou da idade máxima de aposentadoria do "E se?".')
-  for (let age = currentAge; age <= MAX_RETIREMENT_AGE; age++) {
-    const plan = buildPlan(withScenario(input, { retirementAge: age }))
-    const p = runPaths(plan, market, { paths }).successCount / paths
-    if (p >= target) return { status: 'ok', age, probability: p }
+  const probability = (age: number): number =>
+    runPaths(buildPlan(withScenario(input, { retirementAge: age })), market, { paths }).successCount / paths
+  if (probability(MAX_RETIREMENT_AGE) < target) return { status: 'nenhuma_idade', age: null, probability: null }
+  // Invariante: hi atinge o alvo; lo é a idade atual ou uma idade que não atinge.
+  let lo = currentAge
+  let hi = MAX_RETIREMENT_AGE
+  if (probability(lo) >= target) return { status: 'ok', age: lo, probability: probability(lo) }
+  while (hi - lo > 1) {
+    const mid = Math.floor((lo + hi) / 2)
+    if (probability(mid) >= target) hi = mid
+    else lo = mid
   }
-  return { status: 'nenhuma_idade', age: null, probability: null }
+  return { status: 'ok', age: hi, probability: probability(hi) }
 }

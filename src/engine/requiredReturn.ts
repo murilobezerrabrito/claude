@@ -1,6 +1,8 @@
 // Benchmark pessoal (SPEC, "Benchmark pessoal"): o menor retorno real constante que sustenta o plano.
 // Determinístico, com a mesma convenção de fluxo do motor: déficit no início do ano, superávit no fim.
 
+import type { RequiredReturnResult } from './types.ts'
+
 /** Um ano da convenção de fluxo. Quem chama confere antes se W + F < 0 (falha). */
 export function stepWealth(W: number, F: number, R: number): number {
   return F >= 0 ? W * (1 + R) + F : (W + F) * (1 + R)
@@ -45,14 +47,8 @@ export function sustains(W0: number, flows: Float64Array, r: number, legacy: num
   return W >= legacy
 }
 
-export type RequiredReturnStatus = 'ok' | 'folga_total' | 'inviavel'
-
-export interface RequiredReturn {
-  status: RequiredReturnStatus
-  /** r* em fração (0,0298 = IPCA + 2,98%); null quando o plano se sustenta até com −5% ou nem 20% basta. */
-  rate: number | null
-  message: string | null
-}
+export type { RequiredReturnStatus } from './types.ts'
+export type RequiredReturn = RequiredReturnResult
 
 export const REQUIRED_RETURN_MIN = -0.05
 export const REQUIRED_RETURN_MAX = 0.2
@@ -74,4 +70,9 @@ export function requiredReturn(W0: number, flows: Float64Array, legacy: number):
     else lo = mid
   }
   return { status: 'ok', rate: hi, message: null }
+}
+
+/** Folga = retorno composto esperado do perfil, líquido de taxa, menos r*. Nunca use a média aritmética aqui. */
+export function slack(expectedCompositeReturn: number, required: RequiredReturnResult): number | null {
+  return required.rate === null ? null : expectedCompositeReturn - required.rate
 }

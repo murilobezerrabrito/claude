@@ -58,15 +58,47 @@ describe('hipóteses do "E se?"', () => {
     expect(at(tarde.income, 2039)).toBe(84_000)
   })
 
-  it('venda de imóvel entra no ano escolhido e encerra o aluguel daquele imóvel', () => {
+  it('venda de imóvel entra no ano escolhido, pelo valor líquido, e encerra o aluguel daquele imóvel', () => {
     const praia = buildPlan(andradeInput({ propertySales: [{ propertyId: 'casa-praia', year: 2030 }] }))
     expect(at(praia.inflows, 2030)).toBe(3_200_000)
-    const sala = buildPlan(andradeInput({ propertySales: [{ propertyId: 'sala', year: 2040 }] }))
-    expect(at(sala.inflows, 2040)).toBe(1_200_000)
+    const input = andradeInput({ propertySales: [{ propertyId: 'sala', year: 2040 }] })
+    input.household.otherAssets.find((a) => a.id === 'sala')!.netSaleValue = 1_100_000
+    const sala = buildPlan(input)
+    expect(at(sala.inflows, 2040)).toBe(1_100_000)
     expect(at(sala.income, 2039)).toBe(84_000)
     expect(at(sala.income, 2040)).toBe(0)
-    expect(sala.warnings.some((w) => w.includes('valor líquido'))).toBe(true)
     expect(() => buildPlan(andradeInput({ propertySales: [{ propertyId: 'apto', year: 2030 }] }))).toThrowError(/não vendável/)
+  })
+
+  it('venda sem valor líquido informado é recusada, em vez de usar o valor declarado', () => {
+    expect(() => buildPlan(andradeInput({ propertySales: [{ propertyId: 'sala', year: 2040 }] }))).toThrowError(/valor líquido de custos e impostos/)
+  })
+
+  it('horizonte mais longo no "E se?" estende os fluxos que vão até o fim do plano; mais curto, corta', () => {
+    const longo = buildPlan(andradeInput({ horizonAge: 100 }))
+    expect(longo.T).toBe(50)
+    expect(at(longo.essential, 2075)).toBe(660_000)
+    expect(at(longo.lifestyle, 2075)).toBe(360_000)
+    expect(at(longo.income, 2075)).toBe(84_000) // aluguel da sala
+    expect(longo.essential.every((v) => v === 660_000)).toBe(true)
+    const curto = buildPlan(andradeInput({ horizonAge: 90 }))
+    expect(curto.T).toBe(40)
+    expect(curto.ages[40]).toBe(90)
+  })
+
+  it('metas conflitantes: usa o horizonte mais longo e o maior legado, com aviso', () => {
+    const input = andradeInput()
+    input.household.goals = [
+      { kind: 'padrao_de_vida', personId: 'helena', targetAge: 98 },
+      { kind: 'legado', amount: 4_000_000 },
+    ]
+    const p = buildPlan(input)
+    expect(p.T).toBe(48)
+    expect(p.legacy).toBe(4_000_000)
+    expect(p.warnings).toHaveLength(2)
+    expect(buildPlan(andradeInput()).warnings).toHaveLength(0)
+    input.household.goals = [{ kind: 'padrao_de_vida', personId: 'ninguem', targetAge: 95 }]
+    expect(() => buildPlan(input)).toThrowError(/não está no plano/)
   })
 
   it('gastos mensais, multiplicador de gasto e renda por fonte', () => {

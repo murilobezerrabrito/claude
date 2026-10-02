@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import choques from '../../data/choques.json'
 import { buildPlan, fullPlanFlows } from '../plan.ts'
-import { projectWealth } from '../requiredReturn.ts'
+import { projectWealth, requiredReturn } from '../requiredReturn.ts'
 import { simulate } from '../simulate.ts'
 import type { ShockPreset, SimResult } from '../types.ts'
 import { andradeInput, cma, flatCma, OPT, profiles, syntheticInput } from './helpers.ts'
@@ -120,5 +120,52 @@ describe('T12 choques', () => {
   it.each(presets.map((p) => [p.name, p] as const))('cenário pronto "%s" reduz a probabilidade', (_name, preset) => {
     const shocked = simulate(andradeInput({ rulesEnabled: false, shocks: [preset] }), OPT)
     expect(shocked.successProbability).toBeLessThan(base.successProbability)
+  })
+})
+
+describe('horizonte', () => {
+  it('números aleatórios comuns: com os mesmos fluxos, as faixas até o fim do horizonte menor são idênticas', () => {
+    const a = simulate(andradeInput({ rulesEnabled: false }), OPT)
+    const b = simulate(andradeInput({ rulesEnabled: false, horizonAge: 96 }), OPT)
+    expect(b.T).toBe(a.T + 1)
+    for (const key of ['p10', 'p25', 'p50', 'p75', 'p90'] as const) {
+      expect(b.percentiles[key].slice(0, a.T + 1)).toEqual(a.percentiles[key])
+    }
+  })
+
+  it('horizonte mais longo nunca aumenta a probabilidade nem reduz o benchmark pessoal', () => {
+    let previousP = 1
+    let previousR = -Infinity
+    let previousR0 = -Infinity
+    for (const horizonAge of [90, 95, 96, 97, 100, 105]) {
+      const input = andradeInput({ rulesEnabled: false, horizonAge })
+      const res = simulate(input, OPT)
+      expect(res.successProbability).toBeLessThanOrEqual(previousP)
+      const r = res.requiredReturn.rate as number
+      expect(r).toBeGreaterThanOrEqual(previousR)
+      const plan = buildPlan(input)
+      const r0 = requiredReturn(plan.W0, fullPlanFlows(plan), 0).rate as number
+      expect(r0).toBeGreaterThanOrEqual(previousR0)
+      previousP = res.successProbability
+      previousR = r
+      previousR0 = r0
+    }
+  })
+})
+
+describe('idade de esgotamento e benchmark no resultado', () => {
+  it('é a idade do ano em que o déficit não foi coberto', () => {
+    // R$ 1 mi, déficit de R$ 300 mil, retorno zero: cobre os anos 0, 1 e 2 e falha no ano 3 (aos 88 anos).
+    const res = simulate(syntheticInput({ W0: 1_000_000, years: 10, deficit: 300_000, cma: flatCma(0, 0) }), { paths: 1000, seed: 5 })
+    expect(res.ages[0]).toBe(85)
+    expect(res.depletionAge).toBe(88)
+    expect(simulate(andradeInput(), OPT).depletionAge).toBeNull()
+  })
+
+  it('o resultado traz o benchmark pessoal e a folga com o retorno composto esperado', () => {
+    const res = simulate(andradeInput(), OPT)
+    expect(res.requiredReturn.status).toBe('ok')
+    expect(Math.abs((res.requiredReturn.rate as number) - 0.0298)).toBeLessThan(0.0001)
+    expect(res.slack).toBeCloseTo(res.expectedCompositeReturn - (res.requiredReturn.rate as number), 12)
   })
 })

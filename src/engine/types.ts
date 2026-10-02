@@ -216,13 +216,31 @@ export interface SimResult {
   /** Retorno composto esperado do perfil, líquido de taxa e sem choques (usado na folga e na trajetória de referência). */
   expectedCompositeReturn: number
   percentiles: Percentiles
-  /** Idade (do mais jovem do casal) em que o P10 chega a zero; null = não esgota. */
+  /** Benchmark pessoal com o legado do cenário (determinístico, plano completo, sem regras de gasto flexível). */
+  requiredReturn: RequiredReturnResult
+  /** Folga = retorno composto esperado do perfil (líquido de taxa) − benchmark pessoal; null sem r* numérico. */
+  slack: number | null
+  /**
+   * Idade (do mais jovem do casal) no ano em que o cenário ruim (P10) deixa de cobrir o déficit: o último ano
+   * antes de o P10 chegar a zero. null = não esgota.
+   */
   depletionAge: number | null
   /** Com regras ligadas: % das trajetórias com algum corte. null com regras desligadas. */
   cutProbability: number | null
   /** Mediana do maior corte entre as trajetórias com corte, em fração do estilo de vida inicial. */
   medianMaxCut: number | null
+  /** Mediana do número de anos com corte entre as trajetórias com corte. */
+  medianCutYears: number | null
   /** Multiplicador do estilo de vida por trajetória e ano (paths × T), só com `collectLifestyle`. */
   lifestyleMultipliers?: Float64Array
   warnings: string[]
+}
+
+export type RequiredReturnStatus = 'ok' | 'folga_total' | 'inviavel'
+
+export interface RequiredReturnResult {
+  status: RequiredReturnStatus
+  /** r* em fração (0,0298 = IPCA + 2,98%); null quando o plano se sustenta até com −5% ou nem 20% basta. */
+  rate: number | null
+  message: string | null
 }
