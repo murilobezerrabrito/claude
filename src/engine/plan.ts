@@ -31,7 +31,10 @@ export interface Plan {
   retirementAge: number | null
   legacy: number
   fee: number
-  profileId: string
+  /** De onde vêm os pesos: perfil de alocação ou pesos explícitos por classe (carteira atual). */
+  weightsSource: WeightsSource
+  /** Perfil simulado; null com pesos explícitos. */
+  profileId: string | null
   weightsPre: Float64Array
   weightsPost: Float64Array | null
   /** Σ_k w_k δ_{t,k} por ano, com os pesos de antes e de depois da aposentadoria. */
@@ -80,20 +83,52 @@ function eventYears(ev: PlanEvent): number[] {
   return years
 }
 
-function weightVector(weights: Record<string, number>, codes: string[], profileName: string): Float64Array {
+/** Pesos por classe na ordem das premissas. `owner` diz de quem são os pesos ("do perfil Moderado"). */
+function weightVector(weights: Record<string, number>, codes: string[], owner: string): Float64Array {
   const w = new Float64Array(codes.length)
   let sum = 0
   for (const [code, value] of Object.entries(weights)) {
     const k = codes.indexOf(code)
-    if (k < 0) throw new EngineInputError('peso_classe_desconhecida', `O perfil ${profileName} tem peso para a classe ${code}, que não está nas premissas.`)
-    if (!Number.isFinite(value) || value < 0) throw new EngineInputError('peso_invalido', `Peso inválido para ${code} no perfil ${profileName}.`)
+    if (k < 0) throw new EngineInputError('peso_classe_desconhecida', `Os pesos ${owner} têm a classe ${code}, que não está nas premissas.`)
+    if (!Number.isFinite(value) || value < 0) throw new EngineInputError('peso_invalido', `Peso inválido para ${code} nos pesos ${owner}.`)
     w[k] = value
     sum += value
   }
   if (Math.abs(sum - 1) > WEIGHT_SUM_TOL) {
-    throw new EngineInputError('pesos_nao_somam_1', `Os pesos do perfil ${profileName} somam ${(sum * 100).toFixed(2)}%, e precisam somar 100%.`)
+    throw new EngineInputError('pesos_nao_somam_1', `Os pesos ${owner} somam ${(sum * 100).toFixed(2)}%, e precisam somar 100%.`)
   }
   return w
+}
+
+export type WeightsSource = 'perfil' | 'pesos'
+
+interface PortfolioWeights {
+  weightsSource: WeightsSource
+  profileId: string | null
+  weightsPre: Float64Array
+  weightsPost: Float64Array | null
+}
+
+/**
+ * Pesos da carteira no motor. Ordem: pesos ou perfil do cenário ("E se?"), depois os pesos explícitos da família
+ * (carteira atual), depois o perfil da família. Pesos explícitos não têm conjunto depois da aposentadoria.
+ */
+function portfolioWeights(input: SimInput, sc: Scenario, codes: string[]): PortfolioWeights {
+  const h = input.household.household
+  if (sc.weights !== undefined && sc.profileId !== undefined) {
+    throw new EngineInputError('carteira_ambigua', 'O cenário informa um perfil e pesos explícitos ao mesmo tempo: escolha só um.')
+  }
+  const explicit = sc.weights ?? (sc.profileId === undefined ? h.weights : undefined)
+  if (explicit !== undefined) {
+    return { weightsSource: 'pesos', profileId: null, weightsPre: weightVector(explicit, codes, 'da carteira informada'), weightsPost: null }
+  }
+  const profile = profileFor(input.profiles, sc.profileId ?? h.profileId)
+  return {
+    weightsSource: 'perfil',
+    profileId: profile.id,
+    weightsPre: weightVector(profile.weightsPre, codes, `do perfil ${profile.name}`),
+    weightsPost: profile.weightsPost ? weightVector(profile.weightsPost, codes, `do perfil ${profile.name}`) : null,
+  }
 }
 
 function validateRules(r: SpendingRules): void {
@@ -124,7 +159,7 @@ export function profileFor(profiles: Profile[], profileId: string): Profile {
 }
 
 export function buildPlan(input: SimInput): Plan {
-  const { household: hd, cma, profiles } = input
+  const { household: hd, cma } = input
   const sc: Scenario = input.scenario ?? {}
   const warnings: string[] = []
   const h = hd.household
@@ -279,12 +314,8 @@ export function buildPlan(input: SimInput): Plan {
   const base = new Float64Array(T)
   for (let t = 0; t < T; t++) base[t] = income[t] + inflows[t] - essential[t] - outflows[t]
 
-  // Carteira: pesos do perfil, taxa de gestão e choques.
-  const profileId = sc.profileId ?? h.profileId
-  const profile = profileFor(profiles, profileId)
-  const codes = cma.classes.map((c) => c.code)
-  const weightsPre = weightVector(profile.weightsPre, codes, profile.name)
-  const weightsPost = profile.weightsPost ? weightVector(profile.weightsPost, codes, profile.name) : null
+  // Carteira: pesos (perfil ou explícitos), taxa de gestão e choques.
+  const { weightsSource, profileId, weightsPre, weightsPost } = portfolioWeights(input, sc, cma.classes.map((c) => c.code))
   if (!Number.isFinite(h.feeRate) || h.feeRate < 0 || h.feeRate >= 0.1) {
     throw new EngineInputError('taxa_invalida', 'Taxa de gestão inválida: precisa estar entre 0% e 10% ao ano.')
   }
@@ -324,6 +355,7 @@ export function buildPlan(input: SimInput): Plan {
     retirementAge,
     legacy,
     fee: h.feeRate,
+    weightsSource,
     profileId,
     weightsPre,
     weightsPost,

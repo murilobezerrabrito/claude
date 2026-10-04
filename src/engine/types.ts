@@ -119,6 +119,12 @@ export interface HouseholdData {
     /** Data de referência das posições (AAAA-MM-DD); o ano dela é o ano 0. */
     referenceDate: string
     profileId: string
+    /**
+     * Pesos explícitos por código de classe (somam 1): a carteira atual dos clientes AI
+     * (`households.weights_source = carteira_atual`). Quando informados, valem no lugar dos pesos do perfil,
+     * sem pesos diferentes depois da aposentadoria.
+     */
+    weights?: Record<string, number>
     suitability?: string
     feeRate: number
     horizonAge: number
@@ -157,7 +163,10 @@ export interface Scenario {
   /** Aportes ou resgates pontuais, somados aos eventos do plano. */
   extraEvents?: PlanEvent[]
   propertySales?: { propertyId: string; year: number }[]
+  /** Perfil de alocação simulado. Não pode vir junto com `weights`. */
   profileId?: string
+  /** Pesos explícitos por classe (somam 1), no lugar do perfil. Não pode vir junto com `profileId`. */
+  weights?: Record<string, number>
   /** Choque genérico do 1º ano (0 a −0,30): inteiro na classe mais volátil, proporcional à volatilidade nas demais classes de risco. */
   firstYearShock?: number
   shocks?: ShockPreset[]

@@ -4,8 +4,9 @@
 
 - **Rota 2 adotada** em 02/10/2026 (D-024): app para os clientes AI; relatório mensal da gestão para os clientes CADM. A documentação foi atualizada para a nova rota; o `docs/SPEC.md` é a fonte única, e `docs/ROTA-2.md` fica como registro da mudança.
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
-- **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002 e D-026). Não há pull request aberto.
-- **Próximo passo:** Fase 1, relatório de exemplo sem servidor, numa conversa nova (`/clear`, depois `/fase 1`). Ela começa pelas quatro mudanças de "Motor no ciclo mensal"; a dos sorteios alinhados por trajetória já está parcialmente feita (D-020).
+- **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapa 1 (pesos explícitos) concluída.
+- **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026 e D-028). Não há pull request aberto.
+- **Próximo passo:** etapa 2 da Fase 1, sorteios alinhados por trajetória e ano (testes 16 e 17).
 
 ### Comandos de teste
 
@@ -13,7 +14,7 @@
 npm install
 npm run typecheck     # tsc -b: motor (só ES2023), interface, testes e scripts
 npm run lint          # ESLint; barra imports externos e imports sem .ts no motor
-npm test              # Vitest: 91 testes, incluindo T01 a T14 (~13 s)
+npm test              # Vitest: 96 testes, incluindo T01 a T15 (~15 s)
 npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 ```
@@ -23,10 +24,36 @@ npm run reference     # Família Andrade com 50.000 trajetórias contra referenc
 | Fase | O quê | Branch | Portão | Status |
 |---|---|---|---|---|
 | 0 | Fundação e motor, sem servidor | `fase-0-motor` | Testes 1 a 14 passando, `npm run reference` dentro das tolerâncias e `revisor-motor` sem divergências abertas | **Cumprido** (02/10/2026) |
-| 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` | Testes do motor e `npm run reference` com os resultados novos; testes da ponte (hashes dos extremos e soma em trajetórias); `revisor-motor` sem divergências; PDF de out/2026 da Andrade aprovado por Murilo e Alex | Próxima |
+| 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` | Testes do motor e `npm run reference` com os resultados novos; testes da ponte (hashes dos extremos e soma em trajetórias); `revisor-motor` sem divergências; PDF de out/2026 da Andrade aprovado por Murilo e Alex | Em andamento |
 | 2 | Ciclo mensal interno, com dados reais | `fase-2-ciclo-mensal` | pgTAP passando; família CADM real anonimizada importada, conferida e com relatório aprovado; textos do relatório aprovados por compliance; rodada de todas as famílias CADM em menos de 20 minutos | Pendente |
 | 3 | App dos clientes AI | `fase-3-app-ai` | Tela inicial em 375 px e tema escuro; "E se?" em menos de 1 s num celular intermediário; vazamento do papel cliente_ai bloqueado; uso de ponta a ponta com contas fictícias | Pendente |
 | 4 | Piloto e operação | `fase-4-piloto` | Dois fechamentos sem erro de conferência e retorno da gestão e dos clientes do piloto | Pendente |
+
+## Fase 1: andamento
+
+Plano aprovado por Murilo em 04/10/2026. Etapas, uma por commit:
+
+| # | Etapa | Status |
+|---|---|---|
+| 1 | Motor: pesos explícitos (T15) | Concluída |
+| 2 | Motor: sorteios alinhados por trajetória e ano (T16, T17) | Pendente |
+| 3a | Referência em Python atualizada (mudança isolada) | Pendente |
+| 3b | Motor: passo de 12 meses (T18) | Pendente |
+| 4 | Plano corrigido pelo IPCA e entradas do mês (`src/report`) | Pendente |
+| 5 | Fechamentos fictícios de set e out/2026 | Pendente |
+| 6 | Rentabilidade do mês (T20) | Pendente |
+| 7 | Rodada oficial e ponte (T19) | Pendente |
+| 8 | Textos, formatação e números congelados | Pendente |
+| 9 | PDF de sete páginas | Pendente |
+| 10 | Modo apresentação | Pendente |
+
+Pontos de parada combinados: (A) testes antigos que dependem da convenção anual, mostrados antes de alterar; (B) divergências do `revisor-motor`, mostradas antes de corrigir; (C) PDF de out/2026 para Murilo e Alex aprovarem.
+
+### Etapa 1: pesos explícitos
+
+- `weights` no cadastro da família e no cenário (D-029); `Plan.weightsSource` diz a origem e `Plan.profileId` fica null com pesos explícitos.
+- Teste 15 (`pesos.test.ts`): com os pesos do perfil, o resultado é idêntico, bit a bit, ao do `profileId` (com e sem gasto flexível), menos o hash das entradas.
+- `npm run reference`: as 11 métricas saíram idênticas, bit a bit, às de antes da mudança. A versão do motor segue 0.2.0, porque nenhum número mudou.
 
 ## Fase 0: o que foi feito
 
