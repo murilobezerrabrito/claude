@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ProbabilityBand } from '../../engine/metrics.ts'
 import type { Bridge, BridgeStepId } from '../attribution.ts'
-import { BAND_COLORS, benchmarkSentence, bridgeSentence, factorPhrase, medianSentence, readingSentence, reportFooter, slackSentence } from '../texts.ts'
+import { BAND_COLORS, benchmarkSentence, bridgeSentence, factorPhrase, medianSentence, methodologyParagraphs, readingSentence, reportFooter, slackSentence, stepDescription } from '../texts.ts'
 import type { ExternalFlow } from '../types.ts'
 
 const plain = (s: string) => s.replace(/\u00a0/g, ' ')
@@ -61,9 +61,13 @@ function allSentences(): string[] {
       const b = bridge(main === 'atualizacao_do_metodo' ? 'mercado' : main, -181, flows)
       out.push(bridgeSentence(b, { from: band, to }), benchmarkSentence(b, 0.038) ?? '')
       out.push(factorPhrase(main, flows))
+      for (const nominal of [-0.021, 0.015]) for (const planned of [62_248, -40_000]) {
+        out.push(stepDescription(main, { nominalReturn: nominal, plannedFlow: planned, ipcaMonth: 0.004, flows, planBaseMonth: '2026-10', cmaVersion: 'ilustrativa-2026-10' }))
+      }
     }
   }
   out.push(medianSentence({ horizonAge: 95, medianFinal: 4_266_658 }), medianSentence({ horizonAge: 95, medianFinal: 0 }))
+  out.push(...methodologyParagraphs({ paths: 10_000, feeRate: 0.008, horizonAge: 95 }))
   for (const status of ['ok', 'folga_total', 'inviavel'] as const) {
     for (const [e, r] of [[0.039, 0.038], [0.035, 0.038], [0.038, 0.038]]) out.push(slackSentence({ expectedReturn: e, requiredReturn: r, status }))
   }
@@ -109,6 +113,16 @@ describe('textos automáticos', () => {
     expect(plain(benchmarkSentence(bridge('plano', -38, []), 0.0362) as string)).toBe(
       'O retorno que o plano precisa foi de IPCA + 3,2% a.a. para IPCA + 3,6% a.a., principalmente pela mudança no plano (+0,38 p.p.).',
     )
+  })
+
+  it('descrição dos passos da ponte', () => {
+    const ctx = { nominalReturn: -0.021, plannedFlow: 62_248, ipcaMonth: 0.004, flows: [{ kind: 'resgate' as const, amount: 300_000, date: '2026-10-15' }], planBaseMonth: '2026-10', cmaVersion: 'ilustrativa-2026-10' }
+    expect(plain(stepDescription('passagem_do_tempo', ctx))).toBe(
+      'Um mês a mais no calendário do plano: patrimônio e plano corrigidos pelo IPCA do mês (0,40%), com a entrada de R$ 62 mil que o plano previa para o mês.',
+    )
+    expect(stepDescription('mercado', ctx)).toBe('Rentabilidade da carteira no mês (−2,1%, antes da inflação) no lugar do IPCA.')
+    expect(plain(stepDescription('aportes_e_resgates', ctx))).toBe('Resgate de R$ 300 mil em 15/10/2026. O patrimônio passa a ser o do fechamento.')
+    expect(stepDescription('plano', ctx)).toMatch(/revisada em out\/2026/)
   })
 
   it('margem de segurança e rodapé', () => {

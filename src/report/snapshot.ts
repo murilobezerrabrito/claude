@@ -61,6 +61,8 @@ export interface ReportSnapshot {
   refMonth: string
   refDate: string
   run: Pick<OfficialRun, 'engineVersion' | 'cmaVersion' | 'planVersionId' | 'seed' | 'paths' | 'inputsHash'>
+  /** Versão do plano em vigor no mês e o seu mês-base (última revisão). */
+  planVersion: { id: string; baseMonth: string }
   summary: {
     probability: number
     probabilityWithRules: number | null
@@ -77,6 +79,10 @@ export interface ReportSnapshot {
     horizonAge: number
     depletionAge: number | null
     medianFinal: number
+    /** Custo anual da carteira (`fee_rate`). */
+    feeRate: number
+    /** IPCA do mês de referência. */
+    ipcaMonth: number | null
   }
   bridge: MonthAttribution
   performance: { month: MonthReturn | null; summary: PerformanceSummary | null }
@@ -87,10 +93,12 @@ export interface ReportSnapshot {
     profileName: string | null
     otherAssets: { name: string; value: number; inSimulation: boolean }[]
   }
+  /** Idades do membro mais jovem do casal, em anos com fração de meses (eixo do gráfico da página 5). */
   trajectory: {
     /** Patrimônio simulado em cada fechamento, em reais da data de referência. */
     realized: { month: string; age: number; wealth: number }[]
-    ages: number[]
+    /** Idade em cada ponto projetado: a data de referência e o fim de cada passo. */
+    pointAges: number[]
     years: number[]
     percentiles: Percentiles
     markers: { age: number; label: string }[]
@@ -111,9 +119,9 @@ export interface ReportSnapshot {
   }
 }
 
-/** Idade completa no fim do mês (ano, mês 1 a 12) de quem nasceu em `birthDate` (AAAA-MM-DD). */
+/** Idade em anos, com fração de meses, no fim do mês (ano, mês 1 a 12) de quem nasceu em `birthDate` (AAAA-MM-DD). */
 const ageAt = (birthDate: string, year: number, month: number) =>
-  year - Number(birthDate.slice(0, 4)) - (month < Number(birthDate.slice(5, 7)) ? 1 : 0)
+  (year * 12 + month - (Number(birthDate.slice(0, 4)) * 12 + Number(birthDate.slice(5, 7)))) / 12
 
 export function buildReportSnapshot(args: ReportSnapshotArgs): ReportSnapshot {
   const { data, refMonth } = args
@@ -161,6 +169,9 @@ export function buildReportSnapshot(args: ReportSnapshotArgs): ReportSnapshot {
     const m = p.closing.refDate.slice(0, 7)
     return { month: m, age: ageAt(youngest.birthDate, Number(m.slice(0, 4)), Number(m.slice(5, 7))), wealth: runs[i].wealth * ipcaFactor(data.ipca, m, refMonth) }
   })
+  const refAge = ageAt(youngest.birthDate, Number(refMonth.slice(0, 4)), Number(refMonth.slice(5, 7)))
+  const pointAges = [refAge]
+  for (const m of plan.stepMonths) pointAges.push(pointAges[pointAges.length - 1] + m / 12)
   const markers: { age: number; label: string }[] = []
   const titular = people.find((p) => p.role === 'titular') ?? youngest
   if (plan.retirementYear !== null) {
@@ -190,6 +201,7 @@ export function buildReportSnapshot(args: ReportSnapshotArgs): ReportSnapshot {
     refMonth,
     refDate: current.refDate,
     run: { engineVersion: run.engineVersion, cmaVersion: run.cmaVersion, planVersionId: run.planVersionId, seed: run.seed, paths: run.paths, inputsHash: run.inputsHash },
+    planVersion: { id: pkg.planVersion.id, baseMonth: pkg.planVersion.baseMonth },
     summary: {
       probability: run.probability,
       probabilityWithRules: run.probabilityWithRules,
@@ -206,6 +218,8 @@ export function buildReportSnapshot(args: ReportSnapshotArgs): ReportSnapshot {
       horizonAge,
       depletionAge: run.depletionAge,
       medianFinal,
+      feeRate: data.household.feeRate,
+      ipcaMonth: data.ipca[refMonth] ?? null,
     },
     bridge,
     performance: { month: lastReturn, summary: history.length > 0 ? performanceSummary(history, refMonth) : null },
@@ -215,7 +229,7 @@ export function buildReportSnapshot(args: ReportSnapshotArgs): ReportSnapshot {
       profileName: profile ? profile.name : null,
       otherAssets: month.input.household.otherAssets.map((a) => ({ name: a.name, value: a.value, inSimulation: a.inSimulation === true })),
     },
-    trajectory: { realized, ages: run.ages, years: run.years, percentiles: run.percentiles, markers },
+    trajectory: { realized, pointAges, years: run.years, percentiles: run.percentiles, markers: markers.sort((a, b) => a.age - b.age) },
     scenarios,
     comment: args.comment,
     assumptions: { version: cma.version, label: cma.label ?? null, nu: cma.nu, classes: cma.classes.map((c) => ({ code: c.code, name: c.name, mu: c.mu, vol: c.vol })) },

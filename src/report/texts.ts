@@ -5,11 +5,14 @@
 import type { ProbabilityBand } from '../engine/metrics.ts'
 import type { RequiredReturnStatus } from '../engine/types.ts'
 import {
+  formatDate,
   formatFrequency,
   formatMoney,
   formatMonthLabel,
+  formatPercent,
   formatPp,
   formatRealReturn,
+  formatSignedPercent,
   formatTenthsPercent,
   formatTenthsPp,
   monthName,
@@ -128,6 +131,48 @@ export function benchmarkSentence(b: Bridge, to: number | null): string | null {
     `O retorno que o plano precisa foi de ${formatRealReturn(from)} para ${formatRealReturn(to)}, ` +
     `principalmente ${factorPhrase(main.id, b.externalFlows)} (${formatPp(main.requiredReturnDelta ?? 0, 2)}).`
   )
+}
+
+/** O que cada passo da ponte trocou, para a tabela da página 3. */
+export function stepDescription(
+  id: BridgeStepId,
+  ctx: { nominalReturn: number; plannedFlow: number; ipcaMonth: number; flows: ExternalFlow[]; planBaseMonth: string; cmaVersion: string },
+): string {
+  switch (id) {
+    case 'atualizacao_do_metodo':
+      return 'O número do mês passado refeito com a versão atual do cálculo.'
+    case 'passagem_do_tempo': {
+      const flow = ctx.plannedFlow >= 0 ? `a entrada de ${formatMoney(ctx.plannedFlow)}` : `a saída de ${formatMoney(-ctx.plannedFlow)}`
+      return `Um mês a mais no calendário do plano: patrimônio e plano corrigidos pelo IPCA do mês (${formatPercent(ctx.ipcaMonth, 2)}), com ${flow} que o plano previa para o mês.`
+    }
+    case 'mercado':
+      return `Rentabilidade da carteira no mês (${formatSignedPercent(ctx.nominalReturn)}, antes da inflação) no lugar do IPCA.`
+    case 'aportes_e_resgates': {
+      const list = ctx.flows.map((f) => `${f.kind === 'aporte' ? 'Aporte' : 'Resgate'} de ${formatMoney(f.amount)}${f.date ? ` em ${formatDate(f.date)}` : ' (data aproximada)'}`)
+      return `${list.length > 0 ? list.join('; ') : 'Sem aportes nem resgates no mês'}. O patrimônio passa a ser o do fechamento.`
+    }
+    case 'carteira':
+      return 'Pesos por classe e custo da carteira no fechamento.'
+    case 'plano':
+      return `Versão do plano em vigor, revisada em ${formatMonthLabel(ctx.planBaseMonth)}: fluxos, metas, horizonte e bens declarados.`
+    case 'premissas':
+      return `Premissas vigentes no fechamento (${ctx.cmaVersion}).`
+  }
+}
+
+/** Metodologia em linguagem simples (página 7). */
+export function methodologyParagraphs(o: { paths: number; feeRate: number; horizonAge: number }): string[] {
+  const paths = o.paths.toLocaleString('pt-BR')
+  return [
+    `Simulamos ${paths} cenários para o rendimento de cada classe de ativo, ano a ano, até o fim do horizonte do plano (${o.horizonAge} anos). ` +
+      'Os cenários seguem as premissas de retorno, oscilação e correlação do comitê de investimentos e incluem anos muito ruins com mais frequência do que uma curva normal.',
+    'A chance de o plano dar certo é a parte dos cenários em que o dinheiro dura até o fim do horizonte, pagando todos os gastos do plano. ' +
+      'Ao lado, a chance com ajustes de gasto em anos ruins considera que o estilo de vida cai em anos ruins e sobe em anos bons, dentro dos limites do plano.',
+    'O retorno que o plano precisa é o menor rendimento acima da inflação, igual em todos os anos, que paga o plano inteiro e deixa o legado mínimo. ' +
+      `A margem de segurança é o retorno esperado da carteira, já descontado o custo de ${formatPercent(o.feeRate, 2)} ao ano, menos o retorno que o plano precisa.`,
+    'O que mudou no mês é separado trocando um fator de cada vez, com os mesmos cenários, do número publicado no mês anterior até o número deste mês.',
+    'Todos os valores estão em reais de hoje, corrigidos pela inflação (IPCA). O cenário ruim é o 10º pior de cada 100, o do meio é a mediana e o bom é o 10º melhor.',
+  ]
 }
 
 // Avisos (rascunhos do SPEC para compliance aprovar), sem mudança de texto.
