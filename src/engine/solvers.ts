@@ -61,7 +61,9 @@ export function sustainableSpending(original: SimInput, opts: SolverOptions): Su
   const k0 = input.scenario?.spendingMultiplier ?? 1
   const plan0 = buildPlan(input)
   const market = marketFor(input, plan0, confirmPaths, opts.seed)
-  const current = (plan0.essential[0] + plan0.lifestyle[0]) / 12
+  // Gasto mensal atual: o do primeiro mês simulado, como no "E se?" (D-032); sem gasto nesse mês, a média do passo 0.
+  const firstMonth = plan0.firstMonthEssential + plan0.firstMonthLifestyle
+  const current = firstMonth > 0 ? firstMonth : (plan0.essential[0] + plan0.lifestyle[0]) / plan0.stepMonths[0]
 
   const probability = (k: number, paths: number): number => {
     const plan = buildPlan(withScenario(input, { spendingMultiplier: k0 * k }))

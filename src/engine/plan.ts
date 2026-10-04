@@ -39,6 +39,9 @@ export interface Plan {
   base: Float64Array
   /** Fluxo líquido do plano completo no primeiro mês simulado (a ponte o usa na passagem do tempo). */
   firstMonthFlow: number
+  /** Gasto essencial e de estilo de vida do primeiro mês simulado: o gasto mensal "atual" do "E se?" (D-032). */
+  firstMonthEssential: number
+  firstMonthLifestyle: number
   /** Primeiro passo já aposentado: a aposentadoria foi antes do início do passo (T se cai depois do horizonte). */
   retiredFrom: number
   retirementYear: number | null
@@ -204,18 +207,19 @@ function validateRules(r: SpendingRules): void {
 }
 
 /**
- * Escala o vetor para que o passo 0 valha `target` (valor anual), mantendo a proporção dos demais passos.
- * Sem esse gasto no passo 0, o valor vale para todos os passos, pro rata pelos meses de cada faixa.
+ * Gasto mensal do "E se?" ("do atual" = o do primeiro mês simulado, D-032): escala o vetor para que o primeiro mês
+ * (a última faixa) valha `monthly`, mantendo a proporção dos demais. Sem esse gasto no primeiro mês, o valor vale para
+ * todos os meses.
  */
-function scaleToFirstYear(arr: Float64Array, ranges: Range[], target: number, what: string, warnings: string[]): void {
-  requireAmount(target, what)
-  const first = arr[0]
+function scaleToFirstMonth(arr: Float64Array, ranges: Range[], monthly: number, what: string, warnings: string[]): void {
+  requireAmount(monthly, what)
+  const first = arr[arr.length - 1]
   if (first > 0) {
-    const f = target / first
+    const f = monthly / first
     for (let t = 0; t < arr.length; t++) arr[t] *= f
   } else {
-    for (let t = 0; t < arr.length; t++) arr[t] = (target * ranges[t].len) / 12
-    warnings.push(`O plano não tinha ${what} no primeiro ano; o valor do "E se?" foi aplicado a todos os anos.`)
+    for (let t = 0; t < arr.length; t++) arr[t] = monthly * ranges[t].len
+    warnings.push(`O plano não tinha ${what} no primeiro mês; o valor do "E se?" foi aplicado a todos os meses.`)
   }
 }
 
@@ -373,8 +377,8 @@ export function buildPlan(input: SimInput): Plan {
     }
   }
 
-  if (sc.essentialMonthly !== undefined) scaleToFirstYear(essential, ranges, sc.essentialMonthly * 12, 'gasto essencial', warnings)
-  if (sc.lifestyleMonthly !== undefined) scaleToFirstYear(lifestyle, ranges, sc.lifestyleMonthly * 12, 'gasto de estilo de vida', warnings)
+  if (sc.essentialMonthly !== undefined) scaleToFirstMonth(essential, ranges, sc.essentialMonthly, 'gasto essencial', warnings)
+  if (sc.lifestyleMonthly !== undefined) scaleToFirstMonth(lifestyle, ranges, sc.lifestyleMonthly, 'gasto de estilo de vida', warnings)
   const k = sc.spendingMultiplier ?? 1
   if (!Number.isFinite(k) || k < 0) throw new EngineInputError('multiplicador_invalido', 'Multiplicador de gasto inválido.')
   if (k !== 1) {
@@ -394,15 +398,25 @@ export function buildPlan(input: SimInput): Plan {
       continue
     }
     // Evento único e cada ocorrência de "a cada N anos": no seu mês (sem mês, julho).
+    // Data antes do primeiro mês simulado (D-031): a saída dos 12 meses anteriores pode não ter acontecido e entra no
+    // primeiro mês; a entrada, ou a saída mais antiga, sai do cálculo. Nos dois casos, aviso para a conferência.
     const month = ev.month ?? DEFAULT_EVENT_MONTH
-    let past = 0
+    let carried = 0
+    let dropped = 0
     for (const y of years) {
       const index = monthIndex(y, month)
-      if (index < firstMonth) past++
-      else addAtMonth(target, ranges, index, ev.amountReal)
+      if (index >= firstMonth) addAtMonth(target, ranges, index, ev.amountReal)
+      else if (ev.direction === 'saida' && index >= firstMonth - 12) {
+        addAtMonth(target, ranges, firstMonth, ev.amountReal)
+        carried++
+      } else dropped++
     }
-    if (past > 0) {
-      warnings.push(`O evento "${ev.name}" tem ${past === 1 ? 'uma data' : `${past} datas`} antes do primeiro mês simulado, fora do cálculo.`)
+    const dates = (n: number) => (n === 1 ? 'uma data' : `${n} datas`)
+    if (carried > 0) {
+      warnings.push(`O evento "${ev.name}" tem ${dates(carried)} antes do primeiro mês simulado; a saída foi contada no primeiro mês. Confira se já aconteceu.`)
+    }
+    if (dropped > 0) {
+      warnings.push(`O evento "${ev.name}" tem ${dates(dropped)} antes do primeiro mês simulado, fora do cálculo. Confira a data.`)
     }
   }
 
@@ -468,6 +482,8 @@ export function buildPlan(input: SimInput): Plan {
     outflows: outflows.slice(0, T),
     base,
     firstMonthFlow,
+    firstMonthEssential: essential[T],
+    firstMonthLifestyle: lifestyle[T],
     retiredFrom,
     retirementYear,
     retirementAge,

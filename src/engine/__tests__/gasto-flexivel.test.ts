@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { buildPlan } from '../plan.ts'
 import { simulate } from '../simulate.ts'
 import type { RulesMode } from '../types.ts'
 import { andrade, andradeInput, OPT } from './helpers.ts'
@@ -14,7 +15,8 @@ describe('T11 gasto flexível', () => {
       const on = simulate(andradeInput({ rulesEnabled: true, rulesMode: mode }), { ...OPT, collectLifestyle: true })
       const T = on.T
       const mults = on.lifestyleMultipliers as Float64Array
-      const retiredFrom = (on.retirementYear as number) - on.startYear
+      // Primeiro passo aposentado pela regra do motor (aposentadoria antes do início do passo).
+      const { retiredFrom } = buildPlan(andradeInput({ rulesEnabled: true, rulesMode: mode }))
 
       it('regras ligadas, mesma semente: probabilidade maior ou igual à sem regras', () => {
         expect(on.successProbability).toBeGreaterThanOrEqual(off.successProbability)

@@ -108,7 +108,7 @@ export interface SpendingRules {
   floor: number
   /** Teto em fração do estilo de vida inicial. */
   cap: number
-  /** Anos finais do horizonte sem cortes. */
+  /** Passos finais do horizonte sem cortes ("últimos 15 anos" = últimos 15 passos, inclusive o passo curto). */
   noCutLastYears: number
 }
 
@@ -154,9 +154,9 @@ export interface ShockPreset {
 /** Hipóteses do "E se?", aplicadas numa cópia do plano oficial. */
 export interface Scenario {
   retirementAge?: number
-  /** Gasto essencial mensal no ano 0; os demais anos mantêm a proporção do plano. */
+  /** Gasto essencial mensal no primeiro mês simulado; os demais meses mantêm a proporção do plano (D-032). */
   essentialMonthly?: number
-  /** Gasto de estilo de vida mensal no ano 0; os demais anos mantêm a proporção do plano. */
+  /** Gasto de estilo de vida mensal no primeiro mês simulado; os demais meses mantêm a proporção do plano (D-032). */
   lifestyleMonthly?: number
   /** Multiplicador do gasto total (essencial + estilo de vida). Usado em "gastar 10% a mais" e no gasto sustentável. */
   spendingMultiplier?: number

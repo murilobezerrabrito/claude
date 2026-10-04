@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildPlan } from '../plan.ts'
+import { buildPlan, fullPlanFlows } from '../plan.ts'
+import { requiredReturn } from '../requiredReturn.ts'
 import { simulate } from '../simulate.ts'
 import type { HouseholdData, SimInput } from '../types.ts'
 import { andrade, andradeInput, cma, flatCma, OPT, profiles } from './helpers.ts'
@@ -61,7 +62,7 @@ describe('T18 passo de 12 meses', () => {
     expect(plan.income[1]).toBeCloseTo(240_000, 6)
   })
 
-  it('evento único entra no seu mês; sem mês, em julho; data antes do primeiro mês sai do cálculo com aviso', () => {
+  it('evento único entra no seu mês; sem mês, em julho', () => {
     const plan = buildPlan(
       family({
         referenceDate: '2026-09-30',
@@ -69,14 +70,56 @@ describe('T18 passo de 12 meses', () => {
         events: [
           { name: 'Com mês', direction: 'saida', amountReal: 100_000, year: 2027, month: 11, recurrence: 'unica' },
           { name: 'Sem mês', direction: 'saida', amountReal: 50_000, year: 2027, recurrence: 'unica' },
-          { name: 'Passado', direction: 'saida', amountReal: 70_000, year: 2026, month: 3, recurrence: 'unica' },
         ],
       }),
     )
     expect(plan.outflows[0]).toBe(50_000) // jul/2027 está no passo 0 (out/2026 a set/2027)
     expect(plan.outflows[1]).toBe(100_000) // nov/2027 está no passo 1
     expect(plan.outflows.reduce((a, b) => a + b, 0)).toBe(150_000)
-    expect(plan.warnings.some((w) => w.includes('"Passado"') && w.includes('antes do primeiro mês'))).toBe(true)
+    expect(plan.warnings).toHaveLength(0)
+  })
+
+  it('"a cada N anos" com mês: cada ocorrência no seu mês', () => {
+    // Dez/2027, dez/2029 e dez/2031 caem nos passos 1, 3 e 5 (passo t = out/(2026 + t) a set/(2027 + t)).
+    const plan = buildPlan(
+      family({
+        referenceDate: '2026-09-30',
+        birthDate: '1950-01-10',
+        events: [{ name: 'Reforma', direction: 'saida', amountReal: 80_000, year: 2027, endYear: 2031, month: 12, recurrence: 'a_cada_n', everyN: 2 }],
+      }),
+    )
+    expect(Array.from(plan.outflows.slice(0, 7))).toEqual([0, 80_000, 0, 80_000, 0, 80_000, 0])
+  })
+
+  it('data antes do primeiro mês (D-031): saída dos 12 meses anteriores vai para o primeiro mês; entrada e saída mais antiga saem', () => {
+    const plan = buildPlan(
+      family({
+        referenceDate: '2026-09-30',
+        birthDate: '1950-01-10',
+        events: [
+          // Sem mês em 2026: julho já passou. Pode não ter acontecido: entra em out/2026, com aviso.
+          { name: 'Viagem', direction: 'saida', amountReal: 50_000, year: 2026, recurrence: 'unica' },
+          { name: 'Obra', direction: 'saida', amountReal: 70_000, year: 2026, month: 3, recurrence: 'unica' },
+          // Mais de 12 meses antes do primeiro mês: fora do cálculo, com aviso.
+          { name: 'Antiga', direction: 'saida', amountReal: 90_000, year: 2025, month: 9, recurrence: 'unica' },
+          { name: 'Bônus', direction: 'entrada', amountReal: 40_000, year: 2026, month: 8, recurrence: 'unica' },
+          // A cada 5 anos desde 2016: 2016 e 2021 já passaram há mais de 12 meses; 2026 (julho) entra no primeiro mês; 2031 no seu mês.
+          { name: 'Carro', direction: 'saida', amountReal: 200_000, year: 2016, endYear: 2031, recurrence: 'a_cada_n', everyN: 5 },
+        ],
+      }),
+    )
+    expect(plan.outflows[0]).toBe(50_000 + 70_000 + 200_000)
+    expect(plan.outflows[4]).toBe(200_000) // jul/2031
+    expect(plan.outflows.reduce((a, b) => a + b, 0)).toBe(50_000 + 70_000 + 400_000)
+    expect(plan.inflows.reduce((a, b) => a + b, 0)).toBe(0)
+    expect(plan.firstMonthFlow).toBe(-(50_000 + 70_000 + 200_000))
+    const aviso = (nome: string, trecho: string) => plan.warnings.some((w) => w.includes(`"${nome}"`) && w.includes(trecho))
+    expect(aviso('Viagem', 'contada no primeiro mês')).toBe(true)
+    expect(aviso('Obra', 'contada no primeiro mês')).toBe(true)
+    expect(aviso('Antiga', 'fora do cálculo')).toBe(true)
+    expect(aviso('Bônus', 'fora do cálculo')).toBe(true)
+    expect(aviso('Carro', 'uma data antes do primeiro mês simulado; a saída foi contada')).toBe(true)
+    expect(aviso('Carro', '2 datas antes do primeiro mês simulado, fora do cálculo')).toBe(true)
   })
 
   it('o último passo com m < 12 meses rende (1 + R)^(m/12) − 1', () => {
@@ -87,6 +130,46 @@ describe('T18 passo de 12 meses', () => {
     expect(plan.stepMonths[0]).toBe(6)
     const res = simulate(input, { paths: 1000, seed: 1 })
     expect(res.percentiles.p50[1]).toBeCloseTo(1_000_000 * Math.sqrt(1.04), 4)
+  })
+
+  it('o benchmark também rende (1 + r)^(m/12) no passo curto', () => {
+    // Referência em dez/2026; 95 anos em jun/2028: passos de 12 e 6 meses. Sem fluxos, legado = W0 · 1,04^1,5: r* = 4%.
+    // Com o passo curto contado como ano inteiro, daria (1,04^1,5)^(1/2) − 1 ≈ 3,0%.
+    const input = family({ referenceDate: '2026-12-31', birthDate: '1933-06-10', W0: 1_000_000 })
+    input.scenario = { legacyMin: 1_000_000 * 1.04 ** 1.5 }
+    const plan = buildPlan(input)
+    expect(Array.from(plan.stepMonths)).toEqual([12, 6])
+    const r = requiredReturn(plan.W0, fullPlanFlows(plan), plan.legacy, plan.stepFrac)
+    expect(r.status).toBe('ok')
+    expect(Math.abs((r.rate as number) - 0.04)).toBeLessThan(1e-6)
+    const res = simulate(input, { paths: 1000, seed: 1 })
+    expect(Math.abs((res.requiredReturn.rate as number) - 0.04)).toBeLessThan(1e-6)
+  })
+
+  it('gasto mensal do "E se?" é o do primeiro mês simulado (D-032)', () => {
+    // Essencial de R$ 50 mil por mês em 2026 e R$ 60 mil por mês a partir de 2027; o primeiro mês (out/2026) tem R$ 50 mil.
+    const cashFlows: HouseholdData['cashFlows'] = [
+      { kind: 'gasto_essencial', name: 'Essencial 2026', annualAmountReal: 600_000, startYear: 2026, endYear: 2026 },
+      { kind: 'gasto_essencial', name: 'Essencial', annualAmountReal: 720_000, startYear: 2027, endYear: 2060 },
+    ]
+    const input = family({ referenceDate: '2026-09-30', birthDate: '1950-01-10', cashFlows })
+    const plan = buildPlan(input)
+    expect(plan.firstMonthEssential).toBeCloseTo(50_000, 6)
+    // O mesmo valor do plano não muda nada; 10% a mais no primeiro mês sobe todos os passos em 10%.
+    input.scenario = { essentialMonthly: 50_000 }
+    expect(Array.from(buildPlan(input).essential)).toEqual(Array.from(plan.essential).map((v) => expect.closeTo(v, 6)))
+    input.scenario = { essentialMonthly: 55_000 }
+    expect(buildPlan(input).essential[1]).toBeCloseTo(792_000, 6)
+    // Passo 0 curto (6 meses): o mesmo valor mensal do plano mantém os R$ 60 mil do passo.
+    const curto = family({ referenceDate: '2026-12-31', birthDate: '1932-06-10', cashFlows: [{ kind: 'gasto_essencial', name: 'Essencial', annualAmountReal: 120_000, startYear: 2027, endYear: 2027 }] })
+    curto.scenario = { essentialMonthly: 10_000 }
+    expect(buildPlan(curto).essential[0]).toBeCloseTo(60_000, 6)
+    // Sem esse gasto no primeiro mês: o valor vale para todos os meses, com aviso.
+    const depois = family({ referenceDate: '2026-09-30', birthDate: '1950-01-10', cashFlows: [cashFlows[1]] })
+    depois.scenario = { essentialMonthly: 60_000 }
+    const p = buildPlan(depois)
+    expect(p.essential[0]).toBeCloseTo(720_000, 6)
+    expect(p.warnings.some((w) => w.includes('primeiro mês'))).toBe(true)
   })
 
   it('aposentado no passo t só se a aposentadoria foi antes do início do passo', () => {
