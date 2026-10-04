@@ -32,10 +32,11 @@ describe('gasto sustentável (Quanto posso gastar?)', () => {
 
   it('quando a busca com 2.000 trajetórias não confirma o intervalo, faz a bisseção com 5.000 (não devolve k = 0,3)', () => {
     // Semente e patrimônio escolhidos para que k = 3 bata 90% com 2.000 trajetórias e não com 5.000 (calibrados
-    // nos sorteios do motor 0.3.0; se os sorteios mudarem, a pré-condição abaixo avisa e é preciso recalibrar).
+    // nos sorteios do motor 0.4.0, com o passo de 12 meses; se os sorteios mudarem, a pré-condição abaixo avisa e é
+    // preciso recalibrar).
     const edgeSeed = 3
     const input = andradeInput()
-    input.household.cadmPositionsByClass.POS = 54_425_000
+    input.household.cadmPositionsByClass.POS = 55_525_000
     const rich = (k: number, paths: number) => {
       const i = { ...input, scenario: { rulesEnabled: false, spendingMultiplier: k } }
       const plan = buildPlan(i)

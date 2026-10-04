@@ -4,7 +4,7 @@ import { buildPlan, fullPlanFlows } from '../plan.ts'
 import { projectWealth, requiredReturn } from '../requiredReturn.ts'
 import { simulate } from '../simulate.ts'
 import type { ShockPreset, SimResult } from '../types.ts'
-import { andradeInput, cma, flatCma, OPT, profiles, syntheticInput } from './helpers.ts'
+import { andradeInput, cma, flatCma, OPT, profiles, refValue, syntheticInput } from './helpers.ts'
 
 const presets = choques.presets as ShockPreset[]
 /** O resultado sem os campos que identificam a entrada (hash), para comparar cenários equivalentes. */
@@ -22,7 +22,8 @@ describe('T04 volatilidade zero', () => {
     const w = profiles.find((p) => p.id === 'moderado')!.weightsPre
     const gross = cma.classes.reduce((acc, c) => acc + w[c.code] * c.mu, 0)
     const R = (1 - plan.fee) * (1 + gross) - 1
-    const det = projectWealth(plan.W0, fullPlanFlows(plan), () => R)
+    // O último passo da Andrade tem 11 meses e rende a sua fração de ano.
+    const det = projectWealth(plan.W0, fullPlanFlows(plan), () => R, plan.stepFrac)
     for (let t = 0; t <= plan.T; t++) {
       expect(res.percentiles.p10[t]).toBeCloseTo(det.wealth[t], 2)
       expect(res.percentiles.p90[t]).toBeCloseTo(det.wealth[t], 2)
@@ -129,7 +130,9 @@ describe('horizonte', () => {
     const b = simulate(andradeInput({ rulesEnabled: false, horizonAge: 96 }), OPT)
     expect(b.T).toBe(a.T + 1)
     for (const key of ['p10', 'p25', 'p50', 'p75', 'p90'] as const) {
-      expect(b.percentiles[key].slice(0, a.T + 1)).toEqual(a.percentiles[key])
+      // Até o início do último passo do horizonte menor: com 95 anos ele tem 11 meses (out/2070 a ago/2071) e, com 96,
+      // o mesmo passo tem 12 meses, então só o ponto final difere.
+      expect(b.percentiles[key].slice(0, a.T)).toEqual(a.percentiles[key].slice(0, a.T))
     }
   })
 
@@ -165,7 +168,7 @@ describe('idade de esgotamento e benchmark no resultado', () => {
   it('o resultado traz o benchmark pessoal e a folga com o retorno composto esperado', () => {
     const res = simulate(andradeInput(), OPT)
     expect(res.requiredReturn.status).toBe('ok')
-    expect(Math.abs((res.requiredReturn.rate as number) - 0.0298)).toBeLessThan(0.0001)
+    expect(Math.abs((res.requiredReturn.rate as number) - refValue('benchmark_com_legado'))).toBeLessThan(0.0001)
     expect(res.slack).toBeCloseTo(res.expectedCompositeReturn - (res.requiredReturn.rate as number), 12)
   })
 })

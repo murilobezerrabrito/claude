@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildPlan, fullPlanFlows } from '../plan.ts'
 import { projectWealth, requiredReturn, sustains } from '../requiredReturn.ts'
 import { simulate } from '../simulate.ts'
-import { andradeInput, flatCma, syntheticInput } from './helpers.ts'
+import { andradeInput, flatCma, refValue, syntheticInput } from './helpers.ts'
 
 const constant = (value: number, years: number) => new Float64Array(years).fill(value)
 
@@ -58,11 +58,12 @@ describe('T03 bisseção do benchmark', () => {
     expect(sustains(1_000_000, flows, r - 1e-6, 0)).toBe(false)
   })
 
-  it('Família Andrade: IPCA + 2,98% com legado de R$ 3 mi e 2,77% sem legado (±0,01 p.p.)', () => {
+  it('Família Andrade: benchmark com legado de R$ 3 mi e sem legado como na referência (±0,01 p.p.)', () => {
+    // Passo de 12 meses (a partir da Fase 1): IPCA + 3,24% com legado e 3,04% sem legado.
     const plan = buildPlan(andradeInput())
     const flows = fullPlanFlows(plan)
-    expect(Math.abs((requiredReturn(plan.W0, flows, 3_000_000).rate as number) - 0.0298)).toBeLessThan(0.0001)
-    expect(Math.abs((requiredReturn(plan.W0, flows, 0).rate as number) - 0.0277)).toBeLessThan(0.0001)
+    expect(Math.abs((requiredReturn(plan.W0, flows, 3_000_000, plan.stepFrac).rate as number) - refValue('benchmark_com_legado'))).toBeLessThan(0.0001)
+    expect(Math.abs((requiredReturn(plan.W0, flows, 0, plan.stepFrac).rate as number) - refValue('benchmark_sem_legado'))).toBeLessThan(0.0001)
   })
 
   it('folga total quando o plano se sustenta até com −5%, e inviável quando nem 20% basta', () => {
