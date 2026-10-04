@@ -3,6 +3,7 @@ import dataset from '../../data/andrade-fechamentos.json'
 import { buildPlan } from '../../engine/plan.ts'
 import { correctPlan } from '../inflation.ts'
 import { buildMonthInputs, checkClosing, planVersionFor } from '../monthInputs.ts'
+import { monthReturn } from '../performance.ts'
 import type { HouseholdMonths } from '../types.ts'
 import { andrade, andradePlanV1, cma, profiles } from './helpers.ts'
 
@@ -42,11 +43,7 @@ describe('fechamentos fictícios da Família Andrade', () => {
   it('outubro/2026: resgate de R$ 300 mil em 15/10, PL conferido e rentabilidade real de cerca de −2,5%', () => {
     expect(outubro.flows).toEqual([{ date: '2026-10-15', kind: 'resgate', amount: 300_000, description: 'Resgate para reforma' }])
     for (const closing of data.closings) expect(() => checkClosing(closing)).not.toThrow()
-    // Conferência do dado com Dietz modificado (resgate no fim do dia 15: peso 16/31); o cálculo oficial é o da etapa 6.
-    const v0 = setembro.officialPl
-    const v1 = outubro.officialPl
-    const nominal = (v1 - v0 + 300_000) / (v0 - 300_000 * (16 / 31))
-    const real = (1 + nominal) / 1.004 - 1
+    const { real } = monthReturn({ refDate: outubro.refDate, startValue: setembro.officialPl, endValue: outubro.officialPl, flows: outubro.flows, ipca: data.ipca })
     expect(real).toBeGreaterThan(-0.026)
     expect(real).toBeLessThan(-0.024)
   })
