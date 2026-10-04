@@ -4,9 +4,9 @@
 
 - **Rota 2 adotada** em 02/10/2026 (D-024): app para os clientes AI; relatório mensal da gestão para os clientes CADM. A documentação foi atualizada para a nova rota; o `docs/SPEC.md` é a fonte única, e `docs/ROTA-2.md` fica como registro da mudança.
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
-- **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 (pesos explícitos), 2 (sorteios alinhados), 3a (referência em Python) e 3b (passo de 12 meses) concluídas.
+- **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 a 4 concluídas (pesos explícitos, sorteios alinhados, referência em Python, passo de 12 meses e plano corrigido pelo IPCA).
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026 e D-028). Não há pull request aberto.
-- **Próximo passo:** etapa 4 da Fase 1, plano corrigido pelo IPCA e entradas do mês em `src/report`. O ponto de parada B foi cumprido: `revisor-motor` sem divergências abertas nas etapas 1 a 3b (três rodadas).
+- **Próximo passo:** etapa 5 da Fase 1, fechamentos fictícios de set e out/2026 da Família Andrade. Ponto de parada B cumprido: `revisor-motor` sem divergências abertas nas etapas 1 a 3b (três rodadas).
 
 ### Comandos de teste
 
@@ -14,7 +14,7 @@
 npm install
 npm run typecheck     # tsc -b: motor (só ES2023), interface, testes e scripts
 npm run lint          # ESLint; barra imports externos e imports sem .ts no motor
-npm test              # Vitest: 119 testes, incluindo T01 a T18 (~17 s)
+npm test              # Vitest: 129 testes, incluindo T01 a T18 e as entradas do mês (~17 s)
 npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 ```
@@ -39,7 +39,7 @@ Plano aprovado por Murilo em 04/10/2026. Etapas, uma por commit:
 | 2 | Motor: sorteios alinhados por trajetória e ano (T16, T17) | Concluída |
 | 3a | Referência em Python atualizada (mudança isolada) | Concluída |
 | 3b | Motor: passo de 12 meses (T18) | Concluída |
-| 4 | Plano corrigido pelo IPCA e entradas do mês (`src/report`) | Pendente |
+| 4 | Plano corrigido pelo IPCA e entradas do mês (`src/report`) | Concluída |
 | 5 | Fechamentos fictícios de set e out/2026 | Pendente |
 | 6 | Rentabilidade do mês (T20) | Pendente |
 | 7 | Rodada oficial e ponte (T19) | Pendente |
@@ -147,6 +147,16 @@ Família Andrade, 50.000 trajetórias, semente 20261002 (antes = motor 0.4.0; de
 | Chance de corte, trajetória de referência | 35,80% | 36,03% | 35,81% |
 | Chance de corte, Guyton-Klinger | 99,87% | 99,88% | 99,90% |
 | Gasto sustentável com 90% | R$ 82.301 | R$ 83.327 | R$ 83.285 |
+
+### Etapa 4: plano corrigido pelo IPCA e entradas do mês
+
+- `src/report/` (novo, puro como o motor: o projeto `tsconfig.engine.json` e a regra de imports do ESLint passaram a cobrir a pasta):
+  - `types.ts`: cadastro da família (`HouseholdRecord`, com canal, origem dos pesos e semente), versão do plano (`PlanVersion`, com o mês-base) e fechamento do mês (`MonthClosing`: posições por classe, PL oficial e aportes e resgates).
+  - `inflation.ts`: IPCA acumulado do mês seguinte ao mês-base até o mês de referência (falta de IPCA é erro) e o plano corrigido, em centavos.
+  - `monthInputs.ts`: confere o fechamento (último dia do mês e PL com tolerância de 0,01%), corrige o plano, monta os pesos da carteira atual dos clientes AI e devolve as entradas do motor com a semente da família.
+  - Decisões em D-033.
+- Testes (`src/report/__tests__/entradas.test.ts`, 10 testes): o fator do IPCA e os erros; o VGBL de R$ 1,8 mi vai a R$ 1.807.200 com 0,40%; em setembro (mês-base), as entradas são idênticas às de `andrade.json`, com o mesmo hash e o mesmo resultado; em outubro, o gasto do primeiro mês fica em R$ 85 mil × 1,004 e o legado em R$ 3.012.000, sem aviso; a conferência do PL; a carteira atual com o VGBL nos pesos.
+- O motor não mudou (versão 0.5.0): `npm run reference` deu os mesmos números.
 
 ## Fase 0: o que foi feito
 
