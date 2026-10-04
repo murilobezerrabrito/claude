@@ -1,0 +1,407 @@
+{
+  "descricao": "Família Andrade (fictícia): cadastro, versões do plano, IPCA e fechamentos de set e out/2026 para o relatório de exemplo da Fase 1. Valores fictícios.",
+  "household": {
+    "id": "andrade",
+    "name": "Família Andrade (fictícia)",
+    "channel": "cadm",
+    "bankerId": "alex",
+    "profileId": "moderado",
+    "weightsSource": "perfil",
+    "suitability": "moderado",
+    "feeRate": 0.008,
+    "horizonAge": 95,
+    "seed": 20261002
+  },
+  "planVersions": [
+    {
+      "id": "andrade-v1",
+      "baseMonth": "2026-09",
+      "note": "Plano inicial, como em andrade.json.",
+      "snapshot": {
+        "legacyMin": 3000000,
+        "people": [
+          {
+            "id": "ricardo",
+            "name": "Ricardo Andrade",
+            "birthDate": "1974-03-15",
+            "sex": "M",
+            "role": "titular",
+            "retirementAge": 62
+          },
+          {
+            "id": "helena",
+            "name": "Helena Andrade",
+            "birthDate": "1976-08-02",
+            "sex": "F",
+            "role": "conjuge"
+          },
+          {
+            "id": "pedro",
+            "name": "Pedro Andrade",
+            "birthDate": "2009-05-10",
+            "sex": "M",
+            "role": "filho"
+          },
+          {
+            "id": "laura",
+            "name": "Laura Andrade",
+            "birthDate": "2012-11-21",
+            "sex": "F",
+            "role": "filho"
+          }
+        ],
+        "otherAssets": [
+          {
+            "id": "vgbl",
+            "kind": "previdencia",
+            "name": "VGBL",
+            "value": 1800000,
+            "classCode": "POS",
+            "inSimulation": true
+          },
+          {
+            "id": "apto",
+            "kind": "imovel",
+            "name": "Apartamento (residência)",
+            "value": 4500000,
+            "canBeSold": false
+          },
+          {
+            "id": "casa-praia",
+            "kind": "imovel",
+            "name": "Casa de praia",
+            "value": 3500000,
+            "canBeSold": true,
+            "netSaleValue": 3200000
+          },
+          {
+            "id": "sala",
+            "kind": "imovel",
+            "name": "Sala comercial",
+            "value": 1200000,
+            "canBeSold": true,
+            "annualIncome": 84000
+          },
+          {
+            "id": "empresa",
+            "kind": "empresa",
+            "name": "Participação na empresa da família",
+            "value": 6000000,
+            "canBeSold": false
+          }
+        ],
+        "cashFlows": [
+          {
+            "kind": "renda",
+            "name": "Pró-labore do Ricardo",
+            "annualAmountReal": 1200000,
+            "startYear": 2026,
+            "endYear": 2035
+          },
+          {
+            "kind": "dividendos",
+            "name": "Dividendos da empresa",
+            "annualAmountReal": 480000,
+            "startYear": 2026,
+            "endYear": 2035,
+            "otherAssetId": "empresa"
+          },
+          {
+            "kind": "aluguel",
+            "name": "Aluguel da sala",
+            "annualAmountReal": 84000,
+            "startYear": 2026,
+            "endYear": 2071,
+            "otherAssetId": "sala"
+          },
+          {
+            "kind": "gasto_essencial",
+            "name": "Gasto essencial",
+            "annualAmountReal": 660000,
+            "startYear": 2026,
+            "endYear": 2071
+          },
+          {
+            "kind": "gasto_estilo",
+            "name": "Estilo de vida",
+            "annualAmountReal": 360000,
+            "startYear": 2026,
+            "endYear": 2071
+          }
+        ],
+        "events": [
+          {
+            "name": "Faculdade do Pedro",
+            "direction": "saida",
+            "amountReal": 180000,
+            "year": 2027,
+            "recurrence": "anual",
+            "endYear": 2031
+          },
+          {
+            "name": "Faculdade da Laura",
+            "direction": "saida",
+            "amountReal": 180000,
+            "year": 2031,
+            "recurrence": "anual",
+            "endYear": 2035
+          },
+          {
+            "name": "Troca de carros",
+            "direction": "saida",
+            "amountReal": 400000,
+            "year": 2028,
+            "recurrence": "a_cada_n",
+            "everyN": 5,
+            "endYear": 2058
+          },
+          {
+            "name": "Entrada do apartamento do Pedro",
+            "direction": "saida",
+            "amountReal": 800000,
+            "year": 2035,
+            "recurrence": "unica"
+          }
+        ],
+        "goals": [
+          {
+            "kind": "padrao_de_vida",
+            "personId": "helena",
+            "targetAge": 95
+          },
+          {
+            "kind": "legado",
+            "amount": 3000000
+          }
+        ],
+        "rules": {
+          "enabled": true,
+          "mode": "trajetoria_referencia",
+          "lower": 0.8,
+          "upper": 1.2,
+          "cut": 0.1,
+          "raise": 0.1,
+          "floor": 0.5,
+          "cap": 1.3,
+          "noCutLastYears": 15
+        }
+      }
+    },
+    {
+      "id": "andrade-v2",
+      "baseMonth": "2026-10",
+      "note": "Plano v1 corrigido pelo IPCA de outubro (0,40%), com o estilo de vida de R$ 35 mil por mês.",
+      "snapshot": {
+        "legacyMin": 3012000,
+        "people": [
+          {
+            "id": "ricardo",
+            "name": "Ricardo Andrade",
+            "birthDate": "1974-03-15",
+            "sex": "M",
+            "role": "titular",
+            "retirementAge": 62
+          },
+          {
+            "id": "helena",
+            "name": "Helena Andrade",
+            "birthDate": "1976-08-02",
+            "sex": "F",
+            "role": "conjuge"
+          },
+          {
+            "id": "pedro",
+            "name": "Pedro Andrade",
+            "birthDate": "2009-05-10",
+            "sex": "M",
+            "role": "filho"
+          },
+          {
+            "id": "laura",
+            "name": "Laura Andrade",
+            "birthDate": "2012-11-21",
+            "sex": "F",
+            "role": "filho"
+          }
+        ],
+        "otherAssets": [
+          {
+            "id": "vgbl",
+            "kind": "previdencia",
+            "name": "VGBL",
+            "value": 1807200,
+            "classCode": "POS",
+            "inSimulation": true
+          },
+          {
+            "id": "apto",
+            "kind": "imovel",
+            "name": "Apartamento (residência)",
+            "value": 4518000,
+            "canBeSold": false
+          },
+          {
+            "id": "casa-praia",
+            "kind": "imovel",
+            "name": "Casa de praia",
+            "value": 3514000,
+            "canBeSold": true,
+            "netSaleValue": 3212800
+          },
+          {
+            "id": "sala",
+            "kind": "imovel",
+            "name": "Sala comercial",
+            "value": 1204800,
+            "canBeSold": true,
+            "annualIncome": 84336
+          },
+          {
+            "id": "empresa",
+            "kind": "empresa",
+            "name": "Participação na empresa da família",
+            "value": 6024000,
+            "canBeSold": false
+          }
+        ],
+        "cashFlows": [
+          {
+            "kind": "renda",
+            "name": "Pró-labore do Ricardo",
+            "annualAmountReal": 1204800,
+            "startYear": 2026,
+            "endYear": 2035
+          },
+          {
+            "kind": "dividendos",
+            "name": "Dividendos da empresa",
+            "annualAmountReal": 481920,
+            "startYear": 2026,
+            "endYear": 2035,
+            "otherAssetId": "empresa"
+          },
+          {
+            "kind": "aluguel",
+            "name": "Aluguel da sala",
+            "annualAmountReal": 84336,
+            "startYear": 2026,
+            "endYear": 2071,
+            "otherAssetId": "sala"
+          },
+          {
+            "kind": "gasto_essencial",
+            "name": "Gasto essencial",
+            "annualAmountReal": 662640,
+            "startYear": 2026,
+            "endYear": 2071
+          },
+          {
+            "kind": "gasto_estilo",
+            "name": "Estilo de vida",
+            "annualAmountReal": 420000,
+            "startYear": 2026,
+            "endYear": 2071
+          }
+        ],
+        "events": [
+          {
+            "name": "Faculdade do Pedro",
+            "direction": "saida",
+            "amountReal": 180720,
+            "year": 2027,
+            "recurrence": "anual",
+            "endYear": 2031
+          },
+          {
+            "name": "Faculdade da Laura",
+            "direction": "saida",
+            "amountReal": 180720,
+            "year": 2031,
+            "recurrence": "anual",
+            "endYear": 2035
+          },
+          {
+            "name": "Troca de carros",
+            "direction": "saida",
+            "amountReal": 401600,
+            "year": 2028,
+            "recurrence": "a_cada_n",
+            "everyN": 5,
+            "endYear": 2058
+          },
+          {
+            "name": "Entrada do apartamento do Pedro",
+            "direction": "saida",
+            "amountReal": 803200,
+            "year": 2035,
+            "recurrence": "unica"
+          }
+        ],
+        "goals": [
+          {
+            "kind": "padrao_de_vida",
+            "personId": "helena",
+            "targetAge": 95
+          },
+          {
+            "kind": "legado",
+            "amount": 3012000
+          }
+        ],
+        "rules": {
+          "enabled": true,
+          "mode": "trajetoria_referencia",
+          "lower": 0.8,
+          "upper": 1.2,
+          "cut": 0.1,
+          "raise": 0.1,
+          "floor": 0.5,
+          "cap": 1.3,
+          "noCutLastYears": 15
+        }
+      }
+    }
+  ],
+  "ipca": {
+    "2026-10": 0.004
+  },
+  "closings": [
+    {
+      "refDate": "2026-09-30",
+      "positionsByClass": {
+        "POS": 3000000,
+        "INF": 3000000,
+        "PRE": 600000,
+        "CRED": 1800000,
+        "MM": 1200000,
+        "ACOES": 960000,
+        "FII": 480000,
+        "INTL": 960000
+      },
+      "officialPl": 12000000,
+      "flows": []
+    },
+    {
+      "refDate": "2026-10-31",
+      "positionsByClass": {
+        "POS": 2722761.29,
+        "INF": 2910000,
+        "PRE": 585000,
+        "CRED": 1810800,
+        "MM": 1176000,
+        "ACOES": 883200,
+        "FII": 456000,
+        "INTL": 907200
+      },
+      "officialPl": 11450961.29,
+      "flows": [
+        {
+          "date": "2026-10-15",
+          "kind": "resgate",
+          "amount": 300000,
+          "description": "Resgate para reforma"
+        }
+      ]
+    }
+  ]
+}
