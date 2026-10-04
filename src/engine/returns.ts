@@ -2,7 +2,7 @@
 // Z = sqrt((ν−2)/ν) · L·G / sqrt(Q/ν), com um único Q ~ χ²_ν por vetor; r_k = exp(m_k + s_k · clip(Z_k, ±6)) − 1.
 
 import { EngineInputError } from './errors.ts'
-import { cholesky } from './linalg.ts'
+import { cholesky, validateCorrelation } from './linalg.ts'
 import { pathKeys, qStreamMix, Rng, streamMix, textKey } from './rng.ts'
 import type { Cma } from './types.ts'
 
@@ -15,7 +15,9 @@ export interface ClassParams {
   codes: string[]
   K: number
   nu: number
-  /** Fator de Cholesky K×K, linha a linha. */
+  /** Ordem canônica (por código): `order[c]` é a posição na lista das premissas da c-ésima classe em ordem de código. */
+  order: Int32Array
+  /** Fator de Cholesky K×K, linha a linha, na ordem canônica. */
   L: Float64Array
   s: Float64Array
   m: Float64Array
@@ -110,7 +112,11 @@ export function classParams(cma: Cma): ClassParams {
     }
   }
   const K = codes.length
-  const L = cholesky(cma.correlation, codes)
+  validateCorrelation(cma.correlation, codes)
+  // Cholesky na ordem dos códigos, e não na da lista: só reordenar as classes não muda nenhum retorno (D-030).
+  const order = Int32Array.from(codes.map((_, k) => k).sort((a, b) => (codes[a] < codes[b] ? -1 : 1)))
+  const sorted = Array.from(order, (k) => codes[k])
+  const L = cholesky(Array.from(order, (a) => Array.from(order, (b) => cma.correlation[a][b])), sorted)
   const s = new Float64Array(K)
   const m = new Float64Array(K)
   const streams = new Uint32Array(K * 4)
@@ -122,7 +128,7 @@ export function classParams(cma: Cma): ClassParams {
     m[k] = Math.log(1 + mu) - logMgfT(s[k], cma.nu)
     streamMix(keys[k], streams, k * 4)
   }
-  return { codes, K, nu: cma.nu, L, s, m, streams }
+  return { codes, K, nu: cma.nu, order, L, s, m, streams }
 }
 
 /**
@@ -148,15 +154,19 @@ export function drawPath(p: ClassParams, rng: Rng, pk: Uint32Array, T: number, g
   }
 }
 
-/** Retornos por classe, sem choque, do ano cujos G começam em `g[offset]` e cujo Q vale `q`. */
+/**
+ * Retornos por classe, sem choque, do ano cujos G começam em `g[offset]` e cujo Q vale `q`. G e `out` seguem a ordem
+ * da lista das premissas; a correlação é aplicada na ordem canônica.
+ */
 export function classReturns(p: ClassParams, g: Float64Array, offset: number, q: number, out: Float64Array): void {
-  const { K, nu, L, s, m } = p
+  const { K, nu, order, L, s, m } = p
   const scale = Math.sqrt((nu - 2) / q)
-  for (let k = 0; k < K; k++) {
+  for (let c = 0; c < K; c++) {
     let z = 0
-    const row = k * K
-    for (let j = 0; j <= k; j++) z += L[row + j] * g[offset + j]
+    const row = c * K
+    for (let j = 0; j <= c; j++) z += L[row + j] * g[offset + order[j]]
     z *= scale
+    const k = order[c]
     if (z > Z_CLIP) z = Z_CLIP
     else if (z < -Z_CLIP) z = -Z_CLIP
     out[k] = Math.exp(m[k] + s[k] * z) - 1

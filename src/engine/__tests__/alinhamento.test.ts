@@ -119,6 +119,23 @@ describe('T16 sorteios alinhados', () => {
     }
   })
 
+  it('só reordenar as classes: os mesmos retornos por classe e o mesmo resultado', () => {
+    const invertida = reversed(cma)
+    const pa = classParams(cma)
+    const pb = classParams(invertida)
+    for (const [i, t] of POINTS) {
+      const ra = yearDraws(pa, seed, i, t).r
+      const rb = yearDraws(pb, seed, i, t).r
+      cma.classes.forEach((c, k) => expect(rb[invertida.classes.findIndex((x) => x.code === c.code)]).toBe(ra[k]))
+    }
+    const base = andradeInput({ rulesEnabled: false })
+    const outra: SimInput = { ...andradeInput({ rulesEnabled: false }), cma: invertida }
+    const a = runPaths(buildPlan(base), marketFor(base, buildPlan(base), PATHS, seed))
+    const b = runPaths(buildPlan(outra), marketFor(outra, buildPlan(outra), PATHS, seed))
+    expect(b.successCount).toBe(a.successCount)
+    expect(b.legacyCount).toBe(a.legacyCount)
+  })
+
   it('sorteios diferentes entre classes, anos, trajetórias e sementes', () => {
     const p = classParams(cma)
     const a = yearDraws(p, seed, 3, 7)
