@@ -15,14 +15,14 @@ export default defineConfig([
   {
     // Interface (React, navegador)
     files: ['src/**/*.{ts,tsx}'],
-    ignores: ['src/engine/**'],
+    ignores: ['src/engine/**', 'src/report/**'],
     extends: [reactHooks.configs.flat.recommended, reactRefresh.configs.vite],
     languageOptions: { globals: globals.browser },
   },
   {
-    // Motor: TypeScript puro, sem dependências, imports relativos terminados em .ts
-    files: ['src/engine/**/*.ts'],
-    ignores: ['src/engine/__tests__/**'],
+    // Motor e src/report: TypeScript puro, sem dependências, imports relativos terminados em .ts
+    files: ['src/engine/**/*.ts', 'src/report/**/*.ts'],
+    ignores: ['src/engine/__tests__/**', 'src/report/__tests__/**'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -30,11 +30,11 @@ export default defineConfig([
           patterns: [
             {
               regex: '^(?!\\.\\.?/)',
-              message: 'O motor não tem dependências externas: use só imports relativos.',
+              message: 'O motor e src/report não têm dependências externas: use só imports relativos.',
             },
             {
               regex: '^\\.\\.?/.*(?<!\\.ts)$',
-              message: 'Imports do motor terminam em .ts (o Deno exige).',
+              message: 'Imports do motor e de src/report terminam em .ts (o Deno exige).',
             },
           ],
         },
