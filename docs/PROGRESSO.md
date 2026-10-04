@@ -4,9 +4,9 @@
 
 - **Rota 2 adotada** em 02/10/2026 (D-024): app para os clientes AI; relatório mensal da gestão para os clientes CADM. A documentação foi atualizada para a nova rota; o `docs/SPEC.md` é a fonte única, e `docs/ROTA-2.md` fica como registro da mudança.
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
-- **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 a 7 concluídas (pesos explícitos, sorteios alinhados, referência em Python, passo de 12 meses, plano corrigido pelo IPCA, fechamentos fictícios, rentabilidade do mês, rodada oficial e ponte).
+- **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 a 8 concluídas (motor no ciclo mensal, fechamentos fictícios, rentabilidade, rodada oficial e ponte, textos e números congelados).
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026 e D-028). Não há pull request aberto.
-- **Próximo passo:** etapa 8 da Fase 1, textos, formatação e números congelados. Ponto de parada B cumprido: `revisor-motor` sem divergências abertas nas etapas 1 a 3b (três rodadas).
+- **Próximo passo:** etapa 9 da Fase 1, o PDF de sete páginas. Ponto de parada B cumprido: `revisor-motor` sem divergências abertas nas etapas 1 a 3b (três rodadas).
 
 ### Comandos de teste
 
@@ -14,9 +14,10 @@
 npm install
 npm run typecheck     # tsc -b: motor (só ES2023), interface, testes e scripts
 npm run lint          # ESLint; barra imports externos e imports sem .ts no motor
-npm test              # Vitest: 152 testes, incluindo T01 a T20, as entradas do mês e os fechamentos fictícios (~21 s)
+npm test              # Vitest: 165 testes, incluindo T01 a T20, textos e números congelados do relatório (~25 s)
 npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
+npm run report:snapshot  # regrava src/data/relatorios/andrade-2026-10.json (relatório de exemplo, ~11 s)
 ```
 
 ## Fases e portões (Rota 2)
@@ -43,7 +44,7 @@ Plano aprovado por Murilo em 04/10/2026. Etapas, uma por commit:
 | 5 | Fechamentos fictícios de set e out/2026 | Concluída |
 | 6 | Rentabilidade do mês (T20) | Concluída |
 | 7 | Rodada oficial e ponte (T19) | Concluída |
-| 8 | Textos, formatação e números congelados | Pendente |
+| 8 | Textos, formatação e números congelados | Concluída |
 | 9 | PDF de sete páginas | Pendente |
 | 10 | Modo apresentação | Pendente |
 
@@ -197,6 +198,16 @@ Família Andrade, 10.000 trajetórias, semente 20261002:
 | Premissas | sem efeito | 0 |
 
 Em 04/10/2026, Murilo decidiu manter os dados de outubro do SPEC (estilo de vida de R$ 35 mil): o relatório de exemplo mostra a queda para a faixa vermelha, com a mudança do plano como maior fator. Para comparar: sem a mudança do estilo de vida, out/2026 daria 80,1%; com R$ 32 mil, 73,6%.
+
+### Etapa 8: textos, formatação e números congelados
+
+- `src/lib/format.ts`: formatação do SPEC (moeda resumida e exata, probabilidade e frequência, retornos, p.p., meses e datas), pura como o motor.
+- `src/report/texts.ts`: frases automáticas e avisos do SPEC (D-036). Exemplo de out/2026:
+  - "A chance foi de 86,5% para 62,0% em outubro, principalmente pela mudança no plano (−18,1 p.p.). O plano passou para a faixa vermelha."
+  - "O retorno que o plano precisa foi de IPCA + 3,2% a.a. para IPCA + 3,8% a.a., principalmente pela mudança no plano (+0,38 p.p.)."
+  - "Em 62 de cada 100 cenários o dinheiro dura até os 95. No cenário ruim, ele acaba aos 85. Vale revisar o plano na conversa do mês."
+- `src/report/snapshot.ts` e `npm run report:snapshot`: `src/data/relatorios/andrade-2026-10.json`, com tudo o que as sete páginas mostram. Cenários da conversa do mês: aposentar 3 anos antes (11,1%), crise como a de 2008 no 1º ano (49,5%) e gastar 10% a mais (27,7%).
+- Testes: `format.test.ts` (5), `textos.test.ts` (6, um deles gera mais de 500 frases e procura palavras de recomendação) e `snapshot.test.ts` (2, recalcula e compara com o arquivo).
 
 ## Fase 0: o que foi feito
 
