@@ -398,25 +398,20 @@ export function buildPlan(input: SimInput): Plan {
       continue
     }
     // Evento único e cada ocorrência de "a cada N anos": no seu mês (sem mês, julho).
-    // Data antes do primeiro mês simulado (D-031): a saída dos 12 meses anteriores pode não ter acontecido e entra no
-    // primeiro mês; a entrada, ou a saída mais antiga, sai do cálculo. Nos dois casos, aviso para a conferência.
-    const month = ev.month ?? DEFAULT_EVENT_MONTH
-    let carried = 0
-    let dropped = 0
+    // Data já passada (D-031): já aconteceu e está no patrimônio, então sai do cálculo. A exceção é a ocorrência sem
+    // mês no ano do primeiro mês simulado, com julho já passado: a data é incerta, e a saída entra no primeiro mês
+    // (a entrada sai), com aviso para a conferência informar o mês.
     for (const y of years) {
-      const index = monthIndex(y, month)
-      if (index >= firstMonth) addAtMonth(target, ranges, index, ev.amountReal)
-      else if (ev.direction === 'saida' && index >= firstMonth - 12) {
-        addAtMonth(target, ranges, firstMonth, ev.amountReal)
-        carried++
-      } else dropped++
-    }
-    const dates = (n: number) => (n === 1 ? 'uma data' : `${n} datas`)
-    if (carried > 0) {
-      warnings.push(`O evento "${ev.name}" tem ${dates(carried)} antes do primeiro mês simulado; a saída foi contada no primeiro mês. Confira se já aconteceu.`)
-    }
-    if (dropped > 0) {
-      warnings.push(`O evento "${ev.name}" tem ${dates(dropped)} antes do primeiro mês simulado, fora do cálculo. Confira a data.`)
+      const index = monthIndex(y, ev.month ?? DEFAULT_EVENT_MONTH)
+      if (index >= firstMonth) {
+        addAtMonth(target, ranges, index, ev.amountReal)
+      } else if (ev.month === undefined && y === yearOf(firstMonth)) {
+        if (ev.direction === 'saida') addAtMonth(target, ranges, firstMonth, ev.amountReal)
+        warnings.push(
+          `O evento "${ev.name}" não tem mês e julho de ${y} já passou: ` +
+            `${ev.direction === 'saida' ? 'a saída foi contada no primeiro mês simulado' : 'a entrada ficou fora do cálculo'}. Informe o mês na conferência.`,
+        )
+      }
     }
   }
 

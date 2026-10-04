@@ -6,7 +6,7 @@
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
 - **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 (pesos explícitos), 2 (sorteios alinhados), 3a (referência em Python) e 3b (passo de 12 meses) concluídas.
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026 e D-028). Não há pull request aberto.
-- **Próximo passo:** segunda rodada do `revisor-motor` sobre as correções das divergências (ponto de parada B); depois, etapa 4, plano corrigido pelo IPCA em `src/report`.
+- **Próximo passo:** terceira rodada do `revisor-motor`, sobre a correção da divergência da 2ª rodada (ponto de parada B); depois, etapa 4, plano corrigido pelo IPCA em `src/report`.
 
 ### Comandos de teste
 
@@ -14,7 +14,7 @@
 npm install
 npm run typecheck     # tsc -b: motor (só ES2023), interface, testes e scripts
 npm run lint          # ESLint; barra imports externos e imports sem .ts no motor
-npm test              # Vitest: 118 testes, incluindo T01 a T18 (~17 s)
+npm test              # Vitest: 119 testes, incluindo T01 a T18 (~17 s)
 npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 ```
@@ -123,8 +123,10 @@ As 11 métricas ficam dentro das tolerâncias da referência nova. A queda da ch
 | 1 | Só reordenar as classes mudava os retornos (Cholesky na ordem da lista) | Ordem fixa pelos códigos | `returns.ts`: correlação na ordem dos códigos; texto da D-030 corrigido; novo caso no teste 16. Motor 0.5.0 |
 | 2 | Gasto mensal do "E se?" comparado com o total do passo 0 (com o essencial a partir de 2027, o mesmo valor do plano subia o gasto em 1/3) | Gasto do primeiro mês simulado | `plan.ts` e `solvers.ts` (D-032); casos no teste 18 |
 | 3 | Testes não pegavam o (1 + r)^(m/12) no benchmark nem "a cada N anos" com mês | Sem consulta (só testes) | Teste 18: benchmark com passo curto (r* = 4%, que viraria 3,0% sem a fração), "a cada N anos" com mês e datas passadas |
-| 4 | Evento com data passada saía do cálculo, inclusive saídas | Saídas ficam, entradas saem | `plan.ts` (D-031, item 3): saída dos 12 meses anteriores vai para o primeiro mês, com aviso; entrada e saída mais antiga saem, com aviso |
+| 4 | Evento com data passada saía do cálculo, inclusive saídas | Saídas ficam, entradas saem (revista na 2ª rodada, abaixo) | `plan.ts` (D-031, item 3) |
 | 5 | Tabela de referência do SPEC com os números da Fase 0 | Atualizar | `docs/SPEC.md`: tabela e frase do Guyton-Klinger com os números novos, mesmas tolerâncias |
+
+2ª rodada, em 04/10/2026: as divergências 1, 2, 3 e 5 foram confirmadas como fechadas, e o índice indireto em `classReturns` não piorou o tempo. A correção da 4 abriu uma divergência nova: levar ao primeiro mês toda saída dos 12 meses anteriores contava de novo, por até 12 fechamentos, uma saída que já aconteceu (na Andrade, a troca de carros de jul/2028 tirava 5,6 p.p. da chance de ago/2028 a jun/2029, e a ponte mostraria um aporte fantasma de R$ 400 mil por mês). Murilo escolheu "só a data incerta volta": a ocorrência sem mês no ano do primeiro mês simulado, com julho já passado, leva a saída ao primeiro mês (a entrada sai), com aviso; qualquer outra data passada sai do cálculo, sem aviso (D-031, item 3). O teste 18 ganhou o caso do ciclo mensal com a Andrade em datas de referência de jun/2028 a jul/2029.
 
 Também: o teste 11 passou a usar a regra de aposentadoria do motor, comentários de "anos" viraram passos em `types.ts`, e o caso de borda do gasto sustentável foi recalibrado (POS de R$ 55.550.000).
 

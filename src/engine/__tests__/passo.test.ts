@@ -91,35 +91,57 @@ describe('T18 passo de 12 meses', () => {
     expect(Array.from(plan.outflows.slice(0, 7))).toEqual([0, 80_000, 0, 80_000, 0, 80_000, 0])
   })
 
-  it('data antes do primeiro mês (D-031): saída dos 12 meses anteriores vai para o primeiro mês; entrada e saída mais antiga saem', () => {
+  it('data já passada (D-031): sai do cálculo; sem mês no ano corrente, com julho passado, a saída vai para o primeiro mês', () => {
     const plan = buildPlan(
       family({
         referenceDate: '2026-09-30',
         birthDate: '1950-01-10',
         events: [
-          // Sem mês em 2026: julho já passou. Pode não ter acontecido: entra em out/2026, com aviso.
+          // Sem mês em 2026: julho já passou e a data é incerta. A saída entra em out/2026; a entrada sai. Com aviso.
           { name: 'Viagem', direction: 'saida', amountReal: 50_000, year: 2026, recurrence: 'unica' },
+          { name: 'Prêmio', direction: 'entrada', amountReal: 30_000, year: 2026, recurrence: 'unica' },
+          // Com mês, ou de anos anteriores: já aconteceu, fora do cálculo, sem aviso.
           { name: 'Obra', direction: 'saida', amountReal: 70_000, year: 2026, month: 3, recurrence: 'unica' },
-          // Mais de 12 meses antes do primeiro mês: fora do cálculo, com aviso.
-          { name: 'Antiga', direction: 'saida', amountReal: 90_000, year: 2025, month: 9, recurrence: 'unica' },
           { name: 'Bônus', direction: 'entrada', amountReal: 40_000, year: 2026, month: 8, recurrence: 'unica' },
-          // A cada 5 anos desde 2016: 2016 e 2021 já passaram há mais de 12 meses; 2026 (julho) entra no primeiro mês; 2031 no seu mês.
+          { name: 'Antiga', direction: 'saida', amountReal: 90_000, year: 2025, recurrence: 'unica' },
+          // A cada 5 anos desde 2016, sem mês: 2016 e 2021 saem; 2026 (julho passado) entra no primeiro mês; 2031 no seu mês.
           { name: 'Carro', direction: 'saida', amountReal: 200_000, year: 2016, endYear: 2031, recurrence: 'a_cada_n', everyN: 5 },
         ],
       }),
     )
-    expect(plan.outflows[0]).toBe(50_000 + 70_000 + 200_000)
+    expect(plan.outflows[0]).toBe(50_000 + 200_000)
     expect(plan.outflows[4]).toBe(200_000) // jul/2031
-    expect(plan.outflows.reduce((a, b) => a + b, 0)).toBe(50_000 + 70_000 + 400_000)
+    expect(plan.outflows.reduce((a, b) => a + b, 0)).toBe(50_000 + 400_000)
     expect(plan.inflows.reduce((a, b) => a + b, 0)).toBe(0)
-    expect(plan.firstMonthFlow).toBe(-(50_000 + 70_000 + 200_000))
+    expect(plan.firstMonthFlow).toBe(-(50_000 + 200_000))
+    expect(plan.warnings).toHaveLength(3)
     const aviso = (nome: string, trecho: string) => plan.warnings.some((w) => w.includes(`"${nome}"`) && w.includes(trecho))
-    expect(aviso('Viagem', 'contada no primeiro mês')).toBe(true)
-    expect(aviso('Obra', 'contada no primeiro mês')).toBe(true)
-    expect(aviso('Antiga', 'fora do cálculo')).toBe(true)
-    expect(aviso('Bônus', 'fora do cálculo')).toBe(true)
-    expect(aviso('Carro', 'uma data antes do primeiro mês simulado; a saída foi contada')).toBe(true)
-    expect(aviso('Carro', '2 datas antes do primeiro mês simulado, fora do cálculo')).toBe(true)
+    expect(aviso('Viagem', 'a saída foi contada no primeiro mês simulado')).toBe(true)
+    expect(aviso('Prêmio', 'a entrada ficou fora do cálculo')).toBe(true)
+    expect(aviso('Carro', 'julho de 2026 já passou')).toBe(true)
+  })
+
+  it('no ciclo mensal, a saída sem mês volta só até o fim do ano e nada é contado de novo depois', () => {
+    // Família Andrade: troca de carros de R$ 400 mil a cada 5 anos desde 2028, sem mês (julho).
+    const at = (referenceDate: string, semCarro = false) => {
+      const input = andradeInput()
+      input.household.household.referenceDate = referenceDate
+      if (semCarro) input.household.events = input.household.events.filter((e) => e.name !== 'Troca de carros')
+      return buildPlan(input)
+    }
+    // De ago a dez/2028 (julho passado, data incerta): a troca entra no primeiro mês simulado, com aviso.
+    for (const ref of ['2028-07-31', '2028-11-30']) {
+      const plan = at(ref)
+      expect(plan.firstMonthFlow - at(ref, true).firstMonthFlow).toBeCloseTo(-400_000, 6)
+      expect(plan.warnings.some((w) => w.includes('"Troca de carros"'))).toBe(true)
+    }
+    // Em jul/2028 (o próprio mês) entra normalmente, sem aviso; de jan/2029 em diante, sai sem aviso.
+    for (const ref of ['2028-06-30', '2028-12-31', '2029-07-31']) {
+      const plan = at(ref)
+      expect(plan.warnings).toHaveLength(0)
+      const diff = plan.firstMonthFlow - at(ref, true).firstMonthFlow
+      expect(diff).toBeCloseTo(ref === '2028-06-30' ? -400_000 : 0, 6)
+    }
   })
 
   it('o último passo com m < 12 meses rende (1 + R)^(m/12) − 1', () => {
