@@ -1,10 +1,16 @@
-# Gêmeo Financeiro (Aware Investments)
+# AWARE Objective (Aware Investments)
 
-App web em que clientes de carteira administrada (CADM) veem a chance de o plano de vida dar certo, o retorno real que a carteira precisa entregar (benchmark pessoal) e o efeito de hipóteses ("E se?").
+Planejamento patrimonial com dois canais sobre o mesmo motor de simulação (o gêmeo financeiro) e o mesmo ciclo mensal:
+
+- **Clientes de carteira administrada (CADM):** recebem um relatório mensal, preparado, aprovado e apresentado pela gestão, que mostra se o plano continua de pé e o que mudou desde o mês passado.
+- **Clientes da assessoria de investimentos (AI):** usam um app, pensado primeiro para celular, com a chance de o plano dar certo, o retorno real que a carteira precisa entregar (benchmark pessoal) e o efeito de hipóteses ("E se?").
+
+Documentos:
 
 - Especificação: [`docs/SPEC.md`](docs/SPEC.md)
 - Onde paramos: [`docs/PROGRESSO.md`](docs/PROGRESSO.md)
 - Decisões: [`docs/DECISOES.md`](docs/DECISOES.md)
+- Mudança de rota (registro): [`docs/ROTA-2.md`](docs/ROTA-2.md)
 - Regras para o Claude Code: [`CLAUDE.md`](CLAUDE.md)
 
 ## Requisitos
@@ -27,7 +33,7 @@ App web em que clientes de carteira administrada (CADM) veem a chance de o plano
 
 ## Estrutura
 
-- `src/engine/`: motor de simulação, em TypeScript puro e sem dependências (também vai rodar nas funções do servidor, em Deno).
+- `src/engine/`: motor de simulação (o gêmeo financeiro), em TypeScript puro e sem dependências (também vai rodar nas funções do servidor, em Deno).
 - `src/data/`: Família Andrade (fictícia), premissas ilustrativas e cenários de choque.
 - `reference/`: referências de aceite. Não editar.
 - `scripts/reference.ts`: comparação do motor com os resultados de referência.

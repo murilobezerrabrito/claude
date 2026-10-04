@@ -1,10 +1,11 @@
-# Progresso
+# Progresso do AWARE Objective
 
 ## Status atual
 
-- **Fase 0 (fundação e motor, sem servidor): concluída**, com o portão cumprido em 02/10/2026.
-- **Branch:** `claude/bold-pascal-rd6kif` (D-002). Não há pull request aberto.
-- **Próximo passo:** Fase 1 numa conversa nova (`/clear`, depois `/fase 1`). Antes, convém resolver as pendências abaixo, principalmente o protótipo `gemeo.html`.
+- **Rota 2 adotada** em 02/10/2026 (D-024): app para os clientes AI; relatório mensal da gestão para os clientes CADM. A documentação foi atualizada para a nova rota; o `docs/SPEC.md` é a fonte única, e `docs/ROTA-2.md` fica como registro da mudança.
+- **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
+- **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002 e D-026). Não há pull request aberto.
+- **Próximo passo:** Fase 1, relatório de exemplo sem servidor, numa conversa nova (`/clear`, depois `/fase 1`). Ela começa pelas quatro mudanças de "Motor no ciclo mensal"; a dos sorteios alinhados por trajetória já está parcialmente feita (D-020).
 
 ### Comandos de teste
 
@@ -17,14 +18,15 @@ npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 ```
 
-## Portões
+## Fases e portões (Rota 2)
 
-| Fase | Portão | Status |
-|---|---|---|
-| 0 | Testes 1 a 14 passando, `npm run reference` dentro das tolerâncias e revisão do `revisor-motor` sem divergências abertas | **Cumprido** (02/10/2026) |
-| 1 | Revisão do Alex com a família de exemplo; tela inicial em 375 px e no tema escuro | Pendente |
-| 2 | Teste de vazamento entre famílias; uma família real anonimizada importada e conciliada; textos aprovados por compliance; pentest | Pendente |
-| 3 | Piloto com 3 a 5 famílias do Alex | Pendente |
+| Fase | O quê | Branch | Portão | Status |
+|---|---|---|---|---|
+| 0 | Fundação e motor, sem servidor | `fase-0-motor` | Testes 1 a 14 passando, `npm run reference` dentro das tolerâncias e `revisor-motor` sem divergências abertas | **Cumprido** (02/10/2026) |
+| 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` | Testes do motor e `npm run reference` com os resultados novos; testes da ponte (hashes dos extremos e soma em trajetórias); `revisor-motor` sem divergências; PDF de out/2026 da Andrade aprovado por Murilo e Alex | Próxima |
+| 2 | Ciclo mensal interno, com dados reais | `fase-2-ciclo-mensal` | pgTAP passando; família CADM real anonimizada importada, conferida e com relatório aprovado; textos do relatório aprovados por compliance; rodada de todas as famílias CADM em menos de 20 minutos | Pendente |
+| 3 | App dos clientes AI | `fase-3-app-ai` | Tela inicial em 375 px e tema escuro; "E se?" em menos de 1 s num celular intermediário; vazamento do papel cliente_ai bloqueado; uso de ponta a ponta com contas fictícias | Pendente |
+| 4 | Piloto e operação | `fase-4-piloto` | Dois fechamentos sem erro de conferência e retorno da gestão e dos clientes do piloto | Pendente |
 
 ## Fase 0: o que foi feito
 
@@ -90,13 +92,20 @@ Na Fase 1, o Web Worker pode aquecer o cache ao abrir o app.
 
 ## Pendências
 
+- **Rota 2, perguntas em aberto:** em vigor os padrões da D-025 (corretora e formato das posições AI, custo AI de 0,80% "a validar", responsável por família, regras da assessoria, preparo e aprovação dos relatórios, piloto e identidade visual).
 - **Protótipo e motor de referência:** `reference/gemeo.html` e `reference/motor_referencia.py` não vieram (D-001). O protótipo é a referência de layout da Fase 1.
 - **D-019, para o Murilo confirmar:** com horizonte maior no "E se?", também estendemos rendas e aluguéis que vão até o fim do plano. É a leitura coerente, mas não a mais conservadora (na Andrade com 100 anos, R$ 84 mil por ano a mais durante 5 anos).
-- **D-010, para a Fase 1:** a tela precisa dizer que o gasto sustentável é calculado sem gasto flexível.
+- **D-010, para a Fase 1:** o relatório e o app precisam dizer que o gasto sustentável é calculado sem gasto flexível.
 - **Demais decisões:** D-006 a D-023, a confirmar com quem está indicado em `docs/DECISOES.md`.
 - **Perguntas em aberto do SPEC:** continuam com os padrões da D-004.
 
 ## Histórico
+
+### 02/10/2026: Rota 2
+
+- Nova rota decidida por Murilo Brito (D-024), registrada em `docs/ROTA-2.md`.
+- Documentação atualizada: `docs/SPEC.md`, `CLAUDE.md`, `README.md`, este arquivo, o comando `/fase` e o `revisor-motor`. Nada mudou em `src/engine` nem em `reference/`.
+- Conferência antes da mudança: typecheck e lint limpos, 91 testes passando e 11 de 11 métricas da referência dentro das tolerâncias.
 
 ### 02/10/2026: Fase 0 concluída
 

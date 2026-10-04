@@ -1,13 +1,23 @@
 ---
 name: fase
-description: Inicia uma fase (ou etapa) do plano de entrega do Gêmeo Financeiro. Lê a fase no SPEC, confere o portão anterior, apresenta um plano e só edita depois da aprovação. Use quando o usuário digitar /fase N.
-argument-hint: "<fase> [etapa]  (ex.: 0, 1, 2 etapa 1, 3)"
+description: Inicia uma fase (0 a 4) ou etapa do plano de entrega do AWARE Objective. Lê a fase no SPEC, confere o portão anterior, apresenta um plano e só edita depois da aprovação. Use quando o usuário digitar /fase N.
+argument-hint: "<fase> [etapa]  (ex.: 1, 2 etapa 1, 3, 4)"
 disable-model-invocation: true
 ---
 
 # /fase $ARGUMENTS
 
-Você vai conduzir a fase **$ARGUMENTS** do Gêmeo Financeiro. Siga este roteiro, nesta ordem.
+Você vai conduzir a fase **$ARGUMENTS** do AWARE Objective. Siga este roteiro, nesta ordem.
+
+Fases (detalhes em `docs/SPEC.md`, "Plano de entrega por fases"):
+
+| Fase | O quê | Branch |
+|---|---|---|
+| 0 | Fundação e motor, sem servidor (concluída) | `fase-0-motor` |
+| 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` |
+| 2 | Ciclo mensal interno, com dados reais (etapas 1 a 4) | `fase-2-ciclo-mensal` |
+| 3 | App dos clientes AI | `fase-3-app-ai` |
+| 4 | Piloto e operação | `fase-4-piloto` |
 
 ## 1. Ler antes de propor
 
@@ -15,7 +25,7 @@ Você vai conduzir a fase **$ARGUMENTS** do Gêmeo Financeiro. Siga este roteiro
 2. Em `docs/SPEC.md`:
    - a fase pedida em "Plano de entrega por fases", com o portão de saída;
    - a mensagem pronta da fase em "Mensagens prontas";
-   - todas as seções que a fase e a mensagem citam (ex.: Fase 0 → "Motor de simulação", "Benchmark pessoal", "Testes e critérios de aceite", "Stack técnica e arquitetura", "Dados de exemplo: Família Andrade").
+   - todas as seções que a fase e a mensagem citam (ex.: Fase 1 → "Motor no ciclo mensal (a partir da Fase 1)", "Canal 1: relatório mensal dos clientes CADM" e "O que mudou no mês (a ponte)", em Telas e funcionalidades, "Dados mensais por canal", "Fechamentos fictícios", "Testes e critérios de aceite", "Design e linguagem" e "Stack técnica e arquitetura").
 3. Os arquivos de `reference/` que a fase usa. Não os edite.
 
 ## 2. Conferir o portão anterior
@@ -37,11 +47,12 @@ Espere a aprovação explícita antes de implementar.
 
 ## 4. Implementar
 
-- Branch da fase (`fase-0-motor`, `fase-1-telas`, `fase-2-servidor`, `fase-3-clientes`), commits pequenos com mensagens em português.
-- Uma etapa só está pronta com evidência: rode `npm run typecheck`, `npm run lint`, `npm test` e, se o motor mudou, `npm run reference`. Mostre a saída.
+- Branch da fase (tabela acima), commits pequenos com mensagens em português. Se o ambiente só permitir push num branch designado, use-o e registre em `docs/DECISOES.md` (como D-002 e D-026).
+- Uma etapa só está pronta com evidência: rode `npm run typecheck`, `npm run lint`, `npm test` e, se o motor mudou, `npm run reference`. Mostre a saída. Se o motor mudou, mostre os números antes e depois.
 - Registre em `docs/DECISOES.md` toda decisão tomada sem consulta.
 - Ao fim de cada etapa, atualize `docs/PROGRESSO.md` (o que foi feito, comandos de teste, próximo passo).
 - Peça confirmação antes de criar recursos em nuvem, contratar serviços pagos, rodar comandos destrutivos fora do ambiente local ou apagar arquivos.
+- `reference/` não se edita, exceto na mudança isolada da Fase 1 aprovada por Murilo.
 
 ## 5. Fechar a fase
 
