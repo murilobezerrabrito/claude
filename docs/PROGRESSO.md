@@ -4,9 +4,9 @@
 
 - **Rota 2 adotada** em 02/10/2026 (D-024): app para os clientes AI; relatório mensal da gestão para os clientes CADM. A documentação foi atualizada para a nova rota; o `docs/SPEC.md` é a fonte única, e `docs/ROTA-2.md` fica como registro da mudança.
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
-- **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 a 9 concluídas (motor no ciclo mensal, fechamentos fictícios, rentabilidade, rodada oficial e ponte, textos e números congelados, PDF).
+- **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 a 10 concluídas; falta só o ponto de parada C (aprovação do PDF de out/2026 por Murilo e Alex).
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026 e D-028). Não há pull request aberto.
-- **Próximo passo:** etapa 10 da Fase 1, modo apresentação; depois, o fechamento da fase e o ponto de parada C (PDF de out/2026 para Murilo e Alex). Ponto de parada B cumprido: `revisor-motor` sem divergências abertas nas etapas 1 a 3b (três rodadas).
+- **Próximo passo:** ponto de parada C: Murilo e Alex aprovam o PDF de out/2026 (`npm run report:pdf` ou a página de `npm run dev`). Com a aprovação, a Fase 1 fecha. Ponto de parada B cumprido: `revisor-motor` sem divergências abertas nas etapas 1 a 3b (três rodadas).
 
 ### Comandos de teste
 
@@ -14,11 +14,12 @@
 npm install
 npm run typecheck     # tsc -b: motor (só ES2023), interface, testes e scripts
 npm run lint          # ESLint; barra imports externos e imports sem .ts no motor
-npm test              # Vitest: 167 testes, incluindo T01 a T20, textos, números congelados e o PDF do relatório (~25 s)
+npm test              # Vitest: 172 testes, incluindo T01 a T20, textos, números congelados e o PDF do relatório (~26 s)
 npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 npm run report:snapshot  # regrava src/data/relatorios/andrade-2026-10.json (relatório de exemplo, ~11 s)
 npm run report:pdf    # gera relatorios-pdf/andrade-2026-10.pdf (fora do git) a partir do snapshot
+npm run dev           # página local com a prévia do relatório, "Baixar PDF" e o modo apresentação
 ```
 
 ## Fases e portões (Rota 2)
@@ -26,7 +27,7 @@ npm run report:pdf    # gera relatorios-pdf/andrade-2026-10.pdf (fora do git) a 
 | Fase | O quê | Branch | Portão | Status |
 |---|---|---|---|---|
 | 0 | Fundação e motor, sem servidor | `fase-0-motor` | Testes 1 a 14 passando, `npm run reference` dentro das tolerâncias e `revisor-motor` sem divergências abertas | **Cumprido** (02/10/2026) |
-| 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` | Testes do motor e `npm run reference` com os resultados novos; testes da ponte (hashes dos extremos e soma em trajetórias); `revisor-motor` sem divergências; PDF de out/2026 da Andrade aprovado por Murilo e Alex | Em andamento |
+| 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` | Testes do motor e `npm run reference` com os resultados novos; testes da ponte (hashes dos extremos e soma em trajetórias); `revisor-motor` sem divergências; PDF de out/2026 da Andrade aprovado por Murilo e Alex | Falta só a aprovação do PDF (ponto C) |
 | 2 | Ciclo mensal interno, com dados reais | `fase-2-ciclo-mensal` | pgTAP passando; família CADM real anonimizada importada, conferida e com relatório aprovado; textos do relatório aprovados por compliance; rodada de todas as famílias CADM em menos de 20 minutos | Pendente |
 | 3 | App dos clientes AI | `fase-3-app-ai` | Tela inicial em 375 px e tema escuro; "E se?" em menos de 1 s num celular intermediário; vazamento do papel cliente_ai bloqueado; uso de ponta a ponta com contas fictícias | Pendente |
 | 4 | Piloto e operação | `fase-4-piloto` | Dois fechamentos sem erro de conferência e retorno da gestão e dos clientes do piloto | Pendente |
@@ -47,7 +48,7 @@ Plano aprovado por Murilo em 04/10/2026. Etapas, uma por commit:
 | 7 | Rodada oficial e ponte (T19) | Concluída |
 | 8 | Textos, formatação e números congelados | Concluída |
 | 9 | PDF de sete páginas | Concluída |
-| 10 | Modo apresentação | Pendente |
+| 10 | Modo apresentação | Concluída |
 
 Pontos de parada combinados: (A) testes antigos que dependem da convenção anual, mostrados antes de alterar; (B) divergências do `revisor-motor`, mostradas antes de corrigir; (C) PDF de out/2026 para Murilo e Alex aprovarem.
 
@@ -217,6 +218,21 @@ Em 04/10/2026, Murilo decidiu manter os dados de outubro do SPEC (estilo de vida
 - `npm run report:pdf` grava `relatorios-pdf/andrade-2026-10.pdf` (fora do git). Conferido página a página em imagem: capa, resumo, o que mudou, carteira, trajetória, conversa do mês e notas, com o rodapé de posições, premissas e aviso.
 - Teste `pdf.test.tsx`: gera o PDF em memória e confere as sete páginas A4 paisagem e as fontes embutidas.
 - Decisões de layout em D-037.
+
+### Etapa 10: modo apresentação
+
+- `npm run dev` abre a página local do relatório de exemplo (`src/console/report/ReportPreview.tsx`): o navegador gera o PDF a partir do snapshot congelado, mostra a prévia, baixa o arquivo ("Baixar PDF") e abre o modo apresentação, com o próprio PDF em tela cheia e sem menus (D-038).
+- Conferido no Chromium com Playwright: o download traz as sete páginas, o modo apresentação entra em tela cheia, "Sair" e Esc fecham, e o console fica sem erros. `npm run build` passa (aviso só do tamanho do pacote, por causa do @react-pdf/renderer).
+
+### Fechamento da Fase 1
+
+- **`/code-review` no que não é motor** (`src/report`, `src/lib`, `src/console`, `scripts`): 10 achados. 9 corrigidos, com testes onde cabia (arredondamento da ponte, marcos da trajetória, alvo do perfil depois da aposentadoria, marca do perfil na mesma escala, "datas aproximadas" por período, número publicado na ponte, Esc no modo apresentação e funções repetidas). 1 ficou de fora com motivo (a ponte refaz a rodada do mês para conferir o hash; D-039).
+- **`revisor-motor`:** o motor não mudou depois da 3ª rodada (sem divergências abertas), então não houve nova rodada.
+- **Portão da Fase 1, item por item:**
+  - Testes do motor e `npm run reference` com os resultados novos: **ok** (172 testes; 11 de 11 métricas).
+  - Testes da ponte (hashes dos extremos e soma em trajetórias): **ok** (teste 19).
+  - `revisor-motor` sem divergências: **ok** (3ª rodada).
+  - PDF de out/2026 da Andrade aprovado por Murilo e Alex: **pendente** (ponto de parada C).
 
 ## Fase 0: o que foi feito
 
