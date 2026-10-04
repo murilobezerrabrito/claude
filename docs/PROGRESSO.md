@@ -6,7 +6,7 @@
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
 - **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 (pesos explícitos), 2 (sorteios alinhados), 3a (referência em Python) e 3b (passo de 12 meses) concluídas.
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026 e D-028). Não há pull request aberto.
-- **Próximo passo:** revisão do `revisor-motor` sobre as etapas 1 a 3b (ponto de parada B); depois, etapa 4, plano corrigido pelo IPCA em `src/report`.
+- **Próximo passo:** segunda rodada do `revisor-motor` sobre as correções das divergências (ponto de parada B); depois, etapa 4, plano corrigido pelo IPCA em `src/report`.
 
 ### Comandos de teste
 
@@ -14,7 +14,7 @@
 npm install
 npm run typecheck     # tsc -b: motor (só ES2023), interface, testes e scripts
 npm run lint          # ESLint; barra imports externos e imports sem .ts no motor
-npm test              # Vitest: 113 testes, incluindo T01 a T18 (~17 s)
+npm test              # Vitest: 118 testes, incluindo T01 a T18 (~17 s)
 npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 ```
@@ -113,6 +113,36 @@ Família Andrade, 50.000 trajetórias, semente 20261002 (antes = motor 0.3.0, co
 | Gasto sustentável com 90% | R$ 85.691 | R$ 82.301 | R$ 86.698 | R$ 83.285 |
 
 As 11 métricas ficam dentro das tolerâncias da referência nova. A queda da chance vem do calendário, como o SPEC previa: a convenção anual contava de novo os fluxos de jan a set/2026 e encerrava o plano em dez/2070, e não em ago/2071.
+
+### Revisão do `revisor-motor` (etapas 1 a 3b, ponto de parada B)
+
+1ª rodada, em 04/10/2026: o calendário do motor bate com o do Python (45 passos, o último com 11 meses, aposentado a partir do passo 10, fluxos idênticos em todos os passos). Foram 5 divergências, nenhuma bloqueante, mostradas a Murilo antes de corrigir:
+
+| # | Divergência | Decisão de Murilo | Correção |
+|---|---|---|---|
+| 1 | Só reordenar as classes mudava os retornos (Cholesky na ordem da lista) | Ordem fixa pelos códigos | `returns.ts`: correlação na ordem dos códigos; texto da D-030 corrigido; novo caso no teste 16. Motor 0.5.0 |
+| 2 | Gasto mensal do "E se?" comparado com o total do passo 0 (com o essencial a partir de 2027, o mesmo valor do plano subia o gasto em 1/3) | Gasto do primeiro mês simulado | `plan.ts` e `solvers.ts` (D-032); casos no teste 18 |
+| 3 | Testes não pegavam o (1 + r)^(m/12) no benchmark nem "a cada N anos" com mês | Sem consulta (só testes) | Teste 18: benchmark com passo curto (r* = 4%, que viraria 3,0% sem a fração), "a cada N anos" com mês e datas passadas |
+| 4 | Evento com data passada saía do cálculo, inclusive saídas | Saídas ficam, entradas saem | `plan.ts` (D-031, item 3): saída dos 12 meses anteriores vai para o primeiro mês, com aviso; entrada e saída mais antiga saem, com aviso |
+| 5 | Tabela de referência do SPEC com os números da Fase 0 | Atualizar | `docs/SPEC.md`: tabela e frase do Guyton-Klinger com os números novos, mesmas tolerâncias |
+
+Também: o teste 11 passou a usar a regra de aposentadoria do motor, comentários de "anos" viraram passos em `types.ts`, e o caso de borda do gasto sustentável foi recalibrado (POS de R$ 55.550.000).
+
+Família Andrade, 50.000 trajetórias, semente 20261002 (antes = motor 0.4.0; depois = motor 0.5.0). Só a divergência 1 muda os números da Andrade (ela não tem eventos com data passada, e o gasto do primeiro mês é igual à média do passo 0):
+
+| Métrica | Antes | Depois | Referência |
+|---|---|---|---|
+| Retorno composto líquido | 3,910% | 3,911% | 3,90% |
+| Benchmark com legado | 3,244% | 3,244% | 3,244% |
+| Benchmark sem legado | 3,044% | 3,044% | 3,044% |
+| Folga | 0,666 p.p. | 0,667 p.p. | 0,656 p.p. |
+| Probabilidade de sucesso, sem regras | 86,42% | 86,53% | 86,23% |
+| Probabilidade do legado, sem regras | 80,31% | 80,50% | 80,12% |
+| Patrimônio mediano aos 95, sem regras | R$ 15,23 mi | R$ 15,13 mi | R$ 14,91 mi |
+| Probabilidade de sucesso, com regras | 97,76% | 97,79% | 97,72% |
+| Chance de corte, trajetória de referência | 35,80% | 36,03% | 35,81% |
+| Chance de corte, Guyton-Klinger | 99,87% | 99,88% | 99,90% |
+| Gasto sustentável com 90% | R$ 82.301 | R$ 83.327 | R$ 83.285 |
 
 ## Fase 0: o que foi feito
 

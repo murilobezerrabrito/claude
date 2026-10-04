@@ -391,7 +391,7 @@ O gasto essencial nunca é cortado. As regras ajustam só o gasto de estilo de v
 | Teto | Sempre | Estilo de vida nunca acima de 130% do inicial | 130% |
 | Alternativa Guyton-Klinger | Taxa de saque acima de 120% ou abaixo de 80% da inicial | Corta ou aumenta 10% | Desligada; disponível como opção |
 
-Por que a régua padrão não é a de Guyton e Klinger (2006): num plano que consome o patrimônio de propósito, a taxa de saque sobe naturalmente com o tempo, e as regras cortam o gasto em quase todos os cenários. Na família de exemplo, a regra original cortou o estilo de vida em 99,6% das trajetórias; a régua pela trajetória de referência cortou em cerca de 35%. Taxa de saque = déficit do ano ÷ patrimônio no início do ano. Todos os gatilhos, ajustes, piso e teto são parâmetros. O motor conta, por trajetória, se houve corte, o maior corte e quantos anos com corte.
+Por que a régua padrão não é a de Guyton e Klinger (2006): num plano que consome o patrimônio de propósito, a taxa de saque sobe naturalmente com o tempo, e as regras cortam o gasto em quase todos os cenários. Na família de exemplo, a regra original cortou o estilo de vida em 99,9% das trajetórias; a régua pela trajetória de referência cortou em cerca de 36%. Taxa de saque = déficit do ano ÷ patrimônio no início do ano. Todos os gatilhos, ajustes, piso e teto são parâmetros. O motor conta, por trajetória, se houve corte, o maior corte e quantos anos com corte.
 
 ### Choques e testes de estresse
 
@@ -1010,21 +1010,21 @@ Dois fechamentos da Família Andrade em `src/data/`, base do relatório de exemp
 
 Calculados com `reference/motor_referencia.py`, que segue esta especificação, com as premissas ilustrativas e 50.000 trajetórias, para reduzir o ruído do sorteio. Os valores e as tolerâncias também estão em `reference/resultados_referencia.json`, lido pelo teste 13 e por `npm run reference`. O gerador aleatório do TypeScript é diferente do NumPy, então as métricas sorteadas não batem exatamente: precisam cair dentro das tolerâncias. As métricas sem sorteio (benchmark pessoal) precisam bater na precisão indicada.
 
-A partir da Fase 1, com os sorteios alinhados por trajetória e o passo de 12 meses, estes números mudam (benchmark com legado perto de IPCA + 3,25%, sem legado perto de 3,05%, e a chance cai junto). A atualização de `reference/` é a única exceção à regra de não editar a pasta, numa mudança isolada aprovada por Murilo. Até lá, valem os números abaixo.
+Os números abaixo já têm os sorteios alinhados por trajetória e o passo de 12 meses da Fase 1, da mudança isolada de `reference/` aprovada por Murilo em 04/10/2026 (a única exceção à regra de não editar a pasta). As tolerâncias não mudaram. Na convenção anual da Fase 0, eram: benchmark de IPCA + 2,98% com legado e 2,77% sem legado, folga de 0,92 p.p., chance de 92,9% sem gasto flexível e 99% com, legado com 89%, patrimônio mediano de R$ 20,5 mi, corte em 35% (trajetória de referência) e 99,6% (Guyton-Klinger) e gasto sustentável de R$ 87 mil por mês.
 
 | Métrica | Valor de referência | Tolerância |
 |---|---|---|
 | Retorno composto líquido do perfil moderado | 3,90% a.a. | ±0,05 p.p. |
-| Benchmark pessoal, com legado de R$ 3 mi | IPCA + 2,98% | ±0,01 p.p. (cálculo sem sorteio) |
-| Benchmark pessoal, sem legado | IPCA + 2,77% | ±0,01 p.p. |
-| Folga | +0,92 p.p. | ±0,05 p.p. |
-| Probabilidade de sucesso, sem gasto flexível | ≈ 93% (92,9%) | ±2 p.p. |
-| Probabilidade do legado, sem gasto flexível | ≈ 89% | ±2 p.p. |
-| Patrimônio mediano aos 95 anos, sem gasto flexível | ≈ R$ 20,5 mi | ±R$ 1,5 mi |
-| Probabilidade de sucesso, com gasto flexível padrão | ≈ 99% | ±1 p.p. |
-| Chance de corte, régua da trajetória de referência | ≈ 35% | ±5 p.p. |
-| Chance de corte, régua Guyton-Klinger | ≈ 99,6% | ±1 p.p. |
-| Gasto sustentável com 90% de chance | ≈ R$ 87 mil por mês (hoje: R$ 85 mil) | ±R$ 3 mil |
+| Benchmark pessoal, com legado de R$ 3 mi | IPCA + 3,24% | ±0,01 p.p. (cálculo sem sorteio) |
+| Benchmark pessoal, sem legado | IPCA + 3,04% | ±0,01 p.p. |
+| Folga | +0,66 p.p. | ±0,05 p.p. |
+| Probabilidade de sucesso, sem gasto flexível | ≈ 86% (86,2%) | ±2 p.p. |
+| Probabilidade do legado, sem gasto flexível | ≈ 80% (80,1%) | ±2 p.p. |
+| Patrimônio mediano aos 95 anos, sem gasto flexível | ≈ R$ 14,9 mi | ±R$ 1,5 mi |
+| Probabilidade de sucesso, com gasto flexível padrão | ≈ 98% (97,7%) | ±1 p.p. |
+| Chance de corte, régua da trajetória de referência | ≈ 36% (35,8%) | ±5 p.p. |
+| Chance de corte, régua Guyton-Klinger | ≈ 99,9% | ±1 p.p. |
+| Gasto sustentável com 90% de chance | ≈ R$ 83,3 mil por mês (hoje: R$ 85 mil) | ±R$ 3 mil |
 
 ## Testes e critérios de aceite
 
