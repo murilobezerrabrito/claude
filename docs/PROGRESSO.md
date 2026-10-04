@@ -6,7 +6,7 @@
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
 - **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 a 7 concluídas (pesos explícitos, sorteios alinhados, referência em Python, passo de 12 meses, plano corrigido pelo IPCA, fechamentos fictícios, rentabilidade do mês, rodada oficial e ponte).
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026 e D-028). Não há pull request aberto.
-- **Próximo passo:** etapa 8 da Fase 1 (textos, formatação e números congelados), depois de Murilo decidir sobre a queda da chance em out/2026 (ver "Pendências"). Ponto de parada B cumprido: `revisor-motor` sem divergências abertas nas etapas 1 a 3b (três rodadas).
+- **Próximo passo:** etapa 8 da Fase 1, textos, formatação e números congelados. Ponto de parada B cumprido: `revisor-motor` sem divergências abertas nas etapas 1 a 3b (três rodadas).
 
 ### Comandos de teste
 
@@ -196,6 +196,8 @@ Família Andrade, 10.000 trajetórias, semente 20261002:
 | Plano (estilo de vida de R$ 30 mil para R$ 35 mil por mês) | −18,1 p.p. | +0,38 p.p. |
 | Premissas | sem efeito | 0 |
 
+Em 04/10/2026, Murilo decidiu manter os dados de outubro do SPEC (estilo de vida de R$ 35 mil): o relatório de exemplo mostra a queda para a faixa vermelha, com a mudança do plano como maior fator. Para comparar: sem a mudança do estilo de vida, out/2026 daria 80,1%; com R$ 32 mil, 73,6%.
+
 ## Fase 0: o que foi feito
 
 ### Arquivos
@@ -260,7 +262,6 @@ Na Fase 1, o Web Worker pode aquecer o cache ao abrir o app.
 
 ## Pendências
 
-- **Fechamento fictício de out/2026, para o Murilo decidir:** com os dados do SPEC (estilo de vida de R$ 30 mil para R$ 35 mil por mês), a chance da Andrade cai de 86,5% para 62,0% e passa à faixa vermelha ("Plano em risco"); o passo "Plano" responde por −18,1 p.p. O relatório de exemplo vai mostrar isso.
 - **Eventos do "E se?" sem mês (para a etapa 4 e o console):** o motor trata aportes e resgates do "E se?" como os eventos do plano. Sem mês, um aporte "em 2026" com julho já passado fica fora do cálculo, e o aviso fala em conferência. O controle do "E se?" deve sempre informar o mês.
 - **Virada do ano (D-031, item 3), para o Murilo decidir se quer:** no fechamento de 31/12, a saída sem mês do ano que acabou sai do cálculo sem aviso. Um último aviso nesse fechamento ajudaria a conferência a registrar a saída; não muda nenhum número.
 - **Rota 2, perguntas em aberto:** em vigor os padrões da D-025 (corretora e formato das posições AI, custo AI de 0,80% "a validar", responsável por família, regras da assessoria, preparo e aprovação dos relatórios, piloto e identidade visual).
