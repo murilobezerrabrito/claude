@@ -4,9 +4,9 @@
 
 - **Rota 2 adotada** em 02/10/2026 (D-024): app para os clientes AI; relatório mensal da gestão para os clientes CADM. A documentação foi atualizada para a nova rota; o `docs/SPEC.md` é a fonte única, e `docs/ROTA-2.md` fica como registro da mudança.
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
-- **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 a 8 concluídas (motor no ciclo mensal, fechamentos fictícios, rentabilidade, rodada oficial e ponte, textos e números congelados).
+- **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 a 9 concluídas (motor no ciclo mensal, fechamentos fictícios, rentabilidade, rodada oficial e ponte, textos e números congelados, PDF).
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026 e D-028). Não há pull request aberto.
-- **Próximo passo:** etapa 9 da Fase 1, o PDF de sete páginas. Ponto de parada B cumprido: `revisor-motor` sem divergências abertas nas etapas 1 a 3b (três rodadas).
+- **Próximo passo:** etapa 10 da Fase 1, modo apresentação; depois, o fechamento da fase e o ponto de parada C (PDF de out/2026 para Murilo e Alex). Ponto de parada B cumprido: `revisor-motor` sem divergências abertas nas etapas 1 a 3b (três rodadas).
 
 ### Comandos de teste
 
@@ -14,10 +14,11 @@
 npm install
 npm run typecheck     # tsc -b: motor (só ES2023), interface, testes e scripts
 npm run lint          # ESLint; barra imports externos e imports sem .ts no motor
-npm test              # Vitest: 165 testes, incluindo T01 a T20, textos e números congelados do relatório (~25 s)
+npm test              # Vitest: 167 testes, incluindo T01 a T20, textos, números congelados e o PDF do relatório (~25 s)
 npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 npm run report:snapshot  # regrava src/data/relatorios/andrade-2026-10.json (relatório de exemplo, ~11 s)
+npm run report:pdf    # gera relatorios-pdf/andrade-2026-10.pdf (fora do git) a partir do snapshot
 ```
 
 ## Fases e portões (Rota 2)
@@ -45,7 +46,7 @@ Plano aprovado por Murilo em 04/10/2026. Etapas, uma por commit:
 | 6 | Rentabilidade do mês (T20) | Concluída |
 | 7 | Rodada oficial e ponte (T19) | Concluída |
 | 8 | Textos, formatação e números congelados | Concluída |
-| 9 | PDF de sete páginas | Pendente |
+| 9 | PDF de sete páginas | Concluída |
 | 10 | Modo apresentação | Pendente |
 
 Pontos de parada combinados: (A) testes antigos que dependem da convenção anual, mostrados antes de alterar; (B) divergências do `revisor-motor`, mostradas antes de corrigir; (C) PDF de out/2026 para Murilo e Alex aprovarem.
@@ -208,6 +209,14 @@ Em 04/10/2026, Murilo decidiu manter os dados de outubro do SPEC (estilo de vida
   - "Em 62 de cada 100 cenários o dinheiro dura até os 95. No cenário ruim, ele acaba aos 85. Vale revisar o plano na conversa do mês."
 - `src/report/snapshot.ts` e `npm run report:snapshot`: `src/data/relatorios/andrade-2026-10.json`, com tudo o que as sete páginas mostram. Cenários da conversa do mês: aposentar 3 anos antes (11,1%), crise como a de 2008 no 1º ano (49,5%) e gastar 10% a mais (27,7%).
 - Testes: `format.test.ts` (5), `textos.test.ts` (6, um deles gera mais de 500 frases e procura palavras de recomendação) e `snapshot.test.ts` (2, recalcula e compara com o arquivo).
+
+### Etapa 9: PDF de sete páginas
+
+- `src/console/report/`: `ReportDocument.tsx` (o único componente de layout), `charts.tsx` (ponte em cascata e leque da trajetória em `<Svg>`), `theme.ts` (cores do protótipo e fontes) e `renderNode.tsx`.
+- Dependências novas, gratuitas: `@react-pdf/renderer`, `@fontsource/fraunces` e `@fontsource/ibm-plex-sans`.
+- `npm run report:pdf` grava `relatorios-pdf/andrade-2026-10.pdf` (fora do git). Conferido página a página em imagem: capa, resumo, o que mudou, carteira, trajetória, conversa do mês e notas, com o rodapé de posições, premissas e aviso.
+- Teste `pdf.test.tsx`: gera o PDF em memória e confere as sete páginas A4 paisagem e as fontes embutidas.
+- Decisões de layout em D-037.
 
 ## Fase 0: o que foi feito
 
