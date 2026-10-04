@@ -1,11 +1,13 @@
 // Benchmark pessoal (SPEC, "Benchmark pessoal"): o menor retorno real constante que sustenta o plano.
-// Determinístico, com a mesma convenção de fluxo do motor: déficit no início do ano, superávit no fim.
+// Determinístico, com a mesma convenção de fluxo do motor: déficit no início do passo, superávit no fim, e o passo
+// com m < 12 meses rendendo (1 + r)^(m/12) − 1. Sem frações de passo, todos os passos têm 12 meses.
 
 import type { RequiredReturnResult } from './types.ts'
 
-/** Um ano da convenção de fluxo. Quem chama confere antes se W + F < 0 (falha). */
-export function stepWealth(W: number, F: number, R: number): number {
-  return F >= 0 ? W * (1 + R) + F : (W + F) * (1 + R)
+/** Um passo da convenção de fluxo, com fração de ano `frac`. Quem chama confere antes se W + F < 0 (falha). */
+export function stepWealth(W: number, F: number, R: number, frac = 1): number {
+  const g = frac === 1 ? 1 + R : (1 + R) ** frac
+  return F >= 0 ? W * g + F : (W + F) * g
 }
 
 export interface Projection {
@@ -15,8 +17,8 @@ export interface Projection {
   failedAt: number
 }
 
-/** Projeção sem sorteio com um retorno por ano. Depois de uma falha, o patrimônio fica em zero. */
-export function projectWealth(W0: number, flows: Float64Array, rate: (t: number) => number): Projection {
+/** Projeção sem sorteio com um retorno anual por passo. Depois de uma falha, o patrimônio fica em zero. */
+export function projectWealth(W0: number, flows: Float64Array, rate: (t: number) => number, stepFrac?: Float64Array): Projection {
   const T = flows.length
   const wealth = new Float64Array(T + 1)
   let W = W0
@@ -28,7 +30,7 @@ export function projectWealth(W0: number, flows: Float64Array, rate: (t: number)
         failedAt = t
         W = 0
       } else {
-        W = stepWealth(W, flows[t], rate(t))
+        W = stepWealth(W, flows[t], rate(t), stepFrac ? stepFrac[t] : 1)
       }
     }
     wealth[t + 1] = W
@@ -37,12 +39,12 @@ export function projectWealth(W0: number, flows: Float64Array, rate: (t: number)
 }
 
 /** r sustenta o plano: W_t + min(F_t, 0) ≥ 0 em todo t < T e W_T ≥ legado. */
-export function sustains(W0: number, flows: Float64Array, r: number, legacy: number): boolean {
+export function sustains(W0: number, flows: Float64Array, r: number, legacy: number, stepFrac?: Float64Array): boolean {
   let W = W0
   for (let t = 0; t < flows.length; t++) {
     const F = flows[t]
     if (W + Math.min(F, 0) < 0) return false
-    W = stepWealth(W, F, r)
+    W = stepWealth(W, F, r, stepFrac ? stepFrac[t] : 1)
   }
   return W >= legacy
 }
@@ -55,18 +57,18 @@ export const REQUIRED_RETURN_MAX = 0.2
 /** O SPEC pede 0,01 p.p.; o teste 3 pede ±0,001 p.p. A bisseção vai até 1e-7 (D-008). */
 export const REQUIRED_RETURN_TOL = 1e-7
 
-export function requiredReturn(W0: number, flows: Float64Array, legacy: number): RequiredReturn {
+export function requiredReturn(W0: number, flows: Float64Array, legacy: number, stepFrac?: Float64Array): RequiredReturn {
   let lo = REQUIRED_RETURN_MIN
   let hi = REQUIRED_RETURN_MAX
-  if (sustains(W0, flows, lo, legacy)) {
+  if (sustains(W0, flows, lo, legacy, stepFrac)) {
     return { status: 'folga_total', rate: null, message: 'Folga total: o plano se sustenta mesmo com retorno real negativo.' }
   }
-  if (!sustains(W0, flows, hi, legacy)) {
+  if (!sustains(W0, flows, hi, legacy, stepFrac)) {
     return { status: 'inviavel', rate: null, message: 'Plano inviável sem ajustes.' }
   }
   while (hi - lo > REQUIRED_RETURN_TOL) {
     const mid = (lo + hi) / 2
-    if (sustains(W0, flows, mid, legacy)) hi = mid
+    if (sustains(W0, flows, mid, legacy, stepFrac)) hi = mid
     else lo = mid
   }
   return { status: 'ok', rate: hi, message: null }

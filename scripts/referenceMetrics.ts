@@ -32,8 +32,8 @@ export interface Comparison extends ReferenceMetric {
 export function computeMetrics(input: SimInput, paths: number, seed: number): Record<string, number> {
   const plan = buildPlan(input)
   const flows = fullPlanFlows(plan)
-  const withLegacy = requiredReturn(plan.W0, flows, plan.legacy)
-  const withoutLegacy = requiredReturn(plan.W0, flows, 0)
+  const withLegacy = requiredReturn(plan.W0, flows, plan.legacy, plan.stepFrac)
+  const withoutLegacy = requiredReturn(plan.W0, flows, 0, plan.stepFrac)
   if (withLegacy.rate === null || withoutLegacy.rate === null) throw new Error('Benchmark pessoal sem valor numérico.')
 
   const scenario = input.scenario ?? {}

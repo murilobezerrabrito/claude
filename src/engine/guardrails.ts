@@ -5,9 +5,12 @@
 import { projectWealth } from './requiredReturn.ts'
 import type { SpendingRules } from './types.ts'
 
-/** Trajetória de referência: T + 1 pontos, com o retorno composto esperado antes e depois da aposentadoria. */
-export function referencePath(W0: number, flows: Float64Array, ratePre: number, ratePost: number, retiredFrom: number): Float64Array {
-  return projectWealth(W0, flows, (t) => (t >= retiredFrom ? ratePost : ratePre)).wealth
+/**
+ * Trajetória de referência: T + 1 pontos, com o retorno composto esperado antes e depois da aposentadoria e o passo
+ * curto rendendo a sua fração de ano. Se zerar, fica em zero (e a régua deixa de ajustar).
+ */
+export function referencePath(W0: number, flows: Float64Array, ratePre: number, ratePost: number, retiredFrom: number, stepFrac?: Float64Array): Float64Array {
+  return projectWealth(W0, flows, (t) => (t >= retiredFrom ? ratePost : ratePre), stepFrac).wealth
 }
 
 /** Estado das regras numa trajetória. Um objeto por cálculo, reaproveitado entre trajetórias. */
@@ -42,6 +45,7 @@ export function applyGuardrails(
 ): void {
   st.cut = false
   if (W <= 0) return
+  // "Últimos 15 anos" = últimos 15 passos.
   const cutAllowed = t < T - rules.noCutLastYears
   let next = st.mult
   if (rules.mode === 'trajetoria_referencia') {

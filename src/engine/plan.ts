@@ -1,31 +1,45 @@
-// Transforma o plano da família (formato de andrade.json) e as hipóteses do "E se?" em vetores anuais.
-// Convenções (SPEC, "Dados de exemplo"): o ano civil do passo t é o ano da data de referência + t;
-// anos de início e fim são inclusivos; valores em reais de hoje.
+// Transforma o plano da família (formato de andrade.json) e as hipóteses do "E se?" em vetores por passo.
+// Passo de 12 meses (SPEC, "Motor no ciclo mensal", item 3): a data de referência é o último dia do mês de
+// competência; o passo t cobre os 12 meses seguintes à data de referência mais t anos; o último termina no mês em
+// que o membro mais jovem do casal atinge a idade-limite e pode ter m < 12 meses. Fluxos e eventos anuais entram
+// pro rata pelos meses do seu ano civil que caem no passo; evento único e cada ocorrência de "a cada N anos" entram
+// no seu mês (sem mês, julho). Anos de início e fim são inclusivos; valores em reais de hoje.
 
 import { EngineInputError } from './errors.ts'
 import { shockMatrix } from './shocks.ts'
 import type { CashFlow, Person, PlanEvent, Profile, Scenario, SimInput, SpendingRules } from './types.ts'
 
 const WEIGHT_SUM_TOL = 1e-6
+/** Mês dos eventos sem mês e das vendas de imóvel (julho). */
+export const DEFAULT_EVENT_MONTH = 7
 
 export interface Plan {
+  /** Ano civil da data de referência das posições. */
   startYear: number
-  /** Anos simulados (passos). */
+  /** Primeiro mês simulado, em meses corridos (ano × 12 + mês − 1): o mês seguinte ao da data de referência. */
+  firstMonth: number
+  /** Passos simulados. */
   T: number
-  /** Patrimônio financeiro simulado no início do ano 0. */
+  /** Meses de cada passo: 12, exceto talvez o último. */
+  stepMonths: Int32Array
+  /** Fração de ano de cada passo (meses ÷ 12); o retorno do passo é (1 + R)^fração − 1. */
+  stepFrac: Float64Array
+  /** Patrimônio financeiro simulado na data de referência. */
   W0: number
-  /** Renda, aluguéis e dividendos por ano. */
+  /** Renda, aluguéis e dividendos por passo. */
   income: Float64Array
-  /** Entradas de eventos e vendas de imóvel por ano. */
+  /** Entradas de eventos e vendas de imóvel por passo. */
   inflows: Float64Array
   essential: Float64Array
-  /** Estilo de vida planejado por ano (antes das regras de gasto flexível). */
+  /** Estilo de vida planejado por passo (antes das regras de gasto flexível). */
   lifestyle: Float64Array
-  /** Saídas de eventos por ano. */
+  /** Saídas de eventos por passo. */
   outflows: Float64Array
-  /** Fluxo do ano sem o estilo de vida: renda + entradas − essencial − saídas. */
+  /** Fluxo do passo sem o estilo de vida: renda + entradas − essencial − saídas. */
   base: Float64Array
-  /** Primeiro passo já aposentado (T se a aposentadoria cai depois do horizonte). */
+  /** Fluxo líquido do plano completo no primeiro mês simulado (a ponte o usa na passagem do tempo). */
+  firstMonthFlow: number
+  /** Primeiro passo já aposentado: a aposentadoria foi antes do início do passo (T se cai depois do horizonte). */
   retiredFrom: number
   retirementYear: number | null
   retirementAge: number | null
@@ -37,22 +51,48 @@ export interface Plan {
   profileId: string | null
   weightsPre: Float64Array
   weightsPost: Float64Array | null
-  /** Σ_k w_k δ_{t,k} por ano, com os pesos de antes e de depois da aposentadoria. */
+  /** Σ_k w_k δ_{t,k} por passo, com os pesos de antes e de depois da aposentadoria. */
   shockPre: Float64Array
   shockPost: Float64Array | null
   rules: SpendingRules
-  /** Idade do membro mais jovem do casal em cada ponto (T + 1 pontos). */
+  /** Idade do membro mais jovem do casal em cada ponto (T + 1 pontos: a data de referência e o fim de cada passo). */
   ages: number[]
   titularAges: number[]
+  /** Ano civil de cada ponto. */
+  years: number[]
   warnings: string[]
 }
 
-function birthYear(p: Person): number {
-  const y = Number(p.birthDate.slice(0, 4))
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(p.birthDate) || !Number.isInteger(y)) {
-    throw new EngineInputError('data_invalida', `Data de nascimento inválida para ${p.name}: use AAAA-MM-DD.`)
+interface CalendarDate {
+  year: number
+  month: number
+  day: number
+}
+
+const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0
+const daysInMonth = (y: number, m: number) => [31, isLeap(y) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1]
+
+/** Meses corridos: ano × 12 + mês − 1. */
+export const monthIndex = (year: number, month: number) => year * 12 + month - 1
+const yearOf = (index: number) => Math.floor(index / 12)
+const monthOf = (index: number) => index - yearOf(index) * 12 + 1
+
+function parseDate(text: string, what: string): CalendarDate {
+  const ok = /^\d{4}-\d{2}-\d{2}$/.test(text)
+  const year = Number(text.slice(0, 4))
+  const month = Number(text.slice(5, 7))
+  const day = Number(text.slice(8, 10))
+  if (!ok || month < 1 || month > 12 || day < 1 || day > daysInMonth(year, month)) {
+    throw new EngineInputError('data_invalida', `Data inválida em ${what}: use AAAA-MM-DD.`)
   }
-  return y
+  return { year, month, day }
+}
+
+const birthOf = (p: Person) => parseDate(p.birthDate, `data de nascimento de ${p.name}`)
+
+/** Idade completa no último dia do mês `index`. */
+function ageAtMonthEnd(birth: CalendarDate, index: number): number {
+  return yearOf(index) - birth.year - (monthOf(index) < birth.month ? 1 : 0)
 }
 
 function requireAmount(value: number, what: string): void {
@@ -61,15 +101,39 @@ function requireAmount(value: number, what: string): void {
   }
 }
 
-/** Soma `amount` nos anos de `from` a `to` (inclusivos) que caem no horizonte. */
-function addRange(arr: Float64Array, startYear: number, from: number, to: number, amount: number): void {
-  const a = Math.max(from, startYear) - startYear
-  const b = Math.min(to, startYear + arr.length - 1) - startYear
-  for (let t = a; t <= b; t++) arr[t] += amount
+/** Faixa de meses: o início (meses corridos) e quantos meses. */
+interface Range {
+  start: number
+  len: number
+}
+
+/** Meses da faixa que caem nos anos civis de `from` a `to` (inclusivos). */
+function overlapMonths(r: Range, from: number, to: number): number {
+  const lo = Math.max(r.start, monthIndex(from, 1))
+  const hi = Math.min(r.start + r.len - 1, monthIndex(to, 12))
+  return hi >= lo ? hi - lo + 1 : 0
+}
+
+/** Soma o valor anual `amount` pro rata pelos meses dos anos de `from` a `to` que caem em cada faixa. */
+function addYears(arr: Float64Array, ranges: Range[], from: number, to: number, amount: number): void {
+  for (let t = 0; t < ranges.length; t++) {
+    const n = overlapMonths(ranges[t], from, to)
+    if (n > 0) arr[t] += (amount * n) / 12
+  }
+}
+
+/** Soma `amount` em toda faixa que contém o mês `index`. */
+function addAtMonth(arr: Float64Array, ranges: Range[], index: number, amount: number): void {
+  for (let t = 0; t < ranges.length; t++) {
+    if (index >= ranges[t].start && index < ranges[t].start + ranges[t].len) arr[t] += amount
+  }
 }
 
 function eventYears(ev: PlanEvent): number[] {
   if (!Number.isInteger(ev.year)) throw new EngineInputError('evento_invalido', `Ano inválido no evento "${ev.name}".`)
+  if (ev.month !== undefined && (!Number.isInteger(ev.month) || ev.month < 1 || ev.month > 12)) {
+    throw new EngineInputError('evento_invalido', `Mês inválido no evento "${ev.name}": use de 1 a 12.`)
+  }
   if (ev.recurrence === 'unica') return [ev.year]
   if (ev.endYear === undefined || !Number.isInteger(ev.endYear) || ev.endYear < ev.year) {
     throw new EngineInputError('evento_invalido', `O evento "${ev.name}" é recorrente e precisa de um ano de fim válido.`)
@@ -139,15 +203,18 @@ function validateRules(r: SpendingRules): void {
   if (!ok) throw new EngineInputError('regras_invalidas', 'Parâmetros das regras de gasto flexível inválidos.')
 }
 
-/** Escala o vetor para que o ano 0 valha `target`, mantendo a proporção dos demais anos. */
-function scaleToFirstYear(arr: Float64Array, target: number, what: string, warnings: string[]): void {
+/**
+ * Escala o vetor para que o passo 0 valha `target` (valor anual), mantendo a proporção dos demais passos.
+ * Sem esse gasto no passo 0, o valor vale para todos os passos, pro rata pelos meses de cada faixa.
+ */
+function scaleToFirstYear(arr: Float64Array, ranges: Range[], target: number, what: string, warnings: string[]): void {
   requireAmount(target, what)
   const first = arr[0]
   if (first > 0) {
     const f = target / first
     for (let t = 0; t < arr.length; t++) arr[t] *= f
   } else {
-    arr.fill(target)
+    for (let t = 0; t < arr.length; t++) arr[t] = (target * ranges[t].len) / 12
     warnings.push(`O plano não tinha ${what} no primeiro ano; o valor do "E se?" foi aplicado a todos os anos.`)
   }
 }
@@ -164,50 +231,74 @@ export function buildPlan(input: SimInput): Plan {
   const warnings: string[] = []
   const h = hd.household
 
-  const startYear = Number(h.referenceDate.slice(0, 4))
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(h.referenceDate)) {
-    throw new EngineInputError('data_invalida', 'Data de referência das posições inválida: use AAAA-MM-DD.')
+  // Data de referência: último dia do mês de competência. O primeiro mês simulado é o seguinte.
+  const ref = parseDate(h.referenceDate, 'data de referência das posições')
+  if (ref.day !== daysInMonth(ref.year, ref.month)) {
+    throw new EngineInputError('data_referencia_invalida', 'A data de referência das posições precisa ser o último dia do mês (ex.: 2026-09-30).')
   }
+  const startYear = ref.year
+  const firstMonth = monthIndex(ref.year, ref.month) + 1
 
-  // Horizonte: até o membro mais jovem do casal completar a idade-limite.
+  // Horizonte: até o mês em que o membro mais jovem do casal completa a idade-limite.
   const couple = hd.people.filter((p) => p.role === 'titular' || p.role === 'conjuge')
   if (couple.length === 0) throw new EngineInputError('sem_titular', 'O plano precisa de um titular.')
   const titular = couple.find((p) => p.role === 'titular') ?? couple[0]
   const youngest = couple.reduce((a, b) => (b.birthDate > a.birthDate ? b : a))
-  const age0 = startYear - birthYear(youngest)
-  const titularAge0 = startYear - birthYear(titular)
-  const lastYearFor = (person: Person, age: number, what: string): number => {
+  const youngestBirth = birthOf(youngest)
+  const titularBirth = birthOf(titular)
+  const lastMonthFor = (person: Person, age: number, what: string): number => {
     if (!Number.isInteger(age)) throw new EngineInputError('horizonte_invalido', `A idade-limite de ${what} precisa ser um número inteiro.`)
-    return birthYear(person) + age - 1
+    const b = birthOf(person)
+    return monthIndex(b.year + age, b.month)
   }
 
-  // Último ano simulado do plano oficial: o mais longo entre a idade-limite da família e a meta de padrão de vida (D-021).
-  let planLastYear = lastYearFor(youngest, h.horizonAge, 'horizonte')
+  // Último mês do plano oficial: o mais longo entre a idade-limite da família e a meta de padrão de vida (D-021).
+  let planLastMonth = lastMonthFor(youngest, h.horizonAge, 'horizonte')
   for (const goal of hd.goals.filter((g) => g.kind === 'padrao_de_vida' && g.targetAge !== undefined)) {
     const person = goal.personId === undefined ? youngest : hd.people.find((p) => p.id === goal.personId)
     if (!person) throw new EngineInputError('meta_invalida', `A meta de padrão de vida cita a pessoa "${goal.personId}", que não está no plano.`)
-    const goalLastYear = lastYearFor(person, goal.targetAge as number, 'meta de padrão de vida')
-    if (goalLastYear !== planLastYear) {
+    const goalLastMonth = lastMonthFor(person, goal.targetAge as number, 'meta de padrão de vida')
+    if (goalLastMonth !== planLastMonth) {
       warnings.push(`A meta de padrão de vida (${person.name}, ${goal.targetAge} anos) não coincide com o horizonte da família; foi usado o mais longo.`)
-      planLastYear = Math.max(planLastYear, goalLastYear)
+      planLastMonth = Math.max(planLastMonth, goalLastMonth)
     }
   }
   // O "E se?" muda a idade-limite do membro mais jovem do casal.
-  const lastYear = sc.horizonAge === undefined ? planLastYear : lastYearFor(youngest, sc.horizonAge, 'horizonte')
-  const T = lastYear - startYear + 1
-  if (T < 1) throw new EngineInputError('horizonte_invalido', 'A idade-limite do horizonte já foi atingida.')
+  const lastMonth = sc.horizonAge === undefined ? planLastMonth : lastMonthFor(youngest, sc.horizonAge, 'horizonte')
+  const months = lastMonth - firstMonth + 1
+  if (months < 1) throw new EngineInputError('horizonte_invalido', 'A idade-limite do horizonte já foi atingida.')
+  const T = Math.ceil(months / 12)
+  const stepMonths = new Int32Array(T)
+  const stepFrac = new Float64Array(T)
+  const ranges: Range[] = []
+  for (let t = 0; t < T; t++) {
+    stepMonths[t] = Math.min(12, months - 12 * t)
+    stepFrac[t] = stepMonths[t] / 12
+    ranges.push({ start: firstMonth + 12 * t, len: stepMonths[t] })
+  }
+  // Uma faixa a mais, só com o primeiro mês, para o fluxo do plano no mês (usado na ponte).
+  ranges.push({ start: firstMonth, len: 1 })
+  const R = ranges.length
+
+  const planLastYear = yearOf(planLastMonth)
+  const lastYear = yearOf(lastMonth)
   /** Fluxos que cobrem o fim do horizonte do plano acompanham um horizonte mais longo no "E se?" (D-019). */
   const extendToHorizon = (to: number): number => (to >= planLastYear && lastYear > planLastYear ? Math.max(to, lastYear) : to)
 
-  // Aposentadoria do titular. Sem idade informada, o titular já é considerado aposentado.
+  // Aposentadoria do titular, no mês do aniversário. Sem idade informada, o titular já é considerado aposentado.
   const planRetirementAge = titular.retirementAge ?? null
   const retirementAge = sc.retirementAge ?? planRetirementAge
   if (retirementAge !== null && !Number.isInteger(retirementAge)) {
     throw new EngineInputError('aposentadoria_invalida', 'A idade de aposentadoria precisa ser um número inteiro.')
   }
-  const retirementYear = retirementAge === null ? null : birthYear(titular) + retirementAge
-  const planRetirementYear = planRetirementAge === null ? null : birthYear(titular) + planRetirementAge
-  const retiredFrom = retirementYear === null ? 0 : Math.min(T, Math.max(0, retirementYear - startYear))
+  const retirementYear = retirementAge === null ? null : titularBirth.year + retirementAge
+  const planRetirementYear = planRetirementAge === null ? null : titularBirth.year + planRetirementAge
+  let retiredFrom = 0
+  if (retirementYear !== null) {
+    // Aposentado no passo t só se a aposentadoria foi antes do início do passo.
+    const retirementMonth = monthIndex(retirementYear, titularBirth.month)
+    retiredFrom = retirementMonth < firstMonth ? 0 : Math.min(T, Math.floor((retirementMonth - firstMonth) / 12) + 1)
+  }
 
   // Patrimônio financeiro simulado: carteira CADM + bens declarados que entram na simulação (ex.: VGBL).
   let W0 = 0
@@ -222,23 +313,26 @@ export function buildPlan(input: SimInput): Plan {
     }
   }
 
-  // Vendas de imóvel do cenário.
+  // Vendas de imóvel do cenário, em julho do ano escolhido.
   const sales = new Map<string, number>()
+  const firstSaleYear = yearOf(firstMonth) + (monthOf(firstMonth) > DEFAULT_EVENT_MONTH ? 1 : 0)
+  const lastSaleYear = yearOf(lastMonth) - (monthOf(lastMonth) < DEFAULT_EVENT_MONTH ? 1 : 0)
   for (const s of sc.propertySales ?? []) {
     const asset = hd.otherAssets.find((a) => a.id === s.propertyId)
     if (!asset || asset.kind !== 'imovel') throw new EngineInputError('imovel_desconhecido', `Imóvel "${s.propertyId}" não encontrado.`)
     if (!asset.canBeSold) throw new EngineInputError('imovel_nao_vendavel', `O imóvel "${asset.name}" está marcado como não vendável.`)
-    if (!Number.isInteger(s.year) || s.year < startYear || s.year >= startYear + T) {
-      throw new EngineInputError('venda_fora_do_horizonte', `O ano de venda de "${asset.name}" precisa estar entre ${startYear} e ${startYear + T - 1}.`)
+    if (!Number.isInteger(s.year) || s.year < firstSaleYear || s.year > lastSaleYear) {
+      throw new EngineInputError('venda_fora_do_horizonte', `O ano de venda de "${asset.name}" precisa estar entre ${firstSaleYear} e ${lastSaleYear}.`)
     }
     sales.set(asset.id, s.year)
   }
 
-  const income = new Float64Array(T)
-  const inflows = new Float64Array(T)
-  const essential = new Float64Array(T)
-  const lifestyle = new Float64Array(T)
-  const outflows = new Float64Array(T)
+  // Vetores por faixa: os T passos e, no fim, o primeiro mês.
+  const income = new Float64Array(R)
+  const inflows = new Float64Array(R)
+  const essential = new Float64Array(R)
+  const lifestyle = new Float64Array(R)
+  const outflows = new Float64Array(R)
 
   const incomeOverride = new Map((sc.incomes ?? []).map((i) => [i.name, i.monthly * 12]))
   for (const cf of hd.cashFlows) addCashFlow(cf)
@@ -259,32 +353,32 @@ export function buildPlan(input: SimInput): Plan {
           amount = incomeOverride.get(cf.name) as number
           requireAmount(amount, cf.name)
         }
-        addRange(income, startYear, cf.startYear, to, amount)
+        addYears(income, ranges, cf.startYear, to, amount)
         break
       case 'aluguel': {
         // O aluguel de um imóvel vendido para a partir do ano da venda.
         const saleYear = cf.otherAssetId ? sales.get(cf.otherAssetId) : undefined
         if (saleYear !== undefined) to = Math.min(to, saleYear - 1)
-        addRange(income, startYear, cf.startYear, to, amount)
+        addYears(income, ranges, cf.startYear, to, amount)
         break
       }
       case 'gasto_essencial':
-        addRange(essential, startYear, cf.startYear, to, amount)
+        addYears(essential, ranges, cf.startYear, to, amount)
         break
       case 'gasto_estilo':
-        addRange(lifestyle, startYear, cf.startYear, to, amount)
+        addYears(lifestyle, ranges, cf.startYear, to, amount)
         break
       default:
         throw new EngineInputError('fluxo_invalido', `Tipo de fluxo desconhecido em "${(cf as CashFlow).name}".`)
     }
   }
 
-  if (sc.essentialMonthly !== undefined) scaleToFirstYear(essential, sc.essentialMonthly * 12, 'gasto essencial', warnings)
-  if (sc.lifestyleMonthly !== undefined) scaleToFirstYear(lifestyle, sc.lifestyleMonthly * 12, 'gasto de estilo de vida', warnings)
+  if (sc.essentialMonthly !== undefined) scaleToFirstYear(essential, ranges, sc.essentialMonthly * 12, 'gasto essencial', warnings)
+  if (sc.lifestyleMonthly !== undefined) scaleToFirstYear(lifestyle, ranges, sc.lifestyleMonthly * 12, 'gasto de estilo de vida', warnings)
   const k = sc.spendingMultiplier ?? 1
   if (!Number.isFinite(k) || k < 0) throw new EngineInputError('multiplicador_invalido', 'Multiplicador de gasto inválido.')
   if (k !== 1) {
-    for (let t = 0; t < T; t++) {
+    for (let t = 0; t < R; t++) {
       essential[t] *= k
       lifestyle[t] *= k
     }
@@ -293,7 +387,23 @@ export function buildPlan(input: SimInput): Plan {
   for (const ev of [...hd.events, ...(sc.extraEvents ?? [])]) {
     requireAmount(ev.amountReal, ev.name)
     const target = ev.direction === 'entrada' ? inflows : outflows
-    for (const y of eventYears(ev)) addRange(target, startYear, y, y, ev.amountReal)
+    const years = eventYears(ev)
+    if (ev.recurrence === 'anual') {
+      // Evento anual: pro rata, como os fluxos.
+      addYears(target, ranges, ev.year, ev.endYear as number, ev.amountReal)
+      continue
+    }
+    // Evento único e cada ocorrência de "a cada N anos": no seu mês (sem mês, julho).
+    const month = ev.month ?? DEFAULT_EVENT_MONTH
+    let past = 0
+    for (const y of years) {
+      const index = monthIndex(y, month)
+      if (index < firstMonth) past++
+      else addAtMonth(target, ranges, index, ev.amountReal)
+    }
+    if (past > 0) {
+      warnings.push(`O evento "${ev.name}" tem ${past === 1 ? 'uma data' : `${past} datas`} antes do primeiro mês simulado, fora do cálculo.`)
+    }
   }
 
   for (const [id, year] of sales) {
@@ -308,11 +418,12 @@ export function buildPlan(input: SimInput): Plan {
       )
     }
     requireAmount(value, asset.name)
-    inflows[year - startYear] += value
+    addAtMonth(inflows, ranges, monthIndex(year, DEFAULT_EVENT_MONTH), value)
   }
 
   const base = new Float64Array(T)
   for (let t = 0; t < T; t++) base[t] = income[t] + inflows[t] - essential[t] - outflows[t]
+  const firstMonthFlow = income[T] + inflows[T] - essential[T] - lifestyle[T] - outflows[T]
 
   // Carteira: pesos (perfil ou explícitos), taxa de gestão e choques.
   const { weightsSource, profileId, weightsPre, weightsPost } = portfolioWeights(input, sc, cma.classes.map((c) => c.code))
@@ -337,19 +448,26 @@ export function buildPlan(input: SimInput): Plan {
   const legacy = sc.legacyMin ?? planLegacy
   requireAmount(legacy, 'legado mínimo')
 
-  const ages = Array.from({ length: T + 1 }, (_, t) => age0 + t)
-  const titularAges = Array.from({ length: T + 1 }, (_, t) => titularAge0 + t)
+  // Pontos: a data de referência e o fim de cada passo.
+  const pointMonths = Array.from({ length: T + 1 }, (_, t) => firstMonth - 1 + Math.min(12 * t, months))
+  const ages = pointMonths.map((m) => ageAtMonthEnd(youngestBirth, m))
+  const titularAges = pointMonths.map((m) => ageAtMonthEnd(titularBirth, m))
+  const years = pointMonths.map(yearOf)
 
   return {
     startYear,
+    firstMonth,
     T,
+    stepMonths,
+    stepFrac,
     W0,
-    income,
-    inflows,
-    essential,
-    lifestyle,
-    outflows,
+    income: income.slice(0, T),
+    inflows: inflows.slice(0, T),
+    essential: essential.slice(0, T),
+    lifestyle: lifestyle.slice(0, T),
+    outflows: outflows.slice(0, T),
     base,
+    firstMonthFlow,
     retiredFrom,
     retirementYear,
     retirementAge,
@@ -364,6 +482,7 @@ export function buildPlan(input: SimInput): Plan {
     rules,
     ages,
     titularAges,
+    years,
     warnings,
   }
 }
@@ -379,7 +498,7 @@ function weightedShocks(delta: Float64Array, w: Float64Array, T: number): Float6
   return out
 }
 
-/** Fluxo líquido do ano com o plano completo (sem regras de gasto flexível). */
+/** Fluxo líquido do passo com o plano completo (sem regras de gasto flexível). */
 export function fullPlanFlows(plan: Plan): Float64Array {
   const f = new Float64Array(plan.T)
   for (let t = 0; t < plan.T; t++) f[t] = plan.base[t] - plan.lifestyle[t]

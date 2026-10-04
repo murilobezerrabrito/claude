@@ -76,6 +76,8 @@ export interface PlanEvent {
   direction: 'entrada' | 'saida'
   amountReal: number
   year: number
+  /** Mês (1 a 12) do evento único e de cada ocorrência de "a cada N anos"; sem mês, julho. O evento anual entra pro rata. */
+  month?: number
   recurrence: EventRecurrence
   everyN?: number
   endYear?: number
@@ -116,7 +118,7 @@ export interface HouseholdData {
     id: string
     name: string
     bankerId?: string
-    /** Data de referência das posições (AAAA-MM-DD); o ano dela é o ano 0. */
+    /** Data de referência das posições (AAAA-MM-DD), o último dia do mês de competência; o passo 0 começa no mês seguinte. */
     referenceDate: string
     profileId: string
     /**
@@ -208,10 +210,13 @@ export interface SimResult {
   inputsHash: string
   seed: number
   paths: number
-  /** Ano civil do índice 0. */
+  /** Ano civil da data de referência (ponto 0). */
   startYear: number
-  /** Número de anos simulados; as séries têm T + 1 pontos (início do ano 0 até o fim do horizonte). */
+  /** Passos de 12 meses simulados (o último pode ser mais curto); as séries têm T + 1 pontos (a data de referência e o fim de cada passo). */
   T: number
+  /** Meses de cada passo. */
+  stepMonths: number[]
+  /** Ano civil de cada ponto. */
   years: number[]
   /** Idade do membro mais jovem do casal, que define o horizonte, em cada ponto. */
   ages: number[]
@@ -220,7 +225,7 @@ export interface SimResult {
   successProbability: number
   /** null quando não há meta de legado. */
   legacyProbability: number | null
-  /** Retorno composto realizado na simulação: exp(média de ln(1 + R)) − 1, com choques e taxa. */
+  /** Retorno composto realizado na simulação: exp(média de ln(1 + R)) − 1 sobre o retorno anual R de cada passo, com choques e taxa. */
   compositeReturn: number
   /** Retorno composto esperado do perfil, líquido de taxa e sem choques (usado na folga e na trajetória de referência). */
   expectedCompositeReturn: number

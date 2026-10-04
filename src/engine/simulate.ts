@@ -1,4 +1,5 @@
-// Simulação de Monte Carlo anual (SPEC, "Motor de simulação" e "Pseudocódigo").
+// Simulação de Monte Carlo em passos de 12 meses (SPEC, "Motor de simulação", "Pseudocódigo" e "Motor no ciclo
+// mensal"); o último passo pode ter m < 12 meses e rende (1 + R)^(m/12) − 1.
 // Diferença deliberada do pseudocódigo (D-009): o mercado é sorteado antes dos fluxos e uma trajetória que falha
 // continua com patrimônio zero, sem `break`. Assim nenhuma falha desalinha os sorteios das trajetórias seguintes.
 
@@ -34,7 +35,7 @@ export interface RunOutput {
   paths: number
   successCount: number
   legacyCount: number
-  /** Soma de ln(1 + R) com choques e taxa, sobre paths × T. */
+  /** Soma de ln(1 + R) com choques e taxa, sobre paths × T, com o retorno anual R de cada passo. */
   sumLogR: number
   /** Soma de ln(1 + R) sem choques, com taxa: base do retorno composto esperado do perfil. */
   sumLogExpected: number
@@ -78,7 +79,7 @@ export function runPaths(
   const n = opts.paths ?? market.paths
   if (n > market.paths) throw new EngineInputError('mercado_incompativel', 'O mercado sorteado tem menos trajetórias que o pedido.')
 
-  const { base, lifestyle, retiredFrom, rules, W0, legacy } = plan
+  const { base, lifestyle, retiredFrom, rules, W0, legacy, stepFrac } = plan
   const shockPre = plan.shockPre
   const shockPost = plan.shockPost ?? plan.shockPre
   const gPre = market.grossPre
@@ -88,7 +89,7 @@ export function runPaths(
   let ref: Float64Array | null = null
   if (rulesOn && rules.mode === 'trajetoria_referencia') {
     const rates = expectedRates(plan, market)
-    ref = referencePath(W0, fullPlanFlows(plan), rates.pre, rates.post, retiredFrom)
+    ref = referencePath(W0, fullPlanFlows(plan), rates.pre, rates.post, retiredFrom, plan.stepFrac)
   }
 
   const wealth = opts.keepWealth ? new Float64Array(n * (T + 1)) : null
@@ -113,10 +114,11 @@ export function runPaths(
       const idx = i * T + t
       const retired = t >= retiredFrom
       const G = retired ? gPost[idx] : gPre[idx]
-      let growth = keep * (1 + G + (retired ? shockPost[t] : shockPre[t])) // 1 + R
+      let growth = keep * (1 + G + (retired ? shockPost[t] : shockPre[t])) // 1 + R, anual
       if (growth < 0) growth = 0 // choque maior que a carteira: perda total
       sumLogR += Math.log(growth > 1e-300 ? growth : 1e-300)
       sumLogExpected += Math.log(keep * (1 + G))
+      if (stepFrac[t] !== 1) growth = growth ** stepFrac[t] // passo curto: (1 + R)^(m/12)
 
       if (!failed) {
         if (rulesOn && retired) {
@@ -159,7 +161,7 @@ export function summarize(input: SimInput, opt: SimOptions, plan: Plan, out: Run
   const cuts = out.maxCut.filter((v) => !Number.isNaN(v))
   const cutYears = out.cutYears.filter((v) => !Number.isNaN(v))
   const expectedCompositeReturn = Math.exp(out.sumLogExpected / (n * T)) - 1
-  const required = requiredReturn(plan.W0, fullPlanFlows(plan), plan.legacy)
+  const required = requiredReturn(plan.W0, fullPlanFlows(plan), plan.legacy, plan.stepFrac)
   return {
     engineVersion: ENGINE_VERSION,
     cmaVersion: input.cma.version,
@@ -168,7 +170,8 @@ export function summarize(input: SimInput, opt: SimOptions, plan: Plan, out: Run
     paths: n,
     startYear: plan.startYear,
     T,
-    years: Array.from({ length: T + 1 }, (_, t) => plan.startYear + t),
+    stepMonths: Array.from(plan.stepMonths),
+    years: plan.years,
     ages: plan.ages,
     titularAges: plan.titularAges,
     retirementYear: plan.retirementYear,
