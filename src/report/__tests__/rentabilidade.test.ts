@@ -88,6 +88,18 @@ describe('rentabilidade encadeada e benchmark pessoal acumulado', () => {
     expect(mar.twelveMonths).toBeNull()
   })
 
+  it('a marca "datas aproximadas" acompanha todo período que inclui um mês com movimento sem data', () => {
+    const s = performanceSummary(
+      [
+        { month: '2026-10', real: -0.025, benchmarkAnnual: rStar, approximateDates: true },
+        { month: '2026-11', real: 0.01, benchmarkAnnual: rStar, approximateDates: false },
+      ],
+      '2026-11',
+    )
+    expect(s.month.approximateDates).toBe(false)
+    expect(s.sinceStart.approximateDates).toBe(true)
+  })
+
   it('sem r* em algum mês, o benchmark do período fica vazio; mês faltando no histórico é erro', () => {
     const s = performanceSummary([{ month: '2026-10', real: 0, benchmarkAnnual: null }, { month: '2026-11', real: 0, benchmarkAnnual: rStar }], '2026-11')
     expect(s.month.benchmark).toBeCloseTo(mensal, 15)

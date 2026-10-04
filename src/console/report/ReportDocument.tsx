@@ -4,6 +4,7 @@
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import type { ReactNode } from 'react'
 import {
+  formatAge,
   formatDate,
   formatFrequency,
   formatMoney,
@@ -240,13 +241,21 @@ function PerformanceRow(props: { label: string; period: PeriodReturn | null; sin
   const diff = p && p.benchmark !== null ? p.real - p.benchmark : null
   return (
     <View style={{ ...s.row, ...s.rule }}>
-      <Text style={{ ...s.td, width: 120 }}>{props.label}</Text>
+      <Text style={{ ...s.td, width: 120 }}>
+        {props.label}
+        {p?.approximateDates ? '*' : ''}
+      </Text>
       <Text style={{ ...s.td, width: 110, textAlign: 'right' }}>{p ? formatSignedPercent(p.real) : '—'}</Text>
       <Text style={{ ...s.td, width: 130, textAlign: 'right' }}>{p && p.benchmark !== null ? formatSignedPercent(p.benchmark) : '—'}</Text>
       <Text style={{ ...s.td, width: 90, textAlign: 'right' }}>{diff === null ? '—' : formatPp(diff)}</Text>
       <Text style={{ ...s.td, flex: 1, paddingLeft: 12, color: COLORS.muted, fontSize: 8 }}>{p ? '' : `acompanhamento desde ${props.since}`}</Text>
     </View>
   )
+}
+
+function anyApproximate(perf: ReportSnapshot['performance']['summary']): boolean {
+  if (!perf) return false
+  return [perf.month, perf.yearToDate, perf.twelveMonths, perf.sinceStart].some((p) => p?.approximateDates === true)
 }
 
 function Portfolio({ snap }: { snap: ReportSnapshot }) {
@@ -272,7 +281,7 @@ function Portfolio({ snap }: { snap: ReportSnapshot }) {
           <PerformanceRow label="Desde o início" period={perf ? perf.sinceStart : null} since={since} />
           <Text style={{ ...s.small, marginTop: 8 }}>
             Rentabilidade da carteira pelo método de Dietz modificado, com os aportes e resgates do mês, descontada a inflação (IPCA).
-            {snap.performance.month?.approximateDates ? ' Datas aproximadas: algum movimento entrou sem data e foi contado no meio do mês.' : ''} O CDI, como
+            {anyApproximate(perf) ? ' * Datas aproximadas: algum movimento do período entrou sem data e foi contado no meio do mês.' : ''} O CDI, como
             referência secundária, entra com a série do Banco Central na próxima fase.
           </Text>
         </View>
@@ -293,11 +302,14 @@ function Portfolio({ snap }: { snap: ReportSnapshot }) {
           <Text style={{ ...s.td, width: 100, textAlign: 'right', paddingVertical: 3 }}>{formatMoney(c.value)}</Text>
           <Text style={{ ...s.td, width: 60, textAlign: 'right', paddingVertical: 3 }}>{formatPercent(c.share)}</Text>
           {c.target !== null ? <Text style={{ ...s.td, width: 60, textAlign: 'right', paddingVertical: 3, color: COLORS.muted }}>{formatPercent(c.target, 0)}</Text> : null}
-          <View style={{ flex: 1, paddingLeft: 16, height: 12, justifyContent: 'center' }}>
-            <View style={{ height: 7, width: `${(c.share / maxShare) * 100}%`, backgroundColor: COLORS.accent, borderRadius: 1 }} />
-            {c.target !== null ? (
-              <View style={{ position: 'absolute', left: `${(c.target / maxShare) * 100}%`, marginLeft: 16, top: 0, width: 1.2, height: 12, backgroundColor: COLORS.fg }} />
-            ) : null}
+          <View style={{ flex: 1, paddingLeft: 16 }}>
+            {/* Barra e marca do perfil na mesma caixa, sem recuo, para usarem a mesma escala. */}
+            <View style={{ height: 12, justifyContent: 'center' }}>
+              <View style={{ height: 7, width: `${(c.share / maxShare) * 100}%`, backgroundColor: COLORS.accent, borderRadius: 1 }} />
+              {c.target !== null ? (
+                <View style={{ position: 'absolute', left: `${(c.target / maxShare) * 100}%`, top: 0, width: 1.2, height: 12, marginLeft: -0.6, backgroundColor: COLORS.fg }} />
+              ) : null}
+            </View>
           </View>
         </View>
       ))}
@@ -335,7 +347,7 @@ function Trajectory({ snap }: { snap: ReportSnapshot }) {
           <View style={{ marginTop: 8 }}>
             {t.markers.map((m, i) => (
               <Text key={m.label} style={{ fontSize: 9, marginBottom: 3 }}>
-                {i + 1}. {m.label} ({formatAgeLabel(m.age)})
+                {i + 1}. {m.label} ({formatAge(Math.floor(m.age + 1e-9))})
               </Text>
             ))}
           </View>
@@ -349,11 +361,6 @@ function Trajectory({ snap }: { snap: ReportSnapshot }) {
       </View>
     </Frame>
   )
-}
-
-/** "aos 59 anos" a partir da idade com fração de meses. */
-function formatAgeLabel(age: number): string {
-  return `aos ${Math.floor(age + 1e-9)} anos`
 }
 
 function Conversation({ snap }: { snap: ReportSnapshot }) {

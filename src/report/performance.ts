@@ -3,7 +3,7 @@
 // acumulado no mesmo período.
 
 import { ReportInputError } from './errors.ts'
-import { formatMonth, parseMonth, type IpcaSeries } from './inflation.ts'
+import { formatMonth, lastDayOfMonth, parseMonth, type IpcaSeries } from './inflation.ts'
 import type { ExternalFlow } from './types.ts'
 
 /** Fora desta faixa, a rentabilidade real do mês pede confirmação de quem importou. */
@@ -11,12 +11,7 @@ export const PLAUSIBLE_REAL_RANGE = { min: -0.1, max: 0.1 } as const
 
 const DATE_RE = /^(\d{4}-(?:0[1-9]|1[0-2]))-(\d{2})$/
 
-function daysInMonth(monthIdx: number): number {
-  const year = Math.floor(monthIdx / 12)
-  const month = monthIdx - year * 12 + 1
-  const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
-  return [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1]
-}
+const daysInMonth = (monthIdx: number) => lastDayOfMonth(Math.floor(monthIdx / 12), (monthIdx % 12) + 1)
 
 export interface MonthReturnInput {
   /** Data de referência do fechamento (AAAA-MM-DD), o último dia do mês. */
@@ -97,6 +92,8 @@ export interface PerformanceMonth {
   real: number
   /** r* anual publicado no fechamento anterior; null quando não havia número (folga total ou plano inviável). */
   benchmarkAnnual: number | null
+  /** Algum movimento do mês entrou sem data (meio do mês). */
+  approximateDates?: boolean
 }
 
 export interface PeriodReturn {
@@ -105,6 +102,8 @@ export interface PeriodReturn {
   /** Benchmark pessoal acumulado no mesmo período; null se faltou o r* em algum mês. */
   benchmark: number | null
   months: number
+  /** Algum mês do período usou datas aproximadas: a marca acompanha o número. */
+  approximateDates: boolean
 }
 
 export interface PerformanceSummary {
@@ -121,11 +120,13 @@ export interface PerformanceSummary {
 function accumulate(months: PerformanceMonth[]): PeriodReturn {
   let real = 1
   let bench: number | null = 1
+  let approximateDates = false
   for (const m of months) {
     real *= 1 + m.real
     bench = bench === null || m.benchmarkAnnual === null ? null : bench * (1 + m.benchmarkAnnual) ** (1 / 12)
+    if (m.approximateDates) approximateDates = true
   }
-  return { real: real - 1, benchmark: bench === null ? null : bench - 1, months: months.length }
+  return { real: real - 1, benchmark: bench === null ? null : bench - 1, months: months.length, approximateDates }
 }
 
 /**

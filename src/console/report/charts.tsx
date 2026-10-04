@@ -107,6 +107,13 @@ export function BridgeChart(props: { startTenths: number; endTenths: number; bar
   )
 }
 
+/** Altura de cada marco (0, 1 ou 2): marcos a menos de 2 anos do anterior sobem um nível, em ciclo de três. */
+function markerLevels(markers: { age: number }[]): number[] {
+  const levels: number[] = []
+  markers.forEach((m, i) => levels.push(i > 0 && m.age - markers[i - 1].age < 2 ? (levels[i - 1] + 1) % 3 : 0))
+  return levels
+}
+
 /** Escala "bonita" para o eixo do patrimônio, em R$ mi: passo de 1, 2, 5, 10, 20 ou 50 mi com até 6 marcas. */
 function niceAxis(maxMi: number): { top: number; step: number } {
   for (const step of [1, 2, 5, 10, 20, 50, 100]) {
@@ -166,9 +173,9 @@ export function FanChart(props: {
       ))}
       <Path d={band(p.p10, p.p90)} fill={COLORS.accentSoft} />
       <Path d={band(p.p25, p.p75)} fill={COLORS.band} />
-      {markers.map((m, i) => {
-        // Marcos a menos de 2 anos um do outro ficam em alturas diferentes.
-        const cy = top + 7 + (i > 0 && m.age - markers[i - 1].age < 2 ? 15 : 0)
+      {markerLevels(markers).map((level, i) => {
+        const m = markers[i]
+        const cy = top + 7 + level * 15
         return (
           <G key={`m${i}`}>
             <Line x1={x(m.age)} x2={x(m.age)} y1={top} y2={top + plotH} stroke={COLORS.muted} strokeWidth={0.8} strokeDasharray="3 3" />

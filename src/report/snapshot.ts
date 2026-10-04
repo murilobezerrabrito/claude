@@ -4,7 +4,7 @@
 import { probabilityBand, type ProbabilityBand } from '../engine/metrics.ts'
 import { buildPlan, DEFAULT_EVENT_MONTH } from '../engine/plan.ts'
 import { simulate } from '../engine/simulate.ts'
-import type { Cma, Percentiles, Profile, RequiredReturnStatus, Scenario } from '../engine/types.ts'
+import type { Cma, Percentiles, Person, PlanEvent, Profile, RequiredReturnStatus, Scenario } from '../engine/types.ts'
 import { monthAttribution, type MonthAttribution } from './attribution.ts'
 import { ReportInputError } from './errors.ts'
 import { ipcaFactor } from './inflation.ts'
@@ -44,6 +44,11 @@ export interface ReportSnapshotArgs {
   comment: { text: string; example: boolean }
   /** Gestor responsável, na capa. */
   manager: string
+  /**
+   * Números publicados nos meses anteriores (rodada oficial congelada de cada mês, AAAA-MM). A ponte parte do número
+   * publicado; sem ele (no exemplo da Fase 1, não há relatório anterior), o mês anterior é refeito com o motor atual.
+   */
+  published?: Record<string, OfficialRun>
   paths?: number
 }
 
@@ -123,6 +128,29 @@ export interface ReportSnapshot {
 const ageAt = (birthDate: string, year: number, month: number) =>
   (year * 12 + month - (Number(birthDate.slice(0, 4)) * 12 + Number(birthDate.slice(5, 7)))) / 12
 
+/**
+ * Marcos da página 5, em ordem de idade do mais jovem do casal: a aposentadoria do titular e os eventos únicos, no
+ * mês de cada um, só os que caem depois da data de referência e até o fim do horizonte.
+ */
+export function trajectoryMarkers(o: {
+  people: Person[]
+  events: PlanEvent[]
+  retirementYear: number | null
+  fromAge: number
+  toAge: number
+}): { age: number; label: string }[] {
+  const couple = o.people.filter((p) => p.role === 'titular' || p.role === 'conjuge')
+  const youngest = couple.reduce((a, b) => (b.birthDate > a.birthDate ? b : a))
+  const titular = couple.find((p) => p.role === 'titular') ?? youngest
+  const markers: { age: number; label: string }[] = []
+  const add = (age: number, label: string) => {
+    if (age > o.fromAge && age <= o.toAge) markers.push({ age, label })
+  }
+  if (o.retirementYear !== null) add(ageAt(youngest.birthDate, o.retirementYear, Number(titular.birthDate.slice(5, 7))), 'Aposentadoria')
+  for (const ev of o.events) if (ev.recurrence === 'unica') add(ageAt(youngest.birthDate, ev.year, ev.month ?? DEFAULT_EVENT_MONTH), ev.name)
+  return markers.sort((a, b) => a.age - b.age)
+}
+
 export function buildReportSnapshot(args: ReportSnapshotArgs): ReportSnapshot {
   const { data, refMonth } = args
   const paths = args.paths ?? OFFICIAL_PATHS
@@ -135,8 +163,10 @@ export function buildReportSnapshot(args: ReportSnapshotArgs): ReportSnapshot {
     return { household: data.household, planVersion: planVersionFor(data.planVersions, month), closing, ...args.cmaFor(month) }
   })
   const runs = pkgs.map((p) => officialRun(p, data.ipca, { paths }))
+  // O número publicado em cada mês anterior; sem registro, o mês refeito com o motor atual.
+  const publishedRuns = runs.map((r, i) => (i < runs.length - 1 ? (args.published?.[r.refMonth] ?? r) : r))
   const run = runs[runs.length - 1]
-  const prevRun = runs.length > 1 ? runs[runs.length - 2] : null
+  const prevRun = runs.length > 1 ? publishedRuns[runs.length - 2] : null
   const pkg = pkgs[pkgs.length - 1]
 
   // Rentabilidade: cada mês contra o fechamento anterior, com o r* publicado nele.
@@ -144,7 +174,7 @@ export function buildReportSnapshot(args: ReportSnapshotArgs): ReportSnapshot {
   let lastReturn: MonthReturn | null = null
   for (let i = 1; i < closings.length; i++) {
     lastReturn = monthReturn({ refDate: closings[i].refDate, startValue: closings[i - 1].officialPl, endValue: closings[i].officialPl, flows: closings[i].flows, ipca: data.ipca })
-    history.push({ month: lastReturn.month, real: lastReturn.real, benchmarkAnnual: runs[i - 1].requiredReturn })
+    history.push({ month: lastReturn.month, real: lastReturn.real, benchmarkAnnual: publishedRuns[i - 1].requiredReturn, approximateDates: lastReturn.approximateDates })
   }
 
   const bridge = monthAttribution({ previous: prevRun ? { pkg: pkgs[pkgs.length - 2], published: prevRun } : null, current: pkg, ipca: data.ipca, paths })
@@ -154,12 +184,14 @@ export function buildReportSnapshot(args: ReportSnapshotArgs): ReportSnapshot {
   const plan = buildPlan(month.input)
   const cma = pkg.cma
   const profile = data.household.weightsSource === 'perfil' ? pkg.profiles.find((p) => p.id === data.household.profileId) ?? null : null
+  // Alvo do perfil com os pesos que o motor usa hoje: os de depois da aposentadoria, se o titular já se aposentou.
+  const targets = profile ? (plan.retiredFrom === 0 && profile.weightsPost ? profile.weightsPost : profile.weightsPre) : null
   const total = Object.values(current.positionsByClass).reduce((a, b) => a + b, 0)
   const classes = cma.classes
-    .filter((c) => (current.positionsByClass[c.code] ?? 0) > 0 || (profile?.weightsPre[c.code] ?? 0) > 0)
+    .filter((c) => (current.positionsByClass[c.code] ?? 0) > 0 || (targets?.[c.code] ?? 0) > 0)
     .map((c) => {
       const value = current.positionsByClass[c.code] ?? 0
-      return { code: c.code, name: c.name, value, share: value / total, target: profile ? profile.weightsPre[c.code] ?? 0 : null }
+      return { code: c.code, name: c.name, value, share: value / total, target: targets ? targets[c.code] ?? 0 : null }
     })
 
   // Trajetória: patrimônio realizado (em reais da data de referência) e o leque projetado, por idade do mais jovem.
@@ -172,16 +204,13 @@ export function buildReportSnapshot(args: ReportSnapshotArgs): ReportSnapshot {
   const refAge = ageAt(youngest.birthDate, Number(refMonth.slice(0, 4)), Number(refMonth.slice(5, 7)))
   const pointAges = [refAge]
   for (const m of plan.stepMonths) pointAges.push(pointAges[pointAges.length - 1] + m / 12)
-  const markers: { age: number; label: string }[] = []
-  const titular = people.find((p) => p.role === 'titular') ?? youngest
-  if (plan.retirementYear !== null) {
-    markers.push({ age: ageAt(youngest.birthDate, plan.retirementYear, Number(titular.birthDate.slice(5, 7))), label: 'Aposentadoria' })
-  }
-  for (const ev of month.input.household.events) {
-    if (ev.recurrence === 'unica' && ev.year > Number(refMonth.slice(0, 4))) {
-      markers.push({ age: ageAt(youngest.birthDate, ev.year, ev.month ?? DEFAULT_EVENT_MONTH), label: ev.name })
-    }
-  }
+  const markers = trajectoryMarkers({
+    people,
+    events: month.input.household.events,
+    retirementYear: plan.retirementYear,
+    fromAge: refAge,
+    toAge: pointAges[pointAges.length - 1],
+  })
 
   // Cenários da conversa do mês, com os mesmos sorteios da rodada oficial.
   const scenarios: ScenarioResult[] = args.scenarios.map((s) => {
@@ -229,7 +258,7 @@ export function buildReportSnapshot(args: ReportSnapshotArgs): ReportSnapshot {
       profileName: profile ? profile.name : null,
       otherAssets: month.input.household.otherAssets.map((a) => ({ name: a.name, value: a.value, inSimulation: a.inSimulation === true })),
     },
-    trajectory: { realized, pointAges, years: run.years, percentiles: run.percentiles, markers: markers.sort((a, b) => a.age - b.age) },
+    trajectory: { realized, pointAges, years: run.years, percentiles: run.percentiles, markers },
     scenarios,
     comment: args.comment,
     assumptions: { version: cma.version, label: cma.label ?? null, nu: cma.nu, classes: cma.classes.map((c) => ({ code: c.code, name: c.name, mu: c.mu, vol: c.vol })) },

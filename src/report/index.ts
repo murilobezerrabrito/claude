@@ -18,6 +18,7 @@ export {
 export { mainInput, officialRun, OFFICIAL_PATHS, type MonthPackage, type OfficialRun } from './officialRun.ts'
 export {
   BRIDGE_LABELS,
+  bridgeDisplay,
   monthAttribution,
   type AttributionArgs,
   type Bridge,

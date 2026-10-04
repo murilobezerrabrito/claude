@@ -186,14 +186,16 @@
       "month": {
         "real": -0.024924810588799584,
         "benchmark": 0.002663940137526355,
-        "months": 1
+        "months": 1,
+        "approximateDates": false
       },
       "yearToDate": null,
       "twelveMonths": null,
       "sinceStart": {
         "real": -0.024924810588799584,
         "benchmark": 0.002663940137526355,
-        "months": 1
+        "months": 1,
+        "approximateDates": false
       }
     }
   },

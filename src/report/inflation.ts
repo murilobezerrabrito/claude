@@ -14,6 +14,12 @@ const IPCA_MAX_ABS = 0.1
 
 const MONTH_RE = /^(\d{4})-(0[1-9]|1[0-2])$/
 
+/** Último dia do mês (mês de 1 a 12). */
+export function lastDayOfMonth(year: number, month: number): number {
+  const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+  return [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1]
+}
+
 /** Meses corridos (ano × 12 + mês − 1) de um mês AAAA-MM. */
 export function parseMonth(text: string, what: string): number {
   const m = MONTH_RE.exec(text)

@@ -127,6 +127,32 @@ function stateRecord(identity: HouseholdRecord, portfolio: HouseholdRecord, plan
   }
 }
 
+/**
+ * Página 3: extremos e barras em décimos de p.p. O resíduo de arredondamento vai para a maior barra, para a soma fechar
+ * com a diferença dos extremos. "Sem efeito" só quando a barra é menor que 0,05 p.p. e fica em zero (se o resíduo cair
+ * numa barra pequena, ela aparece com o valor).
+ */
+export function bridgeDisplay(
+  startCount: number,
+  steps: Pick<BridgeStep, 'id' | 'label' | 'successDelta'>[],
+  endCount: number,
+  paths: number,
+): Bridge['display'] {
+  const tenths = (trajectories: number) => (trajectories * 1000) / paths
+  const startTenths = roundHalfAway(tenths(startCount))
+  const endTenths = roundHalfAway(tenths(endCount))
+  const raw = steps.map((s) => tenths(s.successDelta))
+  const rounded = raw.map(roundHalfAway)
+  let largest = 0
+  for (let i = 1; i < raw.length; i++) if (Math.abs(raw[i]) > Math.abs(raw[largest])) largest = i
+  if (rounded.length > 0) rounded[largest] += endTenths - startTenths - rounded.reduce((a, b) => a + b, 0)
+  return {
+    startTenths,
+    endTenths,
+    bars: steps.map((s, i) => ({ id: s.id, label: s.label, tenths: rounded[i], noEffect: Math.abs(raw[i]) < NO_EFFECT_TENTHS && rounded[i] === 0 })),
+  }
+}
+
 export function monthAttribution(args: AttributionArgs): MonthAttribution {
   const { previous, current: cur, ipca } = args
   if (previous === null) return { kind: 'primeiro_mes' }
@@ -232,16 +258,6 @@ export function monthAttribution(args: AttributionArgs): MonthAttribution {
     last = s
   }
 
-  // Página 3: décimos de p.p.; o resíduo de arredondamento vai para a maior barra.
-  const tenths = (trajectories: number) => (trajectories * 1000) / paths
-  const startTenths = roundHalfAway(tenths(published.successCount))
-  const endTenths = roundHalfAway(tenths(last.successCount))
-  const raw = steps.map((s) => tenths(s.successDelta))
-  const rounded = raw.map(roundHalfAway)
-  let largest = 0
-  for (let i = 1; i < raw.length; i++) if (Math.abs(raw[i]) > Math.abs(raw[largest])) largest = i
-  rounded[largest] += endTenths - startTenths - rounded.reduce((a, b) => a + b, 0)
-
   return {
     kind: 'ponte',
     paths,
@@ -252,11 +268,7 @@ export function monthAttribution(args: AttributionArgs): MonthAttribution {
     steps,
     totalSuccessDelta: last.successCount - published.successCount,
     totalRequiredReturnDelta: delta(published.requiredReturn, last.requiredReturn),
-    display: {
-      startTenths,
-      endTenths,
-      bars: steps.map((s, i) => ({ id: s.id, label: s.label, tenths: rounded[i], noEffect: Math.abs(raw[i]) < NO_EFFECT_TENTHS })),
-    },
+    display: bridgeDisplay(published.successCount, steps, last.successCount, paths),
     plannedFlow,
     monthNominalReturn: market.nominal,
     externalFlows: cur.closing.flows,

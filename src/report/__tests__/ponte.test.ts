@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import dataset from '../../data/andrade-fechamentos.json'
-import { monthAttribution, type Bridge } from '../attribution.ts'
+import { bridgeDisplay, monthAttribution, type Bridge } from '../attribution.ts'
 import { planVersionFor } from '../monthInputs.ts'
 import { officialRun, type MonthPackage } from '../officialRun.ts'
 import type { HouseholdMonths, HouseholdRecord, MonthClosing } from '../types.ts'
@@ -83,6 +83,25 @@ describe('T19 ponte "o que mudou no mês"', () => {
 
   it('primeiro mês da família: sem ponte', () => {
     expect(monthAttribution({ previous: null, current: setembro, ipca: data.ipca })).toEqual({ kind: 'primeiro_mes' })
+  })
+})
+
+describe('página 3: arredondamento das barras', () => {
+  const step = (id: Bridge['steps'][number]['id'], successDelta: number) => ({ id, label: id, successDelta })
+
+  it('o resíduo que cai numa barra pequena a tira de "sem efeito"', () => {
+    // Duas barras de +4 trajetórias (0,04 p.p. cada) com os extremos em 50,0% e 50,1%: a soma tem de dar +0,1 p.p.
+    const d = bridgeDisplay(5_000, [step('mercado', 4), step('plano', 4)], 5_008, 10_000)
+    expect(d.endTenths - d.startTenths).toBe(1)
+    expect(d.bars.reduce((a, b) => a + b.tenths, 0)).toBe(1)
+    expect(d.bars[0]).toMatchObject({ tenths: 1, noEffect: false })
+    expect(d.bars[1]).toMatchObject({ tenths: 0, noEffect: true })
+  })
+
+  it('meio décimo arredonda para longe do zero, nos dois sentidos', () => {
+    const d = bridgeDisplay(5_000, [step('mercado', -5), step('plano', 5)], 5_000, 10_000)
+    expect(d.bars.map((b) => b.tenths)).toEqual([-1, 1])
+    expect(d.bars.every((b) => !b.noEffect)).toBe(true)
   })
 })
 

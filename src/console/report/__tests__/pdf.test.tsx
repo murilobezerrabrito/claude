@@ -21,3 +21,10 @@ describe('PDF do relatório de exemplo', () => {
     for (const font of ['Fraunces-SemiBold', 'IBMPlexSans-Regular']) expect(text).toContain(font)
   })
 })
+
+describe('fontes do relatório', () => {
+  it('a prévia no navegador importa os mesmos arquivos que o PDF gerado no Node', () => {
+    const preview = readFileSync(new URL('../ReportPreview.tsx', import.meta.url), 'utf8')
+    for (const name of Object.values(FONT_FILE_NAMES)) expect(preview).toContain(`'${name}?url'`)
+  })
+})

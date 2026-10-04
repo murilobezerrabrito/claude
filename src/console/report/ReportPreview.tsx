@@ -49,8 +49,16 @@ export function ReportPreview() {
     const onChange = () => {
       if (!document.fullscreenElement) setPresenting(false)
     }
+    // Sem tela cheia (navegador sem a API ou pedido recusado), o Esc também fecha o modo apresentação.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !document.fullscreenElement) setPresenting(false)
+    }
     document.addEventListener('fullscreenchange', onChange)
-    return () => document.removeEventListener('fullscreenchange', onChange)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange)
+      document.removeEventListener('keydown', onKey)
+    }
   }, [])
 
   const present = () => {
