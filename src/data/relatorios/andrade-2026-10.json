@@ -1,0 +1,737 @@
+{
+  "schema": 1,
+  "family": {
+    "id": "andrade",
+    "name": "Família Andrade (fictícia)",
+    "channel": "cadm",
+    "manager": "a definir"
+  },
+  "refMonth": "2026-10",
+  "refDate": "2026-10-31",
+  "run": {
+    "engineVersion": "0.5.0",
+    "cmaVersion": "ilustrativa-2026-10",
+    "planVersionId": "andrade-v2",
+    "seed": 20261002,
+    "paths": 10000,
+    "inputsHash": "0052a26c63a3470b5f84cd19d02d"
+  },
+  "summary": {
+    "probability": 0.6195,
+    "probabilityWithRules": 0.7904,
+    "band": "em_risco",
+    "previousProbability": 0.8651,
+    "previousBand": "no_caminho",
+    "requiredReturn": 0.03806872367858888,
+    "requiredReturnStatus": "ok",
+    "expectedCompositeReturn": 0.03910527285292664,
+    "slack": 0.0010365491743377642,
+    "wealth": 13258161.29,
+    "legacy": 3012000,
+    "legacyProbability": 0.5374,
+    "horizonAge": 95,
+    "depletionAge": 85,
+    "medianFinal": 4266658.8944175895
+  },
+  "bridge": {
+    "kind": "ponte",
+    "paths": 10000,
+    "fromMonth": "2026-09",
+    "toMonth": "2026-10",
+    "published": {
+      "successCount": 8651,
+      "requiredReturn": 0.032439839839935314,
+      "inputsHash": "1f8750617dcea70458a02d2fd6bb",
+      "engineVersion": "0.5.0"
+    },
+    "start": {
+      "inputsHash": "1f8750617dcea70458a02d2fd6bb",
+      "successCount": 8651,
+      "requiredReturn": 0.032439839839935314,
+      "wealth": 13800000
+    },
+    "steps": [
+      {
+        "inputsHash": "1dceaab811ac541ff8e7e66e746c",
+        "successCount": 8622,
+        "requiredReturn": 0.0325178623199463,
+        "wealth": 13917448,
+        "id": "passagem_do_tempo",
+        "label": "Passagem do tempo",
+        "successDelta": -29,
+        "requiredReturnDelta": 0.00007802248001098633
+      },
+      {
+        "inputsHash": "12dae257ec91a61341e1c496e795",
+        "successCount": 8356,
+        "requiredReturn": 0.033319783210754406,
+        "wealth": 13617153.880000003,
+        "id": "mercado",
+        "label": "Mercado",
+        "successDelta": -266,
+        "requiredReturnDelta": 0.0008019208908081055
+      },
+      {
+        "inputsHash": "1ba78df0097f00000f8616736691",
+        "successCount": 8012,
+        "requiredReturn": 0.03430379629135133,
+        "wealth": 13258161.29,
+        "id": "aportes_e_resgates",
+        "label": "Aportes e resgates fora do plano",
+        "successDelta": -344,
+        "requiredReturnDelta": 0.0009840130805969238
+      },
+      {
+        "inputsHash": "1ba78df0097f00000f8616736691",
+        "successCount": 8012,
+        "requiredReturn": 0.03430379629135133,
+        "wealth": 13258161.29,
+        "id": "carteira",
+        "label": "Carteira",
+        "successDelta": 0,
+        "requiredReturnDelta": 0
+      },
+      {
+        "inputsHash": "0052a26c63a3470b5f84cd19d02d",
+        "successCount": 6195,
+        "requiredReturn": 0.03806872367858888,
+        "wealth": 13258161.29,
+        "id": "plano",
+        "label": "Plano",
+        "successDelta": -1817,
+        "requiredReturnDelta": 0.003764927387237549
+      },
+      {
+        "inputsHash": "0052a26c63a3470b5f84cd19d02d",
+        "successCount": 6195,
+        "requiredReturn": 0.03806872367858888,
+        "wealth": 13258161.29,
+        "id": "premissas",
+        "label": "Premissas",
+        "successDelta": 0,
+        "requiredReturnDelta": 0
+      }
+    ],
+    "totalSuccessDelta": -2456,
+    "totalRequiredReturnDelta": 0.0056288838386535645,
+    "display": {
+      "startTenths": 865,
+      "endTenths": 620,
+      "bars": [
+        {
+          "id": "passagem_do_tempo",
+          "label": "Passagem do tempo",
+          "tenths": -3,
+          "noEffect": false
+        },
+        {
+          "id": "mercado",
+          "label": "Mercado",
+          "tenths": -27,
+          "noEffect": false
+        },
+        {
+          "id": "aportes_e_resgates",
+          "label": "Aportes e resgates fora do plano",
+          "tenths": -34,
+          "noEffect": false
+        },
+        {
+          "id": "carteira",
+          "label": "Carteira",
+          "tenths": 0,
+          "noEffect": true
+        },
+        {
+          "id": "plano",
+          "label": "Plano",
+          "tenths": -181,
+          "noEffect": false
+        },
+        {
+          "id": "premissas",
+          "label": "Premissas",
+          "tenths": 0,
+          "noEffect": true
+        }
+      ]
+    },
+    "plannedFlow": 62248,
+    "monthNominalReturn": -0.02102450983115476,
+    "externalFlows": [
+      {
+        "date": "2026-10-15",
+        "kind": "resgate",
+        "amount": 300000,
+        "description": "Resgate para reforma"
+      }
+    ]
+  },
+  "performance": {
+    "month": {
+      "month": "2026-10",
+      "nominal": -0.02102450983115476,
+      "real": -0.024924810588799584,
+      "approximateDates": false,
+      "implausible": false
+    },
+    "summary": {
+      "trackingSince": "2026-09",
+      "month": {
+        "real": -0.024924810588799584,
+        "benchmark": 0.002663940137526355,
+        "months": 1
+      },
+      "yearToDate": null,
+      "twelveMonths": null,
+      "sinceStart": {
+        "real": -0.024924810588799584,
+        "benchmark": 0.002663940137526355,
+        "months": 1
+      }
+    }
+  },
+  "portfolio": {
+    "total": 11450961.29,
+    "classes": [
+      {
+        "code": "POS",
+        "name": "Pós-fixado",
+        "value": 2722761.29,
+        "share": 0.23777578327661958,
+        "target": 0.25
+      },
+      {
+        "code": "INF",
+        "name": "Inflação",
+        "value": 2910000,
+        "share": 0.25412713625547506,
+        "target": 0.25
+      },
+      {
+        "code": "PRE",
+        "name": "Prefixado",
+        "value": 585000,
+        "share": 0.051087413989502714,
+        "target": 0.05
+      },
+      {
+        "code": "CRED",
+        "name": "Crédito privado",
+        "value": 1810800,
+        "share": 0.15813519530289147,
+        "target": 0.15
+      },
+      {
+        "code": "MM",
+        "name": "Multimercado",
+        "value": 1176000,
+        "share": 0.10269880145582085,
+        "target": 0.1
+      },
+      {
+        "code": "ACOES",
+        "name": "Ações Brasil",
+        "value": 883200,
+        "share": 0.07712889578722872,
+        "target": 0.08
+      },
+      {
+        "code": "FII",
+        "name": "Imobiliário listado",
+        "value": 456000,
+        "share": 0.03982198423797135,
+        "target": 0.04
+      },
+      {
+        "code": "INTL",
+        "name": "Internacional, em reais",
+        "value": 907200,
+        "share": 0.07922478969449036,
+        "target": 0.08
+      }
+    ],
+    "profileName": "Moderado",
+    "otherAssets": [
+      {
+        "name": "VGBL",
+        "value": 1807200,
+        "inSimulation": true
+      },
+      {
+        "name": "Apartamento (residência)",
+        "value": 4518000,
+        "inSimulation": false
+      },
+      {
+        "name": "Casa de praia",
+        "value": 3514000,
+        "inSimulation": false
+      },
+      {
+        "name": "Sala comercial",
+        "value": 1204800,
+        "inSimulation": false
+      },
+      {
+        "name": "Participação na empresa da família",
+        "value": 6024000,
+        "inSimulation": false
+      }
+    ]
+  },
+  "trajectory": {
+    "realized": [
+      {
+        "month": "2026-09",
+        "age": 50,
+        "wealth": 13855200
+      },
+      {
+        "month": "2026-10",
+        "age": 50,
+        "wealth": 13258161.29
+      }
+    ],
+    "ages": [
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68,
+      69,
+      70,
+      71,
+      72,
+      73,
+      74,
+      75,
+      76,
+      77,
+      78,
+      79,
+      80,
+      81,
+      82,
+      83,
+      84,
+      85,
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95
+    ],
+    "years": [
+      2026,
+      2027,
+      2028,
+      2029,
+      2030,
+      2031,
+      2032,
+      2033,
+      2034,
+      2035,
+      2036,
+      2037,
+      2038,
+      2039,
+      2040,
+      2041,
+      2042,
+      2043,
+      2044,
+      2045,
+      2046,
+      2047,
+      2048,
+      2049,
+      2050,
+      2051,
+      2052,
+      2053,
+      2054,
+      2055,
+      2056,
+      2057,
+      2058,
+      2059,
+      2060,
+      2061,
+      2062,
+      2063,
+      2064,
+      2065,
+      2066,
+      2067,
+      2068,
+      2069,
+      2070,
+      2071
+    ],
+    "percentiles": {
+      "p10": [
+        13258161.29,
+        13671557.74459305,
+        14008256.330053993,
+        14814745.570796115,
+        15673429.081027307,
+        16425361.988708751,
+        17350407.13192043,
+        17886472.790902037,
+        18895527.263477102,
+        19139180.77654205,
+        18924858.34667049,
+        18528546.84795731,
+        17657608.972927213,
+        17237926.573754862,
+        16754495.237173919,
+        16278957.319140056,
+        15745243.913736545,
+        14826179.390539782,
+        14334979.052919649,
+        13807571.847833287,
+        13226967.997768026,
+        12624204.880246123,
+        11641420.657644695,
+        10968252.438547704,
+        10395030.639862405,
+        9682707.898600176,
+        9036071.372915264,
+        7907149.056633529,
+        7140861.475686262,
+        6372577.042695634,
+        5600661.011892443,
+        4773084.179283631,
+        3531197.2784952587,
+        2605003.5088857645,
+        1688522.5881334543,
+        720372.2629413204,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "p25": [
+        13258161.29,
+        13986621.592962546,
+        14447777.63491064,
+        15385719.595287314,
+        16373624.303500956,
+        17244109.536072355,
+        18301228.39957453,
+        19008126.542525243,
+        20130397.113505483,
+        20500124.850001987,
+        20412511.318691716,
+        20068160.957609974,
+        19326820.28211774,
+        18997084.353619136,
+        18632725.638602693,
+        18241712.48644331,
+        17867106.822700523,
+        17054898.60368312,
+        16642500.14083838,
+        16196026.397884825,
+        15754590.340768635,
+        15294467.234743834,
+        14367244.63409056,
+        13858119.212494988,
+        13355790.998392675,
+        12837615.050695974,
+        12282386.91863492,
+        11269774.168807013,
+        10685076.144960547,
+        10031066.122627163,
+        9362737.4770866,
+        8668727.757703498,
+        7516665.974011685,
+        6758521.696805746,
+        5979696.428283162,
+        5167693.418328573,
+        4337504.803609673,
+        3472458.931391204,
+        2545496.8277822994,
+        1588008.8386795353,
+        608103.8038474696,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "p50": [
+        13258161.29,
+        14294972.20003481,
+        14949994.864191175,
+        16039803.65628992,
+        17177562.310376856,
+        18213731.455638632,
+        19390440.207455914,
+        20281684.89951323,
+        21558463.701088727,
+        22080090.444750115,
+        22160219.866982087,
+        22011975.623098664,
+        21393370.695190586,
+        21196258.97891843,
+        20967525.48788562,
+        20758659.809103843,
+        20504441.333236456,
+        19868582.21678947,
+        19583963.031229008,
+        19298242.176152144,
+        18983304.082985915,
+        18670452.53172879,
+        17927492.728909574,
+        17613554.171301734,
+        17210072.104238775,
+        16842450.30797284,
+        16467605.26983466,
+        15696741.11096986,
+        15270875.249496404,
+        14835155.351465598,
+        14417824.730739476,
+        13908785.126745809,
+        12996949.824619904,
+        12443210.883013338,
+        11877566.007831544,
+        11258986.078118557,
+        10707465.991689544,
+        10093343.62017304,
+        9450982.513068836,
+        8785560.258943912,
+        8059592.302503252,
+        7354566.69345951,
+        6632740.220271847,
+        5843111.2519644555,
+        4987220.546285097,
+        4266658.8944175895
+      ],
+      "p75": [
+        13258161.29,
+        14628457.646721598,
+        15480614.289147247,
+        16742550.719456453,
+        18074431.933807343,
+        19263784.789867945,
+        20631292.796937153,
+        21703230.09911728,
+        23171785.56266029,
+        23889243.95293978,
+        24130549.835626423,
+        24156811.724926822,
+        23714985.824626926,
+        23669568.385348216,
+        23665734.11589723,
+        23640016.48954384,
+        23562557.673985533,
+        23080367.69155266,
+        23021707.313439514,
+        22931022.71089158,
+        22855130.730705976,
+        22712304.77732138,
+        22159343.967305068,
+        22029891.78104794,
+        21886452.01626985,
+        21759114.542342126,
+        21642330.98158114,
+        21087053.253900208,
+        20887383.964972947,
+        20660130.729255777,
+        20473699.52239509,
+        20178564.26808749,
+        19531224.662427466,
+        19291767.78305433,
+        19015305.03070954,
+        18717000.641092535,
+        18444541.509480827,
+        18110047.57495504,
+        17778404.201350287,
+        17496269.05618722,
+        17184254.304507572,
+        16867948.589350343,
+        16475147.499147864,
+        16046850.832184702,
+        15702011.747719124,
+        15462964.573422894
+      ],
+      "p90": [
+        13258161.29,
+        15000899.16836285,
+        16081916.995233148,
+        17552229.065728564,
+        19035602.187483918,
+        20355088.15219562,
+        21908558.724486943,
+        23119527.649615392,
+        24837844.547883466,
+        25715455.503409956,
+        26156987.794063706,
+        26329114.96669944,
+        26223228.96889772,
+        26390935.25233352,
+        26604581.68754019,
+        26674895.979238506,
+        26877672.014500458,
+        26552021.13225904,
+        26755136.38292159,
+        26841283.003961198,
+        26967136.921561036,
+        27172578.430509884,
+        26979099.903170623,
+        27020523.546643343,
+        27045988.081633046,
+        27082689.74681806,
+        27222937.318920244,
+        26836821.57692138,
+        27006141.992483143,
+        27011528.491314735,
+        27147040.520660914,
+        27310812.908780854,
+        26874307.329937637,
+        26999026.374986377,
+        26995098.01896497,
+        27106520.97501377,
+        27136835.160440855,
+        27280322.332620144,
+        27166892.961989764,
+        27282727.324868295,
+        27508718.21092768,
+        27549044.59325518,
+        27614845.559889525,
+        27586109.474488083,
+        27640277.588952895,
+        27679084.429777503
+      ]
+    },
+    "markers": [
+      {
+        "age": 59,
+        "label": "Aposentadoria"
+      },
+      {
+        "age": 58,
+        "label": "Entrada do apartamento do Pedro"
+      }
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "aposentar-3-anos-antes",
+      "name": "Aposentar 3 anos antes",
+      "probability": 0.1108,
+      "requiredReturn": 0.05027122497558595,
+      "requiredReturnStatus": "ok"
+    },
+    {
+      "id": "crise-2008",
+      "name": "Crise como a de 2008 no 1º ano",
+      "probability": 0.4952,
+      "requiredReturn": 0.03806872367858888,
+      "requiredReturnStatus": "ok"
+    },
+    {
+      "id": "gastar-10-mais",
+      "name": "Gastar 10% a mais",
+      "probability": 0.2772,
+      "requiredReturn": 0.0449193835258484,
+      "requiredReturnStatus": "ok"
+    }
+  ],
+  "comment": {
+    "text": "Comentário de exemplo. Aqui a gestão resume a conversa do mês: o que mudou na vida da família e no plano, e o que confirmar na próxima reunião.",
+    "example": true
+  },
+  "assumptions": {
+    "version": "ilustrativa-2026-10",
+    "label": "Premissas ilustrativas (SPEC de 02/10/2026)",
+    "nu": 5,
+    "classes": [
+      {
+        "code": "POS",
+        "name": "Pós-fixado",
+        "mu": 0.04,
+        "vol": 0.015
+      },
+      {
+        "code": "INF",
+        "name": "Inflação",
+        "mu": 0.05,
+        "vol": 0.08
+      },
+      {
+        "code": "PRE",
+        "name": "Prefixado",
+        "mu": 0.045,
+        "vol": 0.05
+      },
+      {
+        "code": "CRED",
+        "name": "Crédito privado",
+        "mu": 0.048,
+        "vol": 0.03
+      },
+      {
+        "code": "MM",
+        "name": "Multimercado",
+        "mu": 0.048,
+        "vol": 0.06
+      },
+      {
+        "code": "ACOES",
+        "name": "Ações Brasil",
+        "mu": 0.065,
+        "vol": 0.24
+      },
+      {
+        "code": "FII",
+        "name": "Imobiliário listado",
+        "mu": 0.05,
+        "vol": 0.14
+      },
+      {
+        "code": "INTL",
+        "name": "Internacional, em reais",
+        "mu": 0.055,
+        "vol": 0.16
+      }
+    ]
+  },
+  "texts": {
+    "reading": "Em 62 de cada 100 cenários o dinheiro dura até os 95. No cenário ruim, ele acaba aos 85. Vale revisar o plano na conversa do mês.",
+    "median": "No cenário do meio, vocês chegam aos 95 anos com R$ 4,3 mi em valores de hoje.",
+    "slack": "O retorno esperado da carteira (IPCA + 3,9% a.a.) fica 0,1 p.p. acima do que o plano precisa (IPCA + 3,8% a.a.).",
+    "bridge": "A chance foi de 86,5% para 62,0% em outubro, principalmente pela mudança no plano (−18,1 p.p.). O plano passou para a faixa vermelha.",
+    "benchmark": "O retorno que o plano precisa foi de IPCA + 3,2% a.a. para IPCA + 3,8% a.a., principalmente pela mudança no plano (+0,38 p.p.).",
+    "bridgeNote": "A variação foi separada trocando um fator de cada vez. A ordem dos fatores muda a divisão entre eles, não o total.",
+    "footer": "Relatório de acompanhamento do plano, preparado pela gestão da Aware Investments com as posições de out/2026 e as premissas ilustrativa-2026-10. Simulação ilustrativa; não é promessa de rentabilidade nem recomendação de investimento.",
+    "disclaimer": "As projeções deste relatório e deste aplicativo são simulações estatísticas. Elas usam premissas de retorno, risco e correlação definidas pelo comitê de investimentos da Aware Investments e as informações do seu plano. Não garantem resultados futuros, não constituem recomendação de investimento e não substituem a análise da gestão ou do seu assessor. Rentabilidade obtida no passado não representa garantia de rentabilidade futura. Os valores estão em reais de hoje, corrigidos pela inflação. Quando as premissas ou o seu plano mudam, os resultados mudam junto."
+  }
+}

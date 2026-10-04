@@ -14,7 +14,8 @@
     "test:engine": "vitest run src/engine",
     "typecheck": "tsc -b",
     "lint": "eslint .",
-    "reference": "node scripts/reference.ts"
+    "reference": "node scripts/reference.ts",
+    "report:snapshot": "node scripts/reportSnapshot.ts"
   },
   "dependencies": {
     "react": "^19.3.0",
