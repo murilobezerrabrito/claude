@@ -15,13 +15,13 @@ export default defineConfig([
   {
     // Interface (React, navegador)
     files: ['src/**/*.{ts,tsx}'],
-    ignores: ['src/engine/**', 'src/report/**'],
+    ignores: ['src/engine/**', 'src/report/**', 'src/lib/format.ts'],
     extends: [reactHooks.configs.flat.recommended, reactRefresh.configs.vite],
     languageOptions: { globals: globals.browser },
   },
   {
-    // Motor e src/report: TypeScript puro, sem dependências, imports relativos terminados em .ts
-    files: ['src/engine/**/*.ts', 'src/report/**/*.ts'],
+    // Motor, src/report e a formatação: TypeScript puro, sem dependências, imports relativos terminados em .ts
+    files: ['src/engine/**/*.ts', 'src/report/**/*.ts', 'src/lib/format.ts'],
     ignores: ['src/engine/__tests__/**', 'src/report/__tests__/**'],
     rules: {
       'no-restricted-imports': [
