@@ -56,13 +56,15 @@ export function ipcaFactor(ipca: IpcaSeries, fromMonth: string, toMonth: string)
 export const toCents = (value: number): number => Math.round(value * 100) / 100
 
 /**
- * Cópia do plano com todos os valores em reais multiplicados por `factor` e arredondados para centavos: fluxos,
- * eventos, bens declarados (valor, valor líquido de venda e renda) e metas de legado. Pessoas, anos e regras não mudam.
+ * Cópia do plano com todos os valores em reais multiplicados por `factor` e arredondados para centavos: legado mínimo,
+ * fluxos, eventos, bens declarados (valor, valor líquido de venda e renda) e metas de legado. Pessoas, anos e regras
+ * não mudam.
  */
 export function correctPlan(snapshot: PlanSnapshot, factor: number): PlanSnapshot {
   if (!Number.isFinite(factor) || factor <= 0) throw new ReportInputError('fator_invalido', 'Fator de correção inválido.')
   // O plano é JSON puro (vem de `plan_versions.snapshot`).
   const copy = JSON.parse(JSON.stringify(snapshot)) as PlanSnapshot
+  if (copy.legacyMin !== undefined) copy.legacyMin = toCents(copy.legacyMin * factor)
   for (const cf of copy.cashFlows) cf.annualAmountReal = toCents(cf.annualAmountReal * factor)
   for (const ev of copy.events) ev.amountReal = toCents(ev.amountReal * factor)
   for (const a of copy.otherAssets) {

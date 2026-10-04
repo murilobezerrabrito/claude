@@ -3,7 +3,7 @@ import { hashInputs } from '../../engine/hash.ts'
 import { buildPlan } from '../../engine/plan.ts'
 import { simulate } from '../../engine/simulate.ts'
 import { correctPlan, formatMonth, ipcaFactor, parseMonth } from '../inflation.ts'
-import { buildMonthInputs, checkClosing, currentWeights } from '../monthInputs.ts'
+import { buildMonthInputs, checkClosing, currentWeights, planVersionFor } from '../monthInputs.ts'
 import { andrade, andradePlanV1, andradeRecord, andradeSeptember, cma, profiles } from './helpers.ts'
 
 const IPCA = { '2026-10': 0.004, '2026-11': 0.0025, '2026-12': 0.005 }
@@ -39,6 +39,7 @@ describe('plano corrigido pelo IPCA', () => {
     expect(p.cashFlows.find((c) => c.kind === 'gasto_estilo')?.annualAmountReal).toBe(361_440)
     expect(p.events.find((e) => e.name === 'Troca de carros')?.amountReal).toBe(401_600)
     expect(p.goals.find((g) => g.kind === 'legado')?.amount).toBe(3_012_000)
+    expect(p.legacyMin).toBe(3_012_000)
     expect(p.people).toEqual(v1.people)
     expect(p.rules).toEqual(v1.rules)
     expect(p.cashFlows.map((c) => [c.startYear, c.endYear])).toEqual(v1.cashFlows.map((c) => [c.startYear, c.endYear]))
@@ -104,6 +105,16 @@ describe('entradas do mês', () => {
     const plan = buildPlan(m.input)
     expect(plan.weightsSource).toBe('pesos')
     expect(plan.profileId).toBeNull()
+  })
+
+  it('versão do plano em vigor: a mais recente com mês-base até o mês de referência', () => {
+    const v1 = andradePlanV1()
+    const v2 = { ...andradePlanV1(), id: 'v2', baseMonth: '2026-10' }
+    expect(planVersionFor([v2, v1], '2026-09').id).toBe(v1.id)
+    expect(planVersionFor([v2, v1], '2026-10').id).toBe('v2')
+    expect(planVersionFor([v1, v2], '2027-03').id).toBe('v2')
+    expect(() => planVersionFor([v2], '2026-09')).toThrowError(/Não há versão do plano/)
+    expect(() => planVersionFor([v1, { ...v2, baseMonth: '2026-09' }], '2026-10')).toThrowError(/mesmo mês-base/)
   })
 
   it('carteira atual: bem na simulação sem classe, ou carteira vazia, dá erro claro', () => {

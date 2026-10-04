@@ -19,14 +19,14 @@ export interface HouseholdRecord {
   suitability?: string
   feeRate: number
   horizonAge: number
-  /** Legado mínimo, em reais do mês-base da versão vigente do plano (D-033). */
-  legacyMin?: number
   /** Semente da família, a mesma todos os meses (D-030). */
   seed: number
 }
 
 /** O que uma versão do plano guarda (`plan_versions.snapshot`): tudo o que a família declara. */
 export interface PlanSnapshot {
+  /** Legado mínimo: fica na versão do plano, e não no cadastro, porque é um valor em reais do mês-base (D-033). */
+  legacyMin?: number
   people: Person[]
   otherAssets: OtherAsset[]
   cashFlows: CashFlow[]
@@ -63,4 +63,13 @@ export interface MonthClosing {
   /** PL oficial do extrato, para a conferência. */
   officialPl: number
   flows: ExternalFlow[]
+}
+
+/** Dados de uma família para o ciclo mensal (formato de `src/data/andrade-fechamentos.json`). */
+export interface HouseholdMonths {
+  household: HouseholdRecord
+  planVersions: PlanVersion[]
+  /** IPCA de cada mês (AAAA-MM), em fração. */
+  ipca: Record<string, number>
+  closings: MonthClosing[]
 }

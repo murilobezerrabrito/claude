@@ -21,7 +21,6 @@ export function andradeRecord(overrides: Partial<HouseholdRecord> = {}): Househo
     suitability: h.suitability,
     feeRate: h.feeRate,
     horizonAge: h.horizonAge,
-    legacyMin: h.legacyMin,
     seed: 20261002,
     ...overrides,
   }
@@ -29,7 +28,7 @@ export function andradeRecord(overrides: Partial<HouseholdRecord> = {}): Househo
 
 export function andradePlanV1(): PlanVersion {
   const { people, otherAssets, cashFlows, events, goals, rules } = structuredClone(andrade)
-  return { id: 'andrade-v1', baseMonth: '2026-09', snapshot: { people, otherAssets, cashFlows, events, goals, rules } }
+  return { id: 'andrade-v1', baseMonth: '2026-09', snapshot: { legacyMin: andrade.household.legacyMin, people, otherAssets, cashFlows, events, goals, rules } }
 }
 
 export function andradeSeptember(): MonthClosing {

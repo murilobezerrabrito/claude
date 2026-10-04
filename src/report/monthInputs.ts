@@ -3,7 +3,7 @@
 
 import type { Cma, HouseholdData, OtherAsset, Profile, Scenario, SimInput } from '../engine/types.ts'
 import { ReportInputError } from './errors.ts'
-import { correctPlan, ipcaFactor, toCents, type IpcaSeries } from './inflation.ts'
+import { correctPlan, ipcaFactor, parseMonth, type IpcaSeries } from './inflation.ts'
 import type { HouseholdRecord, MonthClosing, PlanVersion } from './types.ts'
 
 /** Tolerância da conferência: a soma das posições precisa bater com o PL oficial em 0,01%. */
@@ -65,6 +65,23 @@ export function currentWeights(positionsByClass: Record<string, number>, otherAs
   return Object.fromEntries(Array.from(byClass, ([code, v]) => [code, v / total]))
 }
 
+/** Versão do plano em vigor no mês: a mais recente com mês-base até o mês de referência. */
+export function planVersionFor(versions: PlanVersion[], refMonth: string): PlanVersion {
+  const ref = parseMonth(refMonth, 'mês de referência')
+  let best: PlanVersion | null = null
+  let bestMonth = -Infinity
+  for (const v of versions) {
+    const base = parseMonth(v.baseMonth, `mês-base da versão ${v.id}`)
+    if (base === bestMonth) throw new ReportInputError('versoes_ambiguas', `Duas versões do plano têm o mesmo mês-base (${v.baseMonth}).`)
+    if (base <= ref && base > bestMonth) {
+      best = v
+      bestMonth = base
+    }
+  }
+  if (!best) throw new ReportInputError('sem_plano', `Não há versão do plano com mês-base até ${refMonth}.`)
+  return best
+}
+
 export interface MonthInputsArgs {
   household: HouseholdRecord
   planVersion: PlanVersion
@@ -103,8 +120,7 @@ export function buildMonthInputs(args: MonthInputsArgs): MonthInputs {
     ...(h.suitability === undefined ? {} : { suitability: h.suitability }),
     feeRate: h.feeRate,
     horizonAge: h.horizonAge,
-    // O legado mínimo do cadastro está em reais do mês-base do plano, como a meta de legado (D-033).
-    ...(h.legacyMin === undefined ? {} : { legacyMin: toCents(h.legacyMin * factor) }),
+    ...(plan.legacyMin === undefined ? {} : { legacyMin: plan.legacyMin }),
   }
   const data: HouseholdData = {
     household,
