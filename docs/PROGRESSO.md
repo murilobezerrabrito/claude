@@ -6,7 +6,7 @@
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
 - **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 (pesos explícitos), 2 (sorteios alinhados), 3a (referência em Python) e 3b (passo de 12 meses) concluídas.
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026 e D-028). Não há pull request aberto.
-- **Próximo passo:** terceira rodada do `revisor-motor`, sobre a correção da divergência da 2ª rodada (ponto de parada B); depois, etapa 4, plano corrigido pelo IPCA em `src/report`.
+- **Próximo passo:** etapa 4 da Fase 1, plano corrigido pelo IPCA e entradas do mês em `src/report`. O ponto de parada B foi cumprido: `revisor-motor` sem divergências abertas nas etapas 1 a 3b (três rodadas).
 
 ### Comandos de teste
 
@@ -128,6 +128,8 @@ As 11 métricas ficam dentro das tolerâncias da referência nova. A queda da ch
 
 2ª rodada, em 04/10/2026: as divergências 1, 2, 3 e 5 foram confirmadas como fechadas, e o índice indireto em `classReturns` não piorou o tempo. A correção da 4 abriu uma divergência nova: levar ao primeiro mês toda saída dos 12 meses anteriores contava de novo, por até 12 fechamentos, uma saída que já aconteceu (na Andrade, a troca de carros de jul/2028 tirava 5,6 p.p. da chance de ago/2028 a jun/2029, e a ponte mostraria um aporte fantasma de R$ 400 mil por mês). Murilo escolheu "só a data incerta volta": a ocorrência sem mês no ano do primeiro mês simulado, com julho já passado, leva a saída ao primeiro mês (a entrada sai), com aviso; qualquer outra data passada sai do cálculo, sem aviso (D-031, item 3). O teste 18 ganhou o caso do ciclo mensal com a Andrade em datas de referência de jun/2028 a jul/2029.
 
+3ª rodada, em 04/10/2026: **sem divergências abertas.** O revisor refez o ciclo mensal da Andrade: a troca de carros sem mês de 2028 só volta ao primeiro mês nos 5 fechamentos de ago a dez/2028, sempre com aviso, e a ponte continua fechando. Duas observações, que não são divergências, ficam em "Pendências".
+
 Também: o teste 11 passou a usar a regra de aposentadoria do motor, comentários de "anos" viraram passos em `types.ts`, e o caso de borda do gasto sustentável foi recalibrado (POS de R$ 55.550.000).
 
 Família Andrade, 50.000 trajetórias, semente 20261002 (antes = motor 0.4.0; depois = motor 0.5.0). Só a divergência 1 muda os números da Andrade (ela não tem eventos com data passada, e o gasto do primeiro mês é igual à média do passo 0):
@@ -210,6 +212,8 @@ Na Fase 1, o Web Worker pode aquecer o cache ao abrir o app.
 
 ## Pendências
 
+- **Eventos do "E se?" sem mês (para a etapa 4 e o console):** o motor trata aportes e resgates do "E se?" como os eventos do plano. Sem mês, um aporte "em 2026" com julho já passado fica fora do cálculo, e o aviso fala em conferência. O controle do "E se?" deve sempre informar o mês.
+- **Virada do ano (D-031, item 3), para o Murilo decidir se quer:** no fechamento de 31/12, a saída sem mês do ano que acabou sai do cálculo sem aviso. Um último aviso nesse fechamento ajudaria a conferência a registrar a saída; não muda nenhum número.
 - **Rota 2, perguntas em aberto:** em vigor os padrões da D-025 (corretora e formato das posições AI, custo AI de 0,80% "a validar", responsável por família, regras da assessoria, preparo e aprovação dos relatórios, piloto e identidade visual).
 - **Referências do kit:** recebidas em 04/10/2026 (D-001 resolvida). O motor em Python reproduz o JSON do kit, e o motor em TypeScript fica dentro das tolerâncias em todas as 11 métricas. As diferenças conhecidas entre os dois estão em D-027; Murilo aprovou alinhar duas delas (regras depois da falha e trajetória de referência que zera) na mudança isolada de `reference/` da Fase 1.
 - **D-019, para o Murilo confirmar:** com horizonte maior no "E se?", também estendemos rendas e aluguéis que vão até o fim do plano. É a leitura coerente, mas não a mais conservadora (na Andrade com 100 anos, R$ 84 mil por ano a mais durante 5 anos).
