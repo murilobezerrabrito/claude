@@ -31,7 +31,8 @@ const table = rows.map((r) => [
 const widths = header.map((h, c) => Math.max(h.length, ...table.map((row) => row[c].length)))
 const line = (cells: string[]) => cells.map((cell, c) => (c === 0 ? cell.padEnd(widths[c]) : cell.padStart(widths[c]))).join('  ')
 
-console.log(`Família Andrade · premissas ${cma.version} · ${paths.toLocaleString('pt-BR')} trajetórias · semente ${DEFAULT_SEED} · ${seconds.toFixed(1)} s\n`)
+console.log(`Família Andrade · premissas ${cma.version} · ${paths.toLocaleString('pt-BR')} trajetórias · semente ${DEFAULT_SEED} · ${seconds.toFixed(1)} s`)
+console.log(`Referência: ${reference.fonte ?? 'reference/resultados_referencia.json'}${reference.semente === undefined ? '' : ` (semente ${reference.semente}, outro gerador)`}\n`)
 console.log(line(header))
 console.log(widths.map((w) => '─'.repeat(w)).join('  '))
 for (const row of table) console.log(line(row))

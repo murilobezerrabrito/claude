@@ -1,0 +1,177 @@
+<title>Gêmeo Financeiro Aware</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: painel de controles à esquerda, leitura (probabilidade → benchmark → trajetória) à direita */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --fg:#17201d; --muted:#5b6a65; --line:#dbe2df;
+  --accent:#1f5f4f; --accent-soft:#d6e8e2; --band:#9cc7b9; --good:#2f7d4f; --warn:#b07a16; --bad:#b0412f;
+  --display:"Fraunces",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111816; --surface:#18211e; --fg:#e4ebe8; --muted:#94a39e; --line:#2a3632;
+  --accent:#7fc4ae; --accent-soft:#1f3a32; --band:#2f5f51; --good:#6cc28c; --warn:#e0b04f; --bad:#e07a66; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111816; --surface:#18211e; --fg:#e4ebe8; --muted:#94a39e; --line:#2a3632;
+  --accent:#7fc4ae; --accent-soft:#1f3a32; --band:#2f5f51; --good:#6cc28c; --warn:#e0b04f; --bad:#e07a66; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:28px 48px;display:grid;gap:20px}
+header{display:grid;gap:4px}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--display);font-weight:600;font-size:clamp(26px,4vw,36px);margin:0;text-wrap:balance}
+.sub{color:var(--muted);margin:0;max-width:68ch}
+.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent);font-weight:500;width:max-content}
+.grid{display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:grid;gap:16px;min-width:0}
+h2{font-family:var(--display);font-weight:500;font-size:19px;margin:0}
+.ctrl{display:grid;gap:4px}
+.ctrl label{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted)}
+.ctrl output{font-family:var(--mono);color:var(--fg);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg)}
+.group{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
+.right{display:grid;gap:20px;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media (max-width:620px){.kpis{grid-template-columns:1fr}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:4px;align-content:start}
+.kpi .lbl{font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.kpi .val{font-family:var(--display);font-size:38px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi .note{font-size:13px;color:var(--muted)}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;width:max-content}
+.p-good{color:var(--good);background:color-mix(in srgb,var(--good) 14%,transparent)}
+.p-warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
+.p-bad{color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent)}
+.chartbox{overflow-x:auto}
+svg text{font-family:var(--mono);font-size:11px;fill:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.scen{display:flex;flex-wrap:wrap;gap:8px}
+.scen button{font:inherit;font-size:13px;padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.scen button:hover{border-color:var(--accent);color:var(--accent)}
+.scen button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.foot{font-size:12px;color:var(--muted);max-width:90ch}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Aware Investments · Protótipo</span>
+    <h1>Gêmeo financeiro da Família Andrade</h1>
+    <p class="sub">Cliente fictício. Mexa nas hipóteses à esquerda e veja, na hora, a chance de manter o padrão de vida até os 95 anos e o retorno real que a carteira precisa entregar.</p>
+    <span class="tag">Dados ilustrativos, valores em reais de hoje</span>
+  </header>
+
+  <div class="grid">
+    <aside class="panel" aria-label="Hipóteses">
+      <h2>E se…?</h2>
+      <div class="scen" aria-label="Cenários prontos">
+        <button type="button" data-s="base">Cenário atual</button>
+        <button type="button" data-s="cedo">Aposentar 3 anos antes</button>
+        <button type="button" data-s="praia">Vender casa de praia</button>
+        <button type="button" data-s="crise">Crise no 1º ano</button>
+      </div>
+      <div class="group">Família</div>
+      <div class="ctrl"><label for="idade">Idade atual <output id="o-idade"></output></label><input id="idade" type="range" min="40" max="70" step="1" value="52"></div>
+      <div class="ctrl"><label for="apos">Aposentadoria <output id="o-apos"></output></label><input id="apos" type="range" min="50" max="75" step="1" value="62"></div>
+      <div class="group">Fluxo mensal</div>
+      <div class="ctrl"><label for="renda">Renda até aposentar <output id="o-renda"></output></label><input id="renda" type="range" min="0" max="300000" step="5000" value="140000"></div>
+      <div class="ctrl"><label for="gasto">Gasto da família <output id="o-gasto"></output></label><input id="gasto" type="range" min="20000" max="250000" step="5000" value="85000"></div>
+      <div class="group">Patrimônio</div>
+      <div class="ctrl"><label for="pat">Carteira CADM <output id="o-pat"></output></label><input id="pat" type="range" min="1000000" max="40000000" step="250000" value="12000000"></div>
+      <div class="ctrl"><label for="venda">Venda de imóvel (aporte) <output id="o-venda"></output></label><input id="venda" type="range" min="0" max="8000000" step="250000" value="0"></div>
+      <div class="ctrl"><label for="doacao">Doação anual <output id="o-doacao"></output></label><input id="doacao" type="range" min="0" max="1000000" step="25000" value="0"></div>
+      <div class="group">Carteira</div>
+      <div class="ctrl"><label for="perfil">Perfil de alocação</label>
+        <select id="perfil">
+          <option value="cons">Conservador · IPCA+3,5% · vol 4%</option>
+          <option value="mod" selected>Moderado · IPCA+4,5% · vol 8%</option>
+          <option value="arr">Arrojado · IPCA+5,5% · vol 13%</option>
+        </select></div>
+      <div class="ctrl"><label for="choque">Choque no 1º ano <output id="o-choque"></output></label><input id="choque" type="range" min="-30" max="0" step="5" value="0"></div>
+    </aside>
+
+    <section class="right">
+      <div class="kpis">
+        <div class="kpi"><span class="lbl">Probabilidade de sucesso</span><span class="val" id="k-prob">–</span><span class="pill" id="k-pill">–</span><span class="note">Cenários em que o patrimônio dura até os 95 anos</span></div>
+        <div class="kpi"><span class="lbl">Benchmark pessoal</span><span class="val" id="k-bench">–</span><span class="note" id="k-bench-n">Retorno real mínimo para sustentar o plano</span></div>
+        <div class="kpi"><span class="lbl">Folga da carteira</span><span class="val" id="k-folga">–</span><span class="note" id="k-folga-n">Retorno esperado do perfil menos o benchmark</span></div>
+      </div>
+
+      <div class="panel">
+        <h2>Trajetória do patrimônio</h2>
+        <div class="legend"><span><i style="background:var(--band)"></i>80% dos cenários</span><span><i style="background:var(--accent)"></i>Cenário mediano</span><span><i style="background:var(--bad)"></i>Cenário ruim (10%)</span></div>
+        <div class="chartbox"><svg id="chart" viewBox="0 0 760 320" width="100%" role="img" aria-label="Projeção do patrimônio por idade"></svg></div>
+        <p class="foot" id="leitura"></p>
+      </div>
+
+      <p class="foot">Simulação Monte Carlo com 2.000 cenários, retornos reais (acima do IPCA) com distribuição normal, sem impostos sobre ganhos e sem renda de previdência. Ilustrativa, não constitui promessa de rentabilidade nem recomendação de investimento.</p>
+    </section>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const PERFIS={cons:[.035,.04],mod:[.045,.08],arr:[.055,.13]};
+const brl=v=>{const a=Math.abs(v);let s=a>=1e6?(a/1e6).toFixed(1).replace('.',',')+' mi':a>=1e3?Math.round(a/1e3)+' mil':Math.round(a)+'';return (v<0?'−':'')+'R$ '+s};
+const pct=v=>(v*100).toFixed(1).replace('.',',')+'%';
+const ids=['idade','apos','renda','gasto','pat','venda','doacao','perfil','choque'];
+const fmt={idade:v=>v+' anos',apos:v=>v+' anos',renda:brl,gasto:brl,pat:brl,venda:brl,doacao:brl,choque:v=>v+'%'};
+const SCEN={base:{apos:62,venda:0,choque:0},cedo:{apos:59,venda:0,choque:0},praia:{apos:62,venda:3500000,choque:0},crise:{apos:62,venda:0,choque:-20}};
+
+function params(){const p={};ids.forEach(k=>p[k]=k==='perfil'?$(k).value:+$(k).value);if(p.apos<p.idade)p.apos=p.idade;return p}
+function flow(p,age){return (age<p.apos?(p.renda-p.gasto)*12:-p.gasto*12)-p.doacao}
+
+// Seeded RNG for stable results between slider moves
+function rng(seed){return()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}}
+function gauss(r){let u=0,v=0;while(!u)u=r();v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+
+function simulate(p){
+  const [mu,sd]=PERFIS[p.perfil],N=2000,years=95-p.idade,r=rng(42);
+  const paths=Array.from({length:years+1},()=>new Float64Array(N));let ok=0;
+  for(let i=0;i<N;i++){
+    let w=p.pat+p.venda;paths[0][i]=w;let alive=true;
+    for(let t=1;t<=years;t++){
+      const age=p.idade+t-1;let ret=mu+sd*gauss(r);if(t===1)ret+=p.choque/100;
+      w=w*(1+ret)+flow(p,age);if(w<=0){w=0;alive=false}
+      paths[t][i]=w;
+    }
+    if(alive)ok++;
+  }
+  const q=(arr,k)=>{const s=Array.from(arr).sort((a,b)=>a-b);return s[Math.floor(k*(s.length-1))]};
+  return{prob:ok/N,p10:paths.map(a=>q(a,.1)),p50:paths.map(a=>q(a,.5)),p90:paths.map(a=>q(a,.9)),years};
+}
+function required(p){
+  const end=r=>{let w=p.pat+p.venda;for(let a=p.idade;a<95;a++){w=w*(1+r)+flow(p,a);if(w<0)return -1}return w};
+  if(end(-.05)>=0)return -.05;if(end(.2)<0)return null;
+  let lo=-.05,hi=.2;for(let i=0;i<50;i++){const m=(lo+hi)/2;end(m)>=0?hi=m:lo=m}return hi;
+}
+
+function draw(s,p){
+  const W=760,H=320,L=64,R=16,T=12,B=34,svg=$('chart');
+  const max=Math.max(...s.p90)*1.05||1,x=t=>L+(W-L-R)*t/s.years,y=v=>T+(H-T-B)*(1-v/max);
+  const line=a=>a.map((v,t)=>(t?'L':'M')+x(t).toFixed(1)+','+y(v).toFixed(1)).join('');
+  let g='';const step=Math.pow(10,Math.floor(Math.log10(max)));const tick=max/step>5?step*2:max/step>2.5?step:step/2;
+  for(let v=0;v<=max;v+=tick)g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end">${brl(v).replace('R$ ','')}</text>`;
+  for(let t=0;t<=s.years;t++){const a=p.idade+t;if(a%5===0)g+=`<text x="${x(t)}" y="${H-12}" text-anchor="middle">${a}</text>`}
+  const ta=p.apos-p.idade;
+  if(ta>0&&ta<s.years)g+=`<line x1="${x(ta)}" x2="${x(ta)}" y1="${T}" y2="${H-B}" stroke="var(--muted)" stroke-dasharray="3 4"/><text x="${x(ta)+6}" y="${T+12}" fill="var(--fg)">aposentadoria</text>`;
+  const band=line(s.p90)+s.p10.map((v,t)=>'L'+x(t).toFixed(1)+','+y(v).toFixed(1)).reverse().join('')+'Z';
+  g=`<path d="${band}" fill="var(--band)" opacity=".55"/>`+g+`<path d="${line(s.p10)}" fill="none" stroke="var(--bad)" stroke-width="1.5"/><path d="${line(s.p50)}" fill="none" stroke="var(--accent)" stroke-width="2.5"/><circle cx="${x(s.years)}" cy="${y(s.p50[s.years])}" r="4" fill="var(--accent)"/>`;
+  svg.innerHTML=g;
+}
+
+function run(){
+  ids.forEach(k=>{if($('o-'+k))$('o-'+k).textContent=fmt[k](+$(k).value)});
+  const p=params(),s=simulate(p),req=required(p),mu=PERFIS[p.perfil][0];
+  const pr=Math.round(s.prob*100);$('k-prob').textContent=pr+'%';
+  const pill=$('k-pill');pill.className='pill '+(pr>=85?'p-good':pr>=70?'p-warn':'p-bad');pill.textContent=pr>=85?'No caminho':pr>=70?'Atenção':'Plano em risco';
+  if(req===null){$('k-bench').textContent='> IPCA+20%';$('k-folga').textContent='–';$('k-folga-n').textContent='Plano inviável sem ajustes'}
+  else{$('k-bench').textContent='IPCA'+(req<0?'−':'+')+pct(Math.abs(req));const f=mu-req;$('k-folga').textContent=(f>=0?'+':'−')+pct(Math.abs(f)).replace('%',' p.p.');$('k-folga').style.color=f>=0?'var(--good)':'var(--bad)';$('k-folga-n').textContent='Perfil rende IPCA+'+pct(mu)+' esperado'}
+  draw(s,p);
+  const fim=s.p50[s.years],ruim=s.p10.findIndex(v=>v<=0);
+  $('leitura').textContent=`No cenário mediano, a família chega aos 95 anos com ${brl(fim)} em valores de hoje. `+(ruim>0?`No cenário ruim, o patrimônio acaba por volta dos ${p.idade+ruim} anos.`:`Mesmo no cenário ruim, o patrimônio dura até os 95 anos.`);
+}
+ids.forEach(k=>$(k).addEventListener('input',run));
+document.querySelectorAll('.scen button').forEach(b=>b.addEventListener('click',()=>{const s=SCEN[b.dataset.s];Object.entries(s).forEach(([k,v])=>$(k).value=v);run()}));
+run();
+</script>

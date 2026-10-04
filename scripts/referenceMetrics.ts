@@ -1,4 +1,5 @@
-// Métricas da Família Andrade comparadas com reference/resultados_referencia.json.
+// Métricas da Família Andrade comparadas com reference/resultados_referencia.json, o arquivo gerado por
+// reference/motor_referencia.py (ids e campos no formato dele).
 // Usado por `npm run reference` e pelo teste 13, para que os dois confiram exatamente a mesma coisa.
 
 import { buildPlan, fullPlanFlows, requiredReturn, simulate, sustainableSpending } from '../src/engine/index.ts'
@@ -9,12 +10,15 @@ export interface ReferenceMetric {
   descricao: string
   valor: number
   tolerancia: number
-  unidade: 'taxa' | 'probabilidade' | 'reais'
-  sorteio: boolean
+  /** "fração ao ano", "fração", "R$ de hoje" ou "R$ de hoje por mês". */
+  unidade: string
+  sorteada: boolean
 }
 
 export interface ReferenceFile {
+  fonte?: string
   trajetorias: number
+  semente?: number
   metricas: ReferenceMetric[]
 }
 
@@ -39,17 +43,17 @@ export function computeMetrics(input: SimInput, paths: number, seed: number): Re
   const spending = sustainableSpending(input, { seed, target: 0.9 })
 
   return {
-    retornoCompostoLiquido: off.expectedCompositeReturn,
-    benchmarkComLegado: withLegacy.rate,
-    benchmarkSemLegado: withoutLegacy.rate,
+    retorno_composto_liquido: off.expectedCompositeReturn,
+    benchmark_com_legado: withLegacy.rate,
+    benchmark_sem_legado: withoutLegacy.rate,
     folga: off.slack ?? Number.NaN,
-    probSucessoSemRegras: off.successProbability,
-    probLegadoSemRegras: off.legacyProbability ?? Number.NaN,
-    patrimonioMediano95SemRegras: off.percentiles.p50[off.T],
-    probSucessoComRegras: on.successProbability,
-    chanceCorteTrajetoriaReferencia: on.cutProbability ?? Number.NaN,
-    chanceCorteGuytonKlinger: gk.cutProbability ?? Number.NaN,
-    gastoSustentavelMensal90: spending.monthlySpending ?? Number.NaN,
+    prob_sucesso: off.successProbability,
+    prob_legado: off.legacyProbability ?? Number.NaN,
+    patrimonio_mediano_final: off.percentiles.p50[off.T],
+    prob_sucesso_gasto_flexivel: on.successProbability,
+    chance_corte_trajetoria: on.cutProbability ?? Number.NaN,
+    chance_corte_guyton_klinger: gk.cutProbability ?? Number.NaN,
+    gasto_sustentavel_mensal_90: spending.monthlySpending ?? Number.NaN,
   }
 }
 
@@ -67,14 +71,16 @@ export function compare(reference: ReferenceFile, values: Record<string, number>
 const pct = (digits: number) => new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: digits, maximumFractionDigits: digits })
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
 
-export function formatValue(value: number, unit: ReferenceMetric['unidade']): string {
-  if (unit === 'taxa') return pct(3).format(value)
-  if (unit === 'probabilidade') return pct(1).format(value)
-  return brl.format(value)
+const isMoney = (unit: string) => unit.startsWith('R$')
+
+export function formatValue(value: number, unit: string): string {
+  if (isMoney(unit)) return brl.format(value)
+  if (unit === 'fração ao ano') return pct(3).format(value)
+  return pct(1).format(value)
 }
 
-export function formatTolerance(value: number, unit: ReferenceMetric['unidade']): string {
-  if (unit === 'reais') return `±${brl.format(value)}`
+export function formatTolerance(value: number, unit: string): string {
+  if (isMoney(unit)) return `±${brl.format(value)}`
   const pp = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 }).format(value * 100)
   return `±${pp} p.p.`
 }

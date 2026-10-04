@@ -45,9 +45,9 @@ A Aware Investments é um multi-family office (MFO) brasileiro. O AWARE Objectiv
 
 **O que já existe.**
 
-- Um protótipo em HTML (`reference/gemeo.html`) com um cliente fictício: Monte Carlo com 2.000 cenários, um único retorno por perfil com distribuição normal, controles de "E se?", probabilidade de sucesso, benchmark pessoal e gráfico em faixa. Serve de referência de layout e comportamento. Ainda não está no repositório (D-001).
+- Um protótipo em HTML (`reference/gemeo.html`) com um cliente fictício: Monte Carlo com 2.000 cenários, um único retorno por perfil com distribuição normal, controles de "E se?", probabilidade de sucesso, benchmark pessoal e gráfico em faixa. Serve de referência de layout e comportamento; ainda traz "Doação anual", que saiu do projeto (D-005).
 - O motor da Fase 0 em `src/engine` (classes de ativo correlacionadas, caudas grossas e gasto flexível), com os testes 1 a 14 e os resultados de referência da Família Andrade. Portão cumprido em 02/10/2026.
-- Um motor de referência em Python (`reference/motor_referencia.py`) segue esta especificação e gera os números de aceite. Ainda não está no repositório (D-001); os números estão em `reference/resultados_referencia.json`.
+- Um motor de referência em Python (`reference/motor_referencia.py`) segue esta especificação e gera os números de aceite em `reference/resultados_referencia.json` (diferenças conhecidas em D-027).
 
 **Custódia.** As carteiras ficam em custodiantes diferentes, no Brasil e no exterior. A v1 não se conecta a custodiantes nem à corretora: as posições e os aportes e resgates entram por importação mensal (ver "Dados e integrações"). Na CADM, vêm do controle interno da gestão, a mesma base do reporte à ANBIMA; na AI, das posições na corretora (formato a confirmar).
 

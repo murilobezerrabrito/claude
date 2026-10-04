@@ -1,98 +1,96 @@
 {
-  "descricao": "Resultados de referência da Família Andrade (docs/SPEC.md, seção Resultados de referência). Lido pelo teste 13 e por npm run reference.",
-  "origem": "Transcrito da tabela do SPEC de 02/10/2026; o original é gerado por reference/motor_referencia.py com as premissas ilustrativas e 50.000 trajetórias.",
-  "dados": "reference/andrade.json",
-  "premissas": "ilustrativas (docs/SPEC.md, seção Classes de ativo e premissas)",
+  "fonte": "reference/motor_referencia.py",
   "trajetorias": 50000,
-  "unidades": "Taxas e probabilidades em fração decimal (0.0390 = 3,90%); valores em reais de hoje. A tolerância está na mesma unidade do valor.",
+  "semente": 42,
+  "observacao": "Premissas ilustrativas do SPEC. Métricas com sorteio: compare pela tolerância, porque o gerador aleatório do motor em TypeScript é outro. Métricas sem sorteio (benchmark pessoal) precisam bater na tolerância indicada.",
   "metricas": [
     {
-      "id": "retornoCompostoLiquido",
-      "descricao": "Retorno composto líquido do perfil moderado",
-      "valor": 0.039,
+      "id": "retorno_composto_liquido",
+      "descricao": "Retorno real composto do perfil moderado, líquido da taxa",
+      "valor": 0.039006,
       "tolerancia": 0.0005,
-      "unidade": "taxa",
-      "sorteio": true
+      "unidade": "fração ao ano",
+      "sorteada": true
     },
     {
-      "id": "benchmarkComLegado",
-      "descricao": "Benchmark pessoal, com legado de R$ 3 mi",
-      "valor": 0.0298,
+      "id": "benchmark_com_legado",
+      "descricao": "Benchmark pessoal com legado de R$ 3 mi",
+      "valor": 0.029805,
       "tolerancia": 0.0001,
-      "unidade": "taxa",
-      "sorteio": false
+      "unidade": "fração ao ano",
+      "sorteada": false
     },
     {
-      "id": "benchmarkSemLegado",
-      "descricao": "Benchmark pessoal, sem legado",
-      "valor": 0.0277,
+      "id": "benchmark_sem_legado",
+      "descricao": "Benchmark pessoal sem legado",
+      "valor": 0.027698,
       "tolerancia": 0.0001,
-      "unidade": "taxa",
-      "sorteio": false
+      "unidade": "fração ao ano",
+      "sorteada": false
     },
     {
       "id": "folga",
-      "descricao": "Folga (retorno composto líquido menos benchmark com legado)",
-      "valor": 0.0092,
+      "descricao": "Retorno composto menos benchmark com legado",
+      "valor": 0.009201,
       "tolerancia": 0.0005,
-      "unidade": "taxa",
-      "sorteio": true
+      "unidade": "fração ao ano",
+      "sorteada": true
     },
     {
-      "id": "probSucessoSemRegras",
+      "id": "prob_sucesso",
       "descricao": "Probabilidade de sucesso, sem gasto flexível",
-      "valor": 0.929,
+      "valor": 0.92922,
       "tolerancia": 0.02,
-      "unidade": "probabilidade",
-      "sorteio": true
+      "unidade": "fração",
+      "sorteada": true
     },
     {
-      "id": "probLegadoSemRegras",
+      "id": "prob_legado",
       "descricao": "Probabilidade do legado, sem gasto flexível",
-      "valor": 0.89,
+      "valor": 0.8864,
       "tolerancia": 0.02,
-      "unidade": "probabilidade",
-      "sorteio": true
+      "unidade": "fração",
+      "sorteada": true
     },
     {
-      "id": "patrimonioMediano95SemRegras",
+      "id": "patrimonio_mediano_final",
       "descricao": "Patrimônio mediano aos 95 anos, sem gasto flexível",
-      "valor": 20500000,
+      "valor": 20524357.811325,
       "tolerancia": 1500000,
-      "unidade": "reais",
-      "sorteio": true
+      "unidade": "R$ de hoje",
+      "sorteada": true
     },
     {
-      "id": "probSucessoComRegras",
-      "descricao": "Probabilidade de sucesso, com gasto flexível padrão",
-      "valor": 0.99,
+      "id": "prob_sucesso_gasto_flexivel",
+      "descricao": "Probabilidade de sucesso, régua da trajetória de referência",
+      "valor": 0.993,
       "tolerancia": 0.01,
-      "unidade": "probabilidade",
-      "sorteio": true
+      "unidade": "fração",
+      "sorteada": true
     },
     {
-      "id": "chanceCorteTrajetoriaReferencia",
-      "descricao": "Chance de corte, régua da trajetória de referência",
-      "valor": 0.35,
+      "id": "chance_corte_trajetoria",
+      "descricao": "Chance de corte no estilo de vida, régua da trajetória de referência",
+      "valor": 0.34568,
       "tolerancia": 0.05,
-      "unidade": "probabilidade",
-      "sorteio": true
+      "unidade": "fração",
+      "sorteada": true
     },
     {
-      "id": "chanceCorteGuytonKlinger",
-      "descricao": "Chance de corte, régua Guyton-Klinger",
-      "valor": 0.996,
+      "id": "chance_corte_guyton_klinger",
+      "descricao": "Chance de corte no estilo de vida, régua Guyton-Klinger",
+      "valor": 0.9959,
       "tolerancia": 0.01,
-      "unidade": "probabilidade",
-      "sorteio": true
+      "unidade": "fração",
+      "sorteada": true
     },
     {
-      "id": "gastoSustentavelMensal90",
-      "descricao": "Gasto sustentável com 90% de chance (gasto total por mês; hoje R$ 85 mil)",
-      "valor": 87000,
+      "id": "gasto_sustentavel_mensal_90",
+      "descricao": "Gasto mensal total sustentável com 90% de chance",
+      "valor": 86697.68648,
       "tolerancia": 3000,
-      "unidade": "reais",
-      "sorteio": true
+      "unidade": "R$ de hoje por mês",
+      "sorteada": true
     }
   ]
 }
