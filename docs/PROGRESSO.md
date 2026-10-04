@@ -4,9 +4,9 @@
 
 - **Rota 2 adotada** em 02/10/2026 (D-024): app para os clientes AI; relatório mensal da gestão para os clientes CADM. A documentação foi atualizada para a nova rota; o `docs/SPEC.md` é a fonte única, e `docs/ROTA-2.md` fica como registro da mudança.
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
-- **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 a 6 concluídas (pesos explícitos, sorteios alinhados, referência em Python, passo de 12 meses, plano corrigido pelo IPCA, fechamentos fictícios e rentabilidade do mês).
+- **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 a 7 concluídas (pesos explícitos, sorteios alinhados, referência em Python, passo de 12 meses, plano corrigido pelo IPCA, fechamentos fictícios, rentabilidade do mês, rodada oficial e ponte).
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026 e D-028). Não há pull request aberto.
-- **Próximo passo:** etapa 7 da Fase 1, rodada oficial e ponte (`src/report/officialRun.ts` e `attribution.ts`, teste 19). Ponto de parada B cumprido: `revisor-motor` sem divergências abertas nas etapas 1 a 3b (três rodadas).
+- **Próximo passo:** etapa 8 da Fase 1 (textos, formatação e números congelados), depois de Murilo decidir sobre a queda da chance em out/2026 (ver "Pendências"). Ponto de parada B cumprido: `revisor-motor` sem divergências abertas nas etapas 1 a 3b (três rodadas).
 
 ### Comandos de teste
 
@@ -14,7 +14,7 @@
 npm install
 npm run typecheck     # tsc -b: motor (só ES2023), interface, testes e scripts
 npm run lint          # ESLint; barra imports externos e imports sem .ts no motor
-npm test              # Vitest: 142 testes, incluindo T01 a T18, T20, as entradas do mês e os fechamentos fictícios (~17 s)
+npm test              # Vitest: 152 testes, incluindo T01 a T20, as entradas do mês e os fechamentos fictícios (~21 s)
 npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 ```
@@ -42,7 +42,7 @@ Plano aprovado por Murilo em 04/10/2026. Etapas, uma por commit:
 | 4 | Plano corrigido pelo IPCA e entradas do mês (`src/report`) | Concluída |
 | 5 | Fechamentos fictícios de set e out/2026 | Concluída |
 | 6 | Rentabilidade do mês (T20) | Concluída |
-| 7 | Rodada oficial e ponte (T19) | Pendente |
+| 7 | Rodada oficial e ponte (T19) | Concluída |
 | 8 | Textos, formatação e números congelados | Pendente |
 | 9 | PDF de sete páginas | Pendente |
 | 10 | Modo apresentação | Pendente |
@@ -171,6 +171,31 @@ Família Andrade, 50.000 trajetórias, semente 20261002 (antes = motor 0.4.0; de
 - `src/report/performance.ts` (D-034): `monthReturn` (Dietz modificado sobre o PL oficial, deflacionado pelo IPCA, com "datas aproximadas" e o aviso de plausibilidade) e `performanceSummary` (mês, no ano, 12 meses e desde o início, contra o benchmark pessoal acumulado com o r* publicado no fechamento anterior).
 - Teste 20 (`rentabilidade.test.ts`, 8 testes): Andrade em out/2026, com −2,10% nominal e −2,49% real; movimento sem data no meio do mês; pesos por dia; plausibilidade; erros; encadeamento, "no ano" e "12 meses" só com histórico suficiente; benchmark acumulado e mês faltando.
 
+### Etapa 7: rodada oficial e ponte
+
+- `src/report/officialRun.ts`: rodada do mês (10.000 trajetórias, semente da família), com "a chance" sem gasto flexível e a chance com gasto flexível ao lado.
+- `src/report/attribution.ts`: ponte em seis passos, do número publicado no mês anterior até a rodada do mês (D-035).
+- Teste 19 (`ponte.test.ts`, 10 testes): hashes dos extremos iguais aos das rodadas oficiais; soma das barras em trajetórias igual à variação total; decomposição do r*; passos sem mudança não mexem em nada; fluxo previsto de R$ 62.248 no passo 1; décimos de p.p. com o resíduo na maior barra e "sem efeito"; primeiro mês sem ponte; "Atualização do método"; pesos dos clientes AI até o passo "Carteira"; erros.
+
+Família Andrade, 10.000 trajetórias, semente 20261002:
+
+| | set/2026 | out/2026 |
+|---|---|---|
+| Chance (sem gasto flexível) | 86,5% | 62,0% |
+| Chance com gasto flexível | 97,8% | 79,0% |
+| Benchmark pessoal | IPCA + 3,24% | IPCA + 3,81% |
+| Folga | 0,67 p.p. | 0,10 p.p. |
+| Patrimônio simulado | R$ 13,80 mi | R$ 13,26 mi |
+
+| Passo da ponte | Chance | r* |
+|---|---|---|
+| Passagem do tempo | −0,3 p.p. | +0,01 p.p. |
+| Mercado (−2,1% nominal) | −2,7 p.p. | +0,08 p.p. |
+| Aportes e resgates fora do plano (resgate de R$ 300 mil contra +R$ 62 mil previstos) | −3,4 p.p. | +0,10 p.p. |
+| Carteira | sem efeito | 0 |
+| Plano (estilo de vida de R$ 30 mil para R$ 35 mil por mês) | −18,1 p.p. | +0,38 p.p. |
+| Premissas | sem efeito | 0 |
+
 ## Fase 0: o que foi feito
 
 ### Arquivos
@@ -235,6 +260,7 @@ Na Fase 1, o Web Worker pode aquecer o cache ao abrir o app.
 
 ## Pendências
 
+- **Fechamento fictício de out/2026, para o Murilo decidir:** com os dados do SPEC (estilo de vida de R$ 30 mil para R$ 35 mil por mês), a chance da Andrade cai de 86,5% para 62,0% e passa à faixa vermelha ("Plano em risco"); o passo "Plano" responde por −18,1 p.p. O relatório de exemplo vai mostrar isso.
 - **Eventos do "E se?" sem mês (para a etapa 4 e o console):** o motor trata aportes e resgates do "E se?" como os eventos do plano. Sem mês, um aporte "em 2026" com julho já passado fica fora do cálculo, e o aviso fala em conferência. O controle do "E se?" deve sempre informar o mês.
 - **Virada do ano (D-031, item 3), para o Murilo decidir se quer:** no fechamento de 31/12, a saída sem mês do ano que acabou sai do cálculo sem aviso. Um último aviso nesse fechamento ajudaria a conferência a registrar a saída; não muda nenhum número.
 - **Rota 2, perguntas em aberto:** em vigor os padrões da D-025 (corretora e formato das posições AI, custo AI de 0,80% "a validar", responsável por família, regras da assessoria, preparo e aprovação dos relatórios, piloto e identidade visual).
