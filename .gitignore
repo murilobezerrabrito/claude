@@ -31,3 +31,6 @@ __pycache__/
 .idea
 .DS_Store
 *.sw?
+
+# PDFs gerados para revisão (npm run report:pdf)
+relatorios-pdf/
