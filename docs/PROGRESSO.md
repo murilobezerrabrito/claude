@@ -4,9 +4,9 @@
 
 - **Rota 2 adotada** em 02/10/2026 (D-024): app para os clientes AI; relatório mensal da gestão para os clientes CADM. A documentação foi atualizada para a nova rota; o `docs/SPEC.md` é a fonte única, e `docs/ROTA-2.md` fica como registro da mudança.
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
-- **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 (pesos explícitos) e 2 (sorteios alinhados) concluídas.
+- **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 (pesos explícitos), 2 (sorteios alinhados), 3a (referência em Python) e 3b (passo de 12 meses) concluídas.
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026 e D-028). Não há pull request aberto.
-- **Próximo passo:** etapas 3a e 3b da Fase 1, motor de referência em Python e passo de 12 meses no motor (teste 18).
+- **Próximo passo:** revisão do `revisor-motor` sobre as etapas 1 a 3b (ponto de parada B); depois, etapa 4, plano corrigido pelo IPCA em `src/report`.
 
 ### Comandos de teste
 
@@ -14,7 +14,7 @@
 npm install
 npm run typecheck     # tsc -b: motor (só ES2023), interface, testes e scripts
 npm run lint          # ESLint; barra imports externos e imports sem .ts no motor
-npm test              # Vitest: 106 testes, incluindo T01 a T17 (~16 s)
+npm test              # Vitest: 113 testes, incluindo T01 a T18 (~17 s)
 npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 ```
@@ -37,8 +37,8 @@ Plano aprovado por Murilo em 04/10/2026. Etapas, uma por commit:
 |---|---|---|
 | 1 | Motor: pesos explícitos (T15) | Concluída |
 | 2 | Motor: sorteios alinhados por trajetória e ano (T16, T17) | Concluída |
-| 3a | Referência em Python atualizada (mudança isolada) | Pendente |
-| 3b | Motor: passo de 12 meses (T18) | Pendente |
+| 3a | Referência em Python atualizada (mudança isolada) | Concluída |
+| 3b | Motor: passo de 12 meses (T18) | Concluída |
 | 4 | Plano corrigido pelo IPCA e entradas do mês (`src/report`) | Pendente |
 | 5 | Fechamentos fictícios de set e out/2026 | Pendente |
 | 6 | Rentabilidade do mês (T20) | Pendente |
@@ -77,6 +77,42 @@ Família Andrade, 50.000 trajetórias, semente 20261002 (antes = motor 0.2.0; de
 | Chance de corte, trajetória de referência | 34,22% | 34,42% | 34,6% |
 | Chance de corte, Guyton-Klinger | 99,60% | 99,59% | 99,6% |
 | Gasto sustentável com 90% | R$ 86.677 | R$ 85.691 | R$ 86.698 |
+
+### Etapa 3a: referência em Python (mudança isolada de `reference/`)
+
+- `motor_referencia.py` passou a sortear por trajetória (o ano t na linha t) e a usar o passo de 12 meses a partir de 30/09/2026: 45 passos até ago/2071, o último com 11 meses.
+- Na mesma mudança, alinhado ao TypeScript (D-027, aprovado por Murilo): as regras param depois da falha e a trajetória de referência que zera fica em zero.
+- `resultados_referencia.json` regenerado com as mesmas tolerâncias. Os números estão na tabela da etapa 3b, coluna "Referência nova".
+
+### Etapa 3b: passo de 12 meses
+
+- `plan.ts` (D-031): data de referência no último dia do mês; o passo t vai do mês seguinte à data de referência mais t anos; o último termina no mês do aniversário da idade-limite do membro mais jovem e pode ter m < 12 meses (`stepMonths`, `stepFrac`). Fluxos e eventos anuais entram pro rata pelos meses; evento único e cada ocorrência de "a cada N anos" entram no seu mês (`events.month`; sem mês, julho); data antes do primeiro mês sai do cálculo com aviso. Aposentado no passo t só se a aposentadoria foi antes do início do passo. O plano guarda o fluxo do primeiro mês (`firstMonthFlow`), para a ponte.
+- `simulate.ts`, `requiredReturn.ts` e `guardrails.ts`: o passo curto rende (1 + R)^(m/12) − 1 na simulação, no benchmark e na trajetória de referência. Os "últimos 15 anos" são os últimos 15 passos. Motor 0.4.0.
+- Teste 18 (`passo.test.ts`, 7 testes): data de referência no fim do mês; calendário da Andrade (45 passos, só o último com 11 meses, fluxo do primeiro mês); fluxos pro rata; eventos no seu mês, em julho sem mês e fora do cálculo quando já passaram; retorno do passo curto; aposentadoria antes do início do passo; nenhum corte nos últimos 15 passos.
+- **Ponto de parada A** (aprovado por Murilo, "Pode aplicar"): 16 testes antigos dependiam da convenção anual e foram ajustados, sem mudar o que cada um testa:
+  - `helpers.ts`: a família sintética passou a ter data de referência em 31/12/2026 e aniversário em dezembro, para que o passo t seja exatamente o ano civil 2027 + t; os testes de T01 a T12 que a usam continuam com os mesmos números.
+  - `plano.test.ts`: as expectativas por ano civil viraram expectativas por passo, calculadas à mão (ex.: renda do passo 9 = 3 meses de pró-labore e dividendos mais o aluguel).
+  - `deterministico.test.ts` e `simulacao.test.ts`: o benchmark da Andrade é comparado com o JSON da referência (3,24% e 3,04%), e não mais com os números antigos escritos no teste; as projeções determinísticas recebem `stepFrac`; o teste de horizonte compara só os passos inteiros comuns aos dois horizontes.
+  - `bissecoes.test.ts`: o caso de borda do gasto sustentável foi recalibrado para semente 3 e POS de R$ 55.525.000 (a lógica testada não mudou).
+- Desempenho (T14, Node do ambiente): cerca de 300 ms com o cache quente e 780 ms com o cache frio, como antes.
+
+Família Andrade, 50.000 trajetórias, semente 20261002 (antes = motor 0.3.0, convenção anual; depois = motor 0.4.0):
+
+| Métrica | Antes | Depois | Referência antiga | Referência nova |
+|---|---|---|---|---|
+| Retorno composto líquido | 3,910% | 3,910% | 3,90% | 3,90% |
+| Benchmark com legado | 2,981% | 3,244% | 2,98% | 3,244% |
+| Benchmark sem legado | 2,770% | 3,044% | 2,77% | 3,044% |
+| Folga | 0,930 p.p. | 0,666 p.p. | 0,92 p.p. | 0,656 p.p. |
+| Probabilidade de sucesso, sem regras | 93,06% | 86,42% | 92,9% | 86,23% |
+| Probabilidade do legado, sem regras | 88,91% | 80,31% | 88,6% | 80,12% |
+| Patrimônio mediano aos 95, sem regras | R$ 20,76 mi | R$ 15,23 mi | R$ 20,52 mi | R$ 14,91 mi |
+| Probabilidade de sucesso, com regras | 99,31% | 97,76% | 99,3% | 97,72% |
+| Chance de corte, trajetória de referência | 34,42% | 35,80% | 34,6% | 35,81% |
+| Chance de corte, Guyton-Klinger | 99,59% | 99,87% | 99,6% | 99,90% |
+| Gasto sustentável com 90% | R$ 85.691 | R$ 82.301 | R$ 86.698 | R$ 83.285 |
+
+As 11 métricas ficam dentro das tolerâncias da referência nova. A queda da chance vem do calendário, como o SPEC previa: a convenção anual contava de novo os fluxos de jan a set/2026 e encerrava o plano em dez/2070, e não em ago/2071.
 
 ## Fase 0: o que foi feito
 
