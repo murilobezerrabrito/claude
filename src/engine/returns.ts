@@ -3,7 +3,7 @@
 
 import { EngineInputError } from './errors.ts'
 import { cholesky } from './linalg.ts'
-import { Rng } from './rng.ts'
+import { pathKeys, qStreamMix, Rng, streamMix, textKey } from './rng.ts'
 import type { Cma } from './types.ts'
 
 export const Z_CLIP = 6
@@ -19,7 +19,13 @@ export interface ClassParams {
   L: Float64Array
   s: Float64Array
   m: Float64Array
+  /** Mistura do fluxo de G de cada classe (K × 4), derivada do código da classe. */
+  streams: Uint32Array
 }
+
+/** Mistura dos fluxos das normais de Q, uma por componente (ν vai até 30). */
+const Q_STREAMS = new Uint32Array(30 * 4)
+for (let j = 0; j < 30; j++) qStreamMix(j, Q_STREAMS, j * 4)
 
 export interface Market {
   paths: number
@@ -107,31 +113,49 @@ export function classParams(cma: Cma): ClassParams {
   const L = cholesky(cma.correlation, codes)
   const s = new Float64Array(K)
   const m = new Float64Array(K)
+  const streams = new Uint32Array(K * 4)
+  const keys = codes.map(textKey)
+  if (new Set(keys).size !== K) throw new EngineInputError('classe_duplicada', 'Dois códigos de classe geram a mesma chave de sorteio: troque um deles.')
   for (let k = 0; k < K; k++) {
     const { mu, vol } = cma.classes[k]
     s[k] = lognormalScale(mu, vol)
     m[k] = Math.log(1 + mu) - logMgfT(s[k], cma.nu)
+    streamMix(keys[k], streams, k * 4)
   }
-  return { codes, K, nu: cma.nu, L, s, m }
+  return { codes, K, nu: cma.nu, L, s, m, streams }
 }
 
 /**
- * Sorteia um vetor de retornos por classe (sem choque) em `out`.
- * Ordem fixa dos sorteios: K normais de G e depois ν normais de Q.
+ * Sorteios da trajetória dada por `pk` (`pathKeys`) para os anos 0 a T − 1. Sorteios alinhados (D-030): G da
+ * classe k no ano t é o t-ésimo sorteio do fluxo do código da classe, e a j-ésima normal de Q no ano t é o t-ésimo
+ * sorteio do fluxo j de Q. Mudar o horizonte, a ordem ou o número de classes, ou o ν, não desloca nenhum outro
+ * sorteio. Grava G em `g` (T × K), Q em `q` (T) e, se pedido, as normais de Q em `qn` (T × ν).
  */
-function drawClassReturns(p: ClassParams, rng: Rng, g: Float64Array, out: Float64Array): void {
-  const { K, nu, L, s, m } = p
-  for (let k = 0; k < K; k++) g[k] = rng.normal()
-  let q = 0
-  for (let j = 0; j < nu; j++) {
-    const n = rng.normal()
-    q += n * n
+export function drawPath(p: ClassParams, rng: Rng, pk: Uint32Array, T: number, g: Float64Array, q: Float64Array, qn: Float64Array | null = null): void {
+  const { K, nu, streams } = p
+  for (let k = 0; k < K; k++) {
+    rng.reseedMixed(pk, streams, k * 4)
+    for (let t = 0; t < T; t++) g[t * K + k] = rng.normal()
   }
+  q.fill(0, 0, T)
+  for (let j = 0; j < nu; j++) {
+    rng.reseedMixed(pk, Q_STREAMS, j * 4)
+    for (let t = 0; t < T; t++) {
+      const n = rng.normal()
+      if (qn) qn[t * nu + j] = n
+      q[t] += n * n
+    }
+  }
+}
+
+/** Retornos por classe, sem choque, do ano cujos G começam em `g[offset]` e cujo Q vale `q`. */
+export function classReturns(p: ClassParams, g: Float64Array, offset: number, q: number, out: Float64Array): void {
+  const { K, nu, L, s, m } = p
   const scale = Math.sqrt((nu - 2) / q)
   for (let k = 0; k < K; k++) {
     let z = 0
     const row = k * K
-    for (let j = 0; j <= k; j++) z += L[row + j] * g[j]
+    for (let j = 0; j <= k; j++) z += L[row + j] * g[offset + j]
     z *= scale
     if (z > Z_CLIP) z = Z_CLIP
     else if (z < -Z_CLIP) z = -Z_CLIP
@@ -139,9 +163,24 @@ function drawClassReturns(p: ClassParams, rng: Rng, g: Float64Array, out: Float6
   }
 }
 
+/** Sorteios crus (G e as normais de Q) e retornos por classe do ano `year` da trajetória `path`, para conferência e testes. */
+export function yearDraws(p: ClassParams, seed: number, path: number, year: number): { g: Float64Array; qn: Float64Array; r: Float64Array } {
+  const T = year + 1
+  const pk = new Uint32Array(4)
+  pathKeys(seed, path, pk)
+  const g = new Float64Array(T * p.K)
+  const q = new Float64Array(T)
+  const qn = new Float64Array(T * p.nu)
+  drawPath(p, new Rng(seed), pk, T, g, q, qn)
+  const r = new Float64Array(p.K)
+  classReturns(p, g, year * p.K, q[year], r)
+  return { g: g.slice(year * p.K), qn: qn.slice(year * p.nu), r }
+}
+
 /**
- * Sorteia o mercado de todas as trajetórias. Os sorteios não dependem do plano da família nem do horizonte,
- * então cenários e bisseções com a mesma semente usam exatamente os mesmos números (números aleatórios comuns).
+ * Sorteia o mercado de todas as trajetórias. Os sorteios não dependem do plano da família, dos pesos, das
+ * premissas nem do horizonte, então cenários, bisseções e os passos da ponte com a mesma semente usam exatamente
+ * os mesmos números (números aleatórios comuns).
  */
 export function generateMarket(
   p: ClassParams,
@@ -153,15 +192,18 @@ export function generateMarket(
 ): Market {
   const { K } = p
   const rng = new Rng(seed)
-  const g = new Float64Array(K)
+  const g = new Float64Array(T * K)
+  const q = new Float64Array(T)
   const r = new Float64Array(K)
+  const pk = new Uint32Array(4)
   const grossPre = new Float64Array(paths * T)
   const grossPost = weightsPost ? new Float64Array(paths * T) : null
   for (let i = 0; i < paths; i++) {
-    // Uma sequência por trajetória: o ano t da trajetória i é o mesmo para qualquer horizonte.
-    rng.reseed(seed, i + 1)
+    // O ano t da trajetória i usa sempre os mesmos sorteios, para qualquer horizonte.
+    pathKeys(seed, i, pk)
+    drawPath(p, rng, pk, T, g, q)
     for (let t = 0; t < T; t++) {
-      drawClassReturns(p, rng, g, r)
+      classReturns(p, g, t * K, q[t], r)
       let pre = 0
       for (let k = 0; k < K; k++) pre += weightsPre[k] * r[k]
       grossPre[i * T + t] = pre
@@ -191,18 +233,24 @@ function meanLog1p(values: Float64Array): number {
 }
 
 /**
- * n vetores de retornos por classe (n × K), sorteados pelo mesmo esquema do mercado: blocos de `yearsPerPath`
- * vetores, cada bloco numa sequência própria do gerador (uma "trajetória"). Para a calibração (teste 7).
+ * n vetores de retornos por classe (n × K), sorteados exatamente como no mercado: o vetor i é o ano
+ * i mod `yearsPerPath` da trajetória ⌊i / `yearsPerPath`⌋. Para a calibração (teste 7).
  */
 export function sampleClassReturns(cma: Cma, n: number, seed: number, yearsPerPath = 45): Float64Array {
   const p = classParams(cma)
   const rng = new Rng(seed)
-  const g = new Float64Array(p.K)
+  const g = new Float64Array(yearsPerPath * p.K)
+  const q = new Float64Array(yearsPerPath)
   const r = new Float64Array(p.K)
+  const pk = new Uint32Array(4)
   const out = new Float64Array(n * p.K)
   for (let i = 0; i < n; i++) {
-    if (i % yearsPerPath === 0) rng.reseed(seed, i / yearsPerPath + 1)
-    drawClassReturns(p, rng, g, r)
+    const t = i % yearsPerPath
+    if (t === 0) {
+      pathKeys(seed, i / yearsPerPath, pk)
+      drawPath(p, rng, pk, yearsPerPath, g, q)
+    }
+    classReturns(p, g, t * p.K, q[t], r)
     out.set(r, i * p.K)
   }
   return out

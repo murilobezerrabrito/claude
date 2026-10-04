@@ -4,9 +4,9 @@
 
 - **Rota 2 adotada** em 02/10/2026 (D-024): app para os clientes AI; relatório mensal da gestão para os clientes CADM. A documentação foi atualizada para a nova rota; o `docs/SPEC.md` é a fonte única, e `docs/ROTA-2.md` fica como registro da mudança.
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
-- **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapa 1 (pesos explícitos) concluída.
+- **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 (pesos explícitos) e 2 (sorteios alinhados) concluídas.
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026 e D-028). Não há pull request aberto.
-- **Próximo passo:** etapa 2 da Fase 1, sorteios alinhados por trajetória e ano (testes 16 e 17).
+- **Próximo passo:** etapas 3a e 3b da Fase 1, motor de referência em Python e passo de 12 meses no motor (teste 18).
 
 ### Comandos de teste
 
@@ -14,7 +14,7 @@
 npm install
 npm run typecheck     # tsc -b: motor (só ES2023), interface, testes e scripts
 npm run lint          # ESLint; barra imports externos e imports sem .ts no motor
-npm test              # Vitest: 96 testes, incluindo T01 a T15 (~15 s)
+npm test              # Vitest: 106 testes, incluindo T01 a T17 (~16 s)
 npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 ```
@@ -36,7 +36,7 @@ Plano aprovado por Murilo em 04/10/2026. Etapas, uma por commit:
 | # | Etapa | Status |
 |---|---|---|
 | 1 | Motor: pesos explícitos (T15) | Concluída |
-| 2 | Motor: sorteios alinhados por trajetória e ano (T16, T17) | Pendente |
+| 2 | Motor: sorteios alinhados por trajetória e ano (T16, T17) | Concluída |
 | 3a | Referência em Python atualizada (mudança isolada) | Pendente |
 | 3b | Motor: passo de 12 meses (T18) | Pendente |
 | 4 | Plano corrigido pelo IPCA e entradas do mês (`src/report`) | Pendente |
@@ -54,6 +54,29 @@ Pontos de parada combinados: (A) testes antigos que dependem da convenção anua
 - `weights` no cadastro da família e no cenário (D-029); `Plan.weightsSource` diz a origem e `Plan.profileId` fica null com pesos explícitos.
 - Teste 15 (`pesos.test.ts`): com os pesos do perfil, o resultado é idêntico, bit a bit, ao do `profileId` (com e sem gasto flexível), menos o hash das entradas.
 - `npm run reference`: as 11 métricas saíram idênticas, bit a bit, às de antes da mudança. A versão do motor segue 0.2.0, porque nenhum número mudou.
+
+### Etapa 2: sorteios alinhados
+
+- `rng.ts` e `returns.ts` (D-030): um gerador por classe (pela chave do código) e um por componente de Q em cada trajetória; o ano t usa o t-ésimo sorteio de cada um. Motor 0.3.0.
+- Testes 16 e 17 (`alinhamento.test.ts`): o mesmo mercado com patrimônio e plano diferentes; o ano t igual com outro horizonte; carteiras diferentes combinam os mesmos retornos por classe; os mesmos G e Q com outros retornos, volatilidades e correlações; com ν de 3, 5 ou 7, os mesmos G e as mesmas normais de Q; sem uma classe, com as classes em outra ordem ou com uma classe a mais, cada classe mantém o seu G; um resgate de R$ 1 mil nunca aumenta a chance nem o patrimônio de nenhuma trajetória.
+- `bissecoes.test.ts`: o caso de borda do gasto sustentável (k = 3 bate 90% com 2.000 trajetórias e não com 5.000) estava calibrado nos sorteios antigos. Com os novos, as primeiras 2.000 trajetórias da semente 20261002 ficam sempre abaixo das 5.000, então o teste passou a usar a semente 3 com POS de R$ 54.425.000. A lógica testada não mudou.
+- Desempenho (T14, Node do ambiente): com o cache quente, de 282 ms para 324 ms; com o cache frio, de cerca de 650 ms para cerca de 780 ms.
+
+Família Andrade, 50.000 trajetórias, semente 20261002 (antes = motor 0.2.0; depois = motor 0.3.0):
+
+| Métrica | Antes | Depois | Referência |
+|---|---|---|---|
+| Retorno composto líquido | 3,914% | 3,910% | 3,90% |
+| Benchmark com legado | 2,981% | 2,981% | 2,98% |
+| Benchmark sem legado | 2,770% | 2,770% | 2,77% |
+| Folga | 0,933 p.p. | 0,930 p.p. | 0,92 p.p. |
+| Probabilidade de sucesso, sem regras | 93,30% | 93,06% | 92,9% |
+| Probabilidade do legado, sem regras | 89,32% | 88,91% | 88,6% |
+| Patrimônio mediano aos 95, sem regras | R$ 20,87 mi | R$ 20,76 mi | R$ 20,52 mi |
+| Probabilidade de sucesso, com regras | 99,26% | 99,31% | 99,3% |
+| Chance de corte, trajetória de referência | 34,22% | 34,42% | 34,6% |
+| Chance de corte, Guyton-Klinger | 99,60% | 99,59% | 99,6% |
+| Gasto sustentável com 90% | R$ 86.677 | R$ 85.691 | R$ 86.698 |
 
 ## Fase 0: o que foi feito
 
