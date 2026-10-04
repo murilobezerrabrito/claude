@@ -91,6 +91,11 @@ export interface MonthInputsArgs {
   profiles: Profile[]
   /** Hipóteses do "E se?", em reais da data de referência (a rodada oficial não tem). */
   scenario?: Scenario
+  /**
+   * Pesos explícitos no lugar dos da carteira atual (clientes AI). A ponte usa para manter os pesos do mês anterior
+   * até o passo "Carteira".
+   */
+  weights?: Record<string, number>
 }
 
 export interface MonthInputs {
@@ -116,7 +121,7 @@ export function buildMonthInputs(args: MonthInputsArgs): MonthInputs {
     ...(h.bankerId === undefined ? {} : { bankerId: h.bankerId }),
     referenceDate: closing.refDate,
     profileId: h.profileId,
-    ...(h.weightsSource === 'carteira_atual' ? { weights: currentWeights(closing.positionsByClass, plan.otherAssets) } : {}),
+    ...(h.weightsSource === 'carteira_atual' ? { weights: args.weights ?? currentWeights(closing.positionsByClass, plan.otherAssets) } : {}),
     ...(h.suitability === undefined ? {} : { suitability: h.suitability }),
     feeRate: h.feeRate,
     horizonAge: h.horizonAge,

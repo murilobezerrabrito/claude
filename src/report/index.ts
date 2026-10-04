@@ -15,3 +15,15 @@ export {
   type PerformanceSummary,
   type PeriodReturn,
 } from './performance.ts'
+export { mainInput, officialRun, OFFICIAL_PATHS, type MonthPackage, type OfficialRun } from './officialRun.ts'
+export {
+  BRIDGE_LABELS,
+  monthAttribution,
+  type AttributionArgs,
+  type Bridge,
+  type BridgeBar,
+  type BridgeState,
+  type BridgeStep,
+  type BridgeStepId,
+  type MonthAttribution,
+} from './attribution.ts'
