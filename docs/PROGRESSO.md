@@ -93,7 +93,7 @@ Na Fase 1, o Web Worker pode aquecer o cache ao abrir o app.
 ## Pendências
 
 - **Rota 2, perguntas em aberto:** em vigor os padrões da D-025 (corretora e formato das posições AI, custo AI de 0,80% "a validar", responsável por família, regras da assessoria, preparo e aprovação dos relatórios, piloto e identidade visual).
-- **Referências do kit:** recebidas em 04/10/2026 (D-001 resolvida). O motor em Python reproduz o JSON do kit, e o motor em TypeScript fica dentro das tolerâncias em todas as 11 métricas. As diferenças conhecidas entre os dois estão em D-027, para a mudança isolada de `reference/` na Fase 1.
+- **Referências do kit:** recebidas em 04/10/2026 (D-001 resolvida). O motor em Python reproduz o JSON do kit, e o motor em TypeScript fica dentro das tolerâncias em todas as 11 métricas. As diferenças conhecidas entre os dois estão em D-027; Murilo aprovou alinhar duas delas (regras depois da falha e trajetória de referência que zera) na mudança isolada de `reference/` da Fase 1.
 - **D-019, para o Murilo confirmar:** com horizonte maior no "E se?", também estendemos rendas e aluguéis que vão até o fim do plano. É a leitura coerente, mas não a mais conservadora (na Andrade com 100 anos, R$ 84 mil por ano a mais durante 5 anos).
 - **D-010, para a Fase 1:** o relatório e o app precisam dizer que o gasto sustentável é calculado sem gasto flexível.
 - **Demais decisões:** D-006 a D-023, a confirmar com quem está indicado em `docs/DECISOES.md`.
