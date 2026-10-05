@@ -3,7 +3,34 @@
 --   entra uma vez depois da aprovação; apagar é negado. Quem prepara não aprova (quatro olhos).
 -- - Trilha de auditoria só de inserção: update, delete e truncate negados para todos.
 -- - Toda escrita nas tabelas de família, de papéis e de referência vai para a auditoria (quem, quando, o quê).
--- - Premissas aprovadas não mudam: as classes e as correlações de uma versão fora de rascunho ficam travadas.
+-- - Premissas aprovadas não mudam: as classes e as correlações de uma versão fora de rascunho ficam travadas; o fluxo
+--   é rascunho → aprovada → vigente → arquivada, com uma só versão vigente.
+-- - Textos legais aprovados não mudam: mudança de texto é uma nova versão, aprovada pela compliance.
+-- - Quem aprova (relatório, premissas, texto) precisa ter o papel certo e, numa sessão de usuário, ser o próprio usuário.
+
+-- O usuário tem o papel (para conferir aprovadores e quem prepara).
+create function app.user_has_role(p_user uuid, r public.app_role) returns boolean
+language sql stable security definer
+set search_path = ''
+as $$ select exists (select 1 from public.user_roles ur where ur.user_id = p_user and ur.role = r) $$;
+
+-- Confere quem aprova: tem o papel e, numa sessão de usuário (auth.uid() presente), é o próprio usuário logado.
+create function app.check_approver(p_approver uuid, r public.app_role, p_what text) returns void
+language plpgsql stable
+set search_path = ''
+as $$
+begin
+  if p_approver is null then
+    raise exception 'Aprovação sem aprovador.' using errcode = 'P0001', hint = 'aprovador';
+  end if;
+  if auth.uid() is not null and p_approver <> auth.uid() then
+    raise exception 'Só o próprio usuário logado aprova %.', p_what using errcode = 'P0001', hint = 'aprovador';
+  end if;
+  if not app.user_has_role(p_approver, r) then
+    raise exception 'Quem aprova % precisa ter o papel %.', p_what, r using errcode = 'P0001', hint = 'aprovador';
+  end if;
+end
+$$;
 
 -- Relatórios -------------------------------------------------------------------------------------------------------
 
@@ -22,6 +49,17 @@ begin
   if tg_op = 'INSERT' then
     if new.status <> 'rascunho' or new.approved_by is not null or new.approved_at is not null then
       raise exception 'Relatório novo começa como rascunho, sem aprovação.' using errcode = 'P0001', hint = 'relatorio_status';
+    end if;
+    if auth.uid() is not null and new.prepared_by <> auth.uid() then
+      raise exception 'Quem prepara o relatório é o próprio usuário logado.' using errcode = 'P0001', hint = 'quatro_olhos';
+    end if;
+    if not app.user_has_role(new.prepared_by, 'gestao') then
+      raise exception 'Quem prepara o relatório precisa ser da gestão.' using errcode = 'P0001', hint = 'quatro_olhos';
+    end if;
+    if new.supersedes_id is not null and not exists (
+         select 1 from public.reports r
+          where r.id = new.supersedes_id and r.household_id = new.household_id and r.ref_date = new.ref_date) then
+      raise exception 'A nova versão substitui um relatório da mesma família e do mesmo mês.' using errcode = 'P0001', hint = 'relatorio_versao';
     end if;
     return new;
   end if;
@@ -64,6 +102,7 @@ begin
     if new.approved_by = new.prepared_by then
       raise exception 'Quem prepara o relatório não pode aprová-lo.' using errcode = 'P0001', hint = 'quatro_olhos';
     end if;
+    perform app.check_approver(new.approved_by, 'gestao', 'o relatório');
   elsif new.approved_by is not null or new.approved_at is not null then
     raise exception 'Só a aprovação preenche o aprovador.' using errcode = 'P0001', hint = 'quatro_olhos';
   end if;
@@ -159,7 +198,14 @@ begin
     end if;
     return old;
   end if;
-  if old.status <> 'rascunho' then
+  if old.status = 'rascunho' then
+    if new.status not in ('rascunho', 'aprovada') then
+      raise exception 'Rascunho de premissas só vai para aprovada.' using errcode = 'P0001', hint = 'premissas_status';
+    end if;
+    if new.status = 'aprovada' then
+      perform app.check_approver(new.approved_by, 'comite', 'as premissas');
+    end if;
+  else
     if (to_jsonb(new) - array['status', 'effective_date']) is distinct from (to_jsonb(old) - array['status', 'effective_date']) then
       raise exception 'Versão de premissas aprovada não muda; crie uma nova versão.' using errcode = 'P0001', hint = 'premissas_imutaveis';
     end if;
@@ -180,6 +226,26 @@ $$;
 create trigger premissas_imutaveis
   before update or delete on public.cma_versions
   for each row execute function app.guard_cma_version();
+
+-- Versão nova começa como rascunho.
+create function app.guard_cma_version_insert() returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.status <> 'rascunho' then
+    raise exception 'Versão de premissas nova começa como rascunho.' using errcode = 'P0001', hint = 'premissas_status';
+  end if;
+  return new;
+end
+$$;
+
+create trigger premissas_comecam_em_rascunho
+  before insert on public.cma_versions
+  for each row execute function app.guard_cma_version_insert();
+
+-- Uma só versão vigente: é ela que vale no fechamento.
+create unique index cma_uma_vigente on public.cma_versions ((true)) where status = 'vigente';
 
 -- Classes e correlações só mudam enquanto a versão é rascunho.
 create function app.guard_cma_detail() returns trigger
@@ -203,6 +269,51 @@ create trigger correlacoes_imutaveis
   before insert or update or delete on public.cma_correlations
   for each row execute function app.guard_cma_detail();
 
+-- Textos legais aprovados não mudam ---------------------------------------------------------------------------------
+
+create function app.guard_legal_text() returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if tg_op = 'INSERT' then
+    if new.status <> 'rascunho' or new.approved_by is not null then
+      raise exception 'Texto legal novo começa como rascunho.' using errcode = 'P0001', hint = 'texto_status';
+    end if;
+    return new;
+  end if;
+  if tg_op = 'DELETE' then
+    if old.status <> 'rascunho' then
+      raise exception 'Texto legal aprovado não pode ser apagado.' using errcode = 'P0001', hint = 'texto_imutavel';
+    end if;
+    return old;
+  end if;
+  if old.status = 'rascunho' then
+    if new.status = 'arquivado' then
+      raise exception 'Rascunho de texto legal não é arquivado; apague ou aprove.' using errcode = 'P0001', hint = 'texto_status';
+    end if;
+    if new.status = 'aprovado' then
+      perform app.check_approver(new.approved_by, 'compliance', 'o texto legal');
+    end if;
+    return new;
+  end if;
+  if (to_jsonb(new) - 'status') is distinct from (to_jsonb(old) - 'status')
+     or not (old.status = new.status or (old.status = 'aprovado' and new.status = 'arquivado')) then
+    raise exception 'Texto legal aprovado não muda; mudança de texto é uma nova versão aprovada pela compliance.'
+      using errcode = 'P0001', hint = 'texto_imutavel';
+  end if;
+  return new;
+end
+$$;
+
+create trigger texto_legal_imutavel
+  before insert or update or delete on public.legal_texts
+  for each row execute function app.guard_legal_text();
+
+-- Um só texto aprovado por chave.
+create unique index legal_texts_um_aprovado on public.legal_texts (key) where status = 'aprovado';
+
 revoke all on all functions in schema app from public;
 grant execute on function app.mfa_ok(), app.has_role(public.app_role), app.is_internal(), app.is_client_of(uuid),
-  app.can_read_household(uuid), app.can_write_plan(uuid) to authenticated, service_role;
+  app.can_read_household(uuid), app.can_write_plan(uuid), app.user_has_role(uuid, public.app_role),
+  app.check_approver(uuid, public.app_role, text) to authenticated, service_role;

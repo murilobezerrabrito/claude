@@ -1,13 +1,13 @@
 // npm run db:seed: gera supabase/seed.sql a partir de src/data, só com dados fictícios, para o banco local.
 // O seed nunca vai para a nuvem (SPEC, "Mensagens prontas": supabase db push sem o seed de exemplo).
 // Usuários fictícios sem senha (não entram); para entrar no console local, a etapa 3 cria usuários de teste.
-// O teste db-seed.test.ts confere que o arquivo está em dia com este gerador.
+// O teste src/report/__tests__/seed.test.ts confere que o arquivo está em dia com este gerador.
 
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type { Cma, HouseholdData, Profile } from '../src/engine/index.ts'
-import { APP_FOOTER, BRIDGE_NOTE, FIRST_REPORT_NOTE, FULL_DISCLAIMER, SUITABILITY_NOTICE } from '../src/report/texts.ts'
+import { APP_FOOTER, BRIDGE_NOTE, FIRST_REPORT_NOTE, FULL_DISCLAIMER, REPORT_FOOTER_TEMPLATE, SUITABILITY_NOTICE } from '../src/report/texts.ts'
 import type { HouseholdMonths } from '../src/report/types.ts'
 
 const root = new URL('..', import.meta.url)
@@ -43,6 +43,8 @@ interface SeedFamily {
   key: string
   code: string
   channel: 'cadm' | 'ai'
+  /** Semente da família (D-030): cada família tem a sua. */
+  seed: number
   banker?: (typeof USERS)[number]['key']
   owner?: (typeof USERS)[number]['key']
   data: HouseholdData
@@ -57,7 +59,7 @@ function familySql(f: SeedFamily): string[] {
     `insert into public.households (id, code, name, channel, owner_id, banker_id, profile_id, weights_source, suitability, fee_rate, horizon_age, seed) values (` +
       [
         q(hid), q(f.code), q(h.name), q(f.channel), f.owner ? q(userId(f.owner)) : 'null', f.banker ? q(userId(f.banker)) : 'null',
-        q(h.profileId), q(f.channel === 'cadm' ? 'perfil' : 'carteira_atual'), q(h.suitability), n(h.feeRate), n(h.horizonAge), n(20261002),
+        q(h.profileId), q(f.channel === 'cadm' ? 'perfil' : 'carteira_atual'), q(h.suitability), n(h.feeRate), n(h.horizonAge), n(f.seed),
       ].join(', ') + ');',
   )
   const personId = (id: string) => seedUuid(`person:${f.key}:${id}`)
@@ -154,12 +156,13 @@ export function buildSeedSql(): string {
       key: 'andrade',
       code: 'AND001',
       channel: 'cadm',
+      seed: 20261002,
       banker: 'banker-1',
       data: andrade,
       planVersions: months.planVersions.map((v) => ({ baseMonth: v.baseMonth, snapshot: v.snapshot, note: v.note ?? '' })),
     },
-    { key: 'barbosa', code: 'BAR001', channel: 'ai', owner: 'responsavel-1', data: barbosa, planVersions: [{ baseMonth: '2026-09', snapshot: snapshotOf(barbosa), note: 'Plano inicial.' }] },
-    { key: 'costa', code: 'COS001', channel: 'cadm', banker: 'banker-2', data: costa, planVersions: [{ baseMonth: '2026-09', snapshot: snapshotOf(costa), note: 'Plano inicial.' }] },
+    { key: 'barbosa', code: 'BAR001', channel: 'ai', seed: 81340217, owner: 'responsavel-1', data: barbosa, planVersions: [{ baseMonth: '2026-09', snapshot: snapshotOf(barbosa), note: 'Plano inicial.' }] },
+    { key: 'costa', code: 'COS001', channel: 'cadm', seed: 55219034, banker: 'banker-2', data: costa, planVersions: [{ baseMonth: '2026-09', snapshot: snapshotOf(costa), note: 'Plano inicial.' }] },
   ]
 
   const out: string[] = [
@@ -175,6 +178,13 @@ export function buildSeedSql(): string {
         `${q(userId(u.key))}, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', ${q(u.email)}, '{}'::jsonb, '{}'::jsonb, '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z');`,
     )
   }
+
+  const roleSql = (u: (typeof USERS)[number]) => {
+    const hid = 'household' in u ? q(seedUuid(`household:${u.household}`)) : 'null'
+    return `insert into public.user_roles (id, user_id, household_id, role) values (${q(seedUuid(`role:${u.key}`))}, ${q(userId(u.key))}, ${hid}, ${q(u.role)});`
+  }
+  out.push('', '-- Papéis sem família (o banker e o responsável se ligam às famílias por banker_id e owner_id)')
+  for (const u of USERS) if (!('household' in u)) out.push(roleSql(u))
 
   out.push('', '-- Perfis e premissas ilustrativas (versão vigente, aprovada pelo comitê fictício)')
   for (const p of cma.profiles) {
@@ -201,15 +211,12 @@ export function buildSeedSql(): string {
   out.push('', '-- Famílias fictícias')
   for (const f of families) out.push(`-- ${f.data.household.name}`, ...familySql(f))
 
-  out.push('', '-- Papéis (o banker e o responsável se ligam às famílias por banker_id e owner_id)')
-  for (const u of USERS) {
-    const hid = 'household' in u ? q(seedUuid(`household:${u.household}`)) : 'null'
-    out.push(`insert into public.user_roles (id, user_id, household_id, role) values (${q(seedUuid(`role:${u.key}`))}, ${q(userId(u.key))}, ${hid}, ${q(u.role)});`)
-  }
+  out.push('', '-- Clientes AI e as suas famílias')
+  for (const u of USERS) if ('household' in u) out.push(roleSql(u))
 
   out.push('', '-- Textos legais do SPEC, em rascunho até a compliance aprovar')
   const texts: [string, string][] = [
-    ['rodape_relatorio', 'Relatório de acompanhamento do plano, preparado pela gestão da Aware Investments com as posições de [mês] e as premissas [versão]. Simulação ilustrativa; não é promessa de rentabilidade nem recomendação de investimento.'],
+    ['rodape_relatorio', REPORT_FOOTER_TEMPLATE],
     ['rodape_app', APP_FOOTER],
     ['nota_ponte', BRIDGE_NOTE],
     ['primeiro_relatorio', FIRST_REPORT_NOTE],

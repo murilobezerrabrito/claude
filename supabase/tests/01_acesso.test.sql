@@ -1,7 +1,7 @@
 -- Acesso por linha e vazamento entre famílias (SPEC, "Usuários e permissões" e critérios de aceite).
 -- Dados de teste próprios, desfeitos no fim (rollback). Cada bloco entra como um papel, com o token simulado.
 begin;
-select plan(40);
+select plan(44);
 
 \set G  'a0000000-0000-4000-8000-000000000001'
 \set C  'a0000000-0000-4000-8000-000000000002'
@@ -98,6 +98,20 @@ select is((select array_agg(id) from public.list_households() where id = any (:F
 select throws_ok(format('select public.household_detail(%L)', :'HD'), '42501', null, 'banker 1 não lê a família D, de outro banker');
 select throws_ok(format('select public.household_detail(%L)', :'HA'), '42501', null, 'banker 1 não lê família AI');
 select is((select count(*)::int from public.reports), 0, 'banker não lê relatórios direto');
+
+-- Banker sem permissão para valores em reais: a API esconde os valores.
+reset role;
+update public.user_roles set can_see_amounts = false where user_id = :'B1';
+insert into public.other_assets (household_id, kind, name, value) values (:'HC', 'imovel', 'Imóvel de teste', 1000000);
+insert into public.plan_versions (household_id, version, snapshot, base_month) values (:'HC', 2, '{}'::jsonb, '2099-01-01');
+select pg_temp.entrar(:'B1');
+set local role authenticated;
+select is((select public.household_detail(:'HC') -> 'other_assets' -> 0 ->> 'name'), 'Imóvel de teste', 'sem valores, o banker ainda vê os bens');
+select ok(not (public.household_detail(:'HC')::text ~ '"(value|snapshot)"'), 'sem valores, a resposta não traz valores em reais nem o plano em reais');
+select is((select public.household_detail(:'HC') -> 'plan_version' ->> 'version'), '1', 'o plano em vigor é o de mês-base até hoje, e não um futuro');
+select is((select public.household_detail(:'HC') -> 'latest_plan_version' ->> 'version'), '2', 'a versão mais recente aparece à parte');
+reset role;
+update public.user_roles set can_see_amounts = true where user_id = :'B1';
 
 -- Responsável: só as suas famílias AI -------------------------------------------------------------------------------
 reset role;

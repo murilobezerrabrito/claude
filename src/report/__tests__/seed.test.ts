@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { buildSeedSql, seedUuid } from '../../../scripts/dbSeed.ts'
+import { REPORT_FOOTER_TEMPLATE } from '../texts.ts'
 
 const seed = readFileSync(new URL('../../../supabase/seed.sql', import.meta.url), 'utf8')
 
@@ -18,8 +19,17 @@ describe('seed do banco local (supabase/seed.sql)', () => {
     expect(seed).not.toMatch(/encrypted_password/)
   })
 
-  it('identificadores determinísticos', () => {
-    expect(seedUuid('household:andrade')).toBe(seedUuid('household:andrade'))
-    expect(seedUuid('household:andrade')).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/)
+  it('identificadores determinísticos: o mesmo valor a cada geração', () => {
+    expect(seedUuid('household:andrade')).toBe('845857a2-9d29-4e40-841c-356c3edff2da')
+  })
+
+  it('cada família com a sua semente; a Andrade com a do SPEC', () => {
+    const seeds = [...seed.matchAll(/insert into public\.households \([^)]*\) values \((.*)\);/g)].map((m) => Number(m[1].split(', ').at(-1)))
+    expect(seeds[0]).toBe(20261002)
+    expect(new Set(seeds).size).toBe(seeds.length)
+  })
+
+  it('o rodapé do relatório vem dos textos do relatório (o mesmo do PDF)', () => {
+    expect(seed).toContain(REPORT_FOOTER_TEMPLATE.replace(/'/g, "''"))
   })
 })

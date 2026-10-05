@@ -71,7 +71,8 @@ create table public.cma_correlations (
   class_b text not null,
   rho numeric(10, 6) not null check (rho between -1 and 1),
   primary key (cma_version_id, class_a, class_b),
-  constraint correlacao_triangulo_superior check (class_a < class_b),
+  -- Ordem binária dos códigos (collate "C"), a mesma do gerador do seed, qualquer que seja o collation do banco.
+  constraint correlacao_triangulo_superior check ((class_a collate "C") < (class_b collate "C")),
   foreign key (cma_version_id, class_a) references public.cma_classes (cma_version_id, class_code) on delete cascade,
   foreign key (cma_version_id, class_b) references public.cma_classes (cma_version_id, class_code) on delete cascade
 );
@@ -125,6 +126,8 @@ create table public.user_roles (
   can_see_amounts boolean not null default true,
   created_at timestamptz not null default now(),
   constraint familia_so_do_cliente check ((role = 'cliente_ai') = (household_id is not null)),
+  -- O cliente AI é o titular e vê os valores; sem valores em reais é para outros papéis (e o familiar convidado, depois do piloto).
+  constraint titular_ve_valores check (role <> 'cliente_ai' or can_see_amounts),
   constraint papel_unico unique nulls not distinct (user_id, role, household_id)
 );
 create index user_roles_user_idx on public.user_roles (user_id);

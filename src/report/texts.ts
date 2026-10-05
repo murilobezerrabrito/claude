@@ -178,11 +178,13 @@ export function methodologyParagraphs(o: { paths: number; feeRate: number; horiz
 // Avisos (rascunhos do SPEC para compliance aprovar), sem mudança de texto.
 
 /** Rodapé de toda página do relatório. */
+/** Rodapé do relatório como está no SPEC, com os campos [mês] e [versão]; é o texto guardado em `legal_texts`. */
+export const REPORT_FOOTER_TEMPLATE =
+  'Relatório de acompanhamento do plano, preparado pela gestão da Aware Investments com as posições de [mês] ' +
+  'e as premissas [versão]. Simulação ilustrativa; não é promessa de rentabilidade nem recomendação de investimento.'
+
 export function reportFooter(refMonth: string, cmaVersion: string): string {
-  return (
-    `Relatório de acompanhamento do plano, preparado pela gestão da Aware Investments com as posições de ${formatMonthLabel(refMonth)} ` +
-    `e as premissas ${cmaVersion}. Simulação ilustrativa; não é promessa de rentabilidade nem recomendação de investimento.`
-  )
+  return REPORT_FOOTER_TEMPLATE.replace('[mês]', formatMonthLabel(refMonth)).replace('[versão]', cmaVersion)
 }
 
 export const BRIDGE_NOTE = 'A variação foi separada trocando um fator de cada vez. A ordem dos fatores muda a divisão entre eles, não o total.'
