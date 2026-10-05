@@ -5,8 +5,9 @@
 - **Rota 2 adotada** em 02/10/2026 (D-024): app para os clientes AI; relatório mensal da gestão para os clientes CADM. A documentação foi atualizada para a nova rota; o `docs/SPEC.md` é a fonte única, e `docs/ROTA-2.md` fica como registro da mudança.
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
 - **Fase 1 (relatório de exemplo, sem servidor):** iniciada em 04/10/2026 e **concluída** em 05/10/2026: Murilo aprovou o PDF de out/2026, com as cores da AWARE (azul-escuro e branco); a aprovação do Alex fica para Murilo confirmar.
-- **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026 e D-028). Não há pull request aberto.
-- **Próximo passo:** Fase 2 (ciclo mensal interno, com dados reais): plano primeiro, implementação só depois da aprovação de Murilo.
+- **Fase 2 (ciclo mensal interno, com dados reais): em andamento** desde 05/10/2026. Etapa 1 (Supabase local, acesso por linha, segundo fator e pgTAP) concluída.
+- **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026, D-028 e D-045). Não há pull request aberto.
+- **Próximo passo:** Fase 2, etapa 2 (importação de posições e de aportes e resgates, conferência, mapeamento de ativos e fechamento do mês): plano primeiro. Antes, liberar `cdn.sheetjs.com` na rede do ambiente (D-044).
 
 ### Comandos de teste
 
@@ -14,12 +15,19 @@
 npm install
 npm run typecheck     # tsc -b: motor (só ES2023), interface, testes e scripts
 npm run lint          # ESLint; barra imports externos e imports sem .ts no motor
-npm test              # Vitest: 172 testes, incluindo T01 a T20, textos, números congelados e o PDF do relatório (~26 s)
+npm test              # Vitest: 177 testes, incluindo T01 a T20, textos, números congelados, o PDF do relatório e o seed (~26 s)
 npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 npm run report:snapshot  # regrava src/data/relatorios/andrade-2026-10.json (relatório de exemplo, ~11 s)
 npm run report:pdf    # gera relatorios-pdf/andrade-2026-10.pdf (fora do git) a partir do snapshot
 npm run dev           # página local com a prévia do relatório, "Baixar PDF" e o modo apresentação
+
+# Banco local (Fase 2; precisa do Docker ligado)
+npm run db:start      # Supabase local com as migrações e o seed fictício (nesta sessão na nuvem: SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io, D-044)
+npm run db:test       # testes pgTAP (140)
+npm run db:reset      # refaz o banco local (migrações e seed)
+npm run db:seed       # regrava supabase/seed.sql a partir de src/data
+npm run db:stop
 ```
 
 ## Fases e portões (Rota 2)
@@ -28,11 +36,39 @@ npm run dev           # página local com a prévia do relatório, "Baixar PDF" 
 |---|---|---|---|---|
 | 0 | Fundação e motor, sem servidor | `fase-0-motor` | Testes 1 a 14 passando, `npm run reference` dentro das tolerâncias e `revisor-motor` sem divergências abertas | **Cumprido** (02/10/2026) |
 | 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` | Testes do motor e `npm run reference` com os resultados novos; testes da ponte (hashes dos extremos e soma em trajetórias); `revisor-motor` sem divergências; PDF de out/2026 da Andrade aprovado por Murilo e Alex | **Cumprido** (05/10/2026), com a aprovação do Alex a confirmar |
-| 2 | Ciclo mensal interno, com dados reais | `fase-2-ciclo-mensal` | pgTAP passando; família CADM real anonimizada importada, conferida e com relatório aprovado; textos do relatório aprovados por compliance; rodada de todas as famílias CADM em menos de 20 minutos | Pendente |
+| 2 | Ciclo mensal interno, com dados reais | `fase-2-ciclo-mensal` | pgTAP passando; família CADM real anonimizada importada, conferida e com relatório aprovado; textos do relatório aprovados por compliance; rodada de todas as famílias CADM em menos de 20 minutos | Em andamento (etapa 1 de 4 concluída) |
 | 3 | App dos clientes AI | `fase-3-app-ai` | Tela inicial em 375 px e tema escuro; "E se?" em menos de 1 s num celular intermediário; vazamento do papel cliente_ai bloqueado; uso de ponta a ponta com contas fictícias | Pendente |
 | 4 | Piloto e operação | `fase-4-piloto` | Dois fechamentos sem erro de conferência e retorno da gestão e dos clientes do piloto | Pendente |
 
-## Fase 1: andamento
+## Fase 2: andamento
+
+Plano da etapa 1 aprovado por Murilo em 05/10/2026, com a opção (a) para o registro de leituras (D-041). Etapas:
+
+| # | Etapa | Status |
+|---|---|---|
+| 1 | Supabase local: migrações, acesso por linha, segundo fator e pgTAP | Concluída |
+| 2 | Importação de posições e de aportes e resgates, conferência, mapeamento de ativos e fechamento do mês | Pendente |
+| 3 | Console, rodada oficial em lote numa Edge Function (tempo de CPU medido) e séries do Banco Central | Pendente |
+| 4 | Relatórios no banco: rascunho, revisão, quatro olhos, PDF no Storage, apresentação e auditoria | Pendente |
+| — | Nuvem (região São Paulo), só com autorização de Murilo | Pendente |
+
+### Etapa 1: Supabase local, acesso por linha, segundo fator e pgTAP
+
+- `supabase/config.toml`: cadastro só por convite, senha forte, segundo fator por app autenticador, sessão de 30 minutos e os ganchos de bloqueio (D-042).
+- Migrações (`supabase/migrations/`):
+  - `…100_estrutura.sql`: as tabelas do "Modelo de dados" (mais `legal_texts`), com `household_id` em toda tabela de família (D-043).
+  - `…200_acesso.sql`: funções de acesso (`app.*`) e política por linha em todas as 26 tabelas; nada sem segundo fator; usuários internos sem leitura direta das tabelas de família (D-041).
+  - `…300_integridade.sql`: relatório aprovado imutável e quatro olhos; auditoria só de inserção, com toda escrita registrada; premissas e textos legais aprovados imutáveis; aprovadores com o papel certo.
+  - `…400_api_leitura.sql`: `list_households` e `household_detail`, que conferem o papel e gravam cada leitura; versão do plano em vigor; valores escondidos para quem não pode vê-los.
+  - `…500_bloqueio.sql`: bloqueio na 5ª tentativa errada de senha ou de segundo fator, até o comitê desbloquear.
+- `supabase/seed.sql` (gerado por `npm run db:seed`): só dados fictícios (Família Andrade na CADM, Barbosa na AI, Costa na CADM de outro banker, um usuário fictício por papel, premissas ilustrativas vigentes e os textos legais do SPEC em rascunho). Nunca vai para a nuvem.
+- Testes pgTAP (`supabase/tests/`, 140): estrutura e privilégios; vazamento entre famílias para cada papel (o cliente AI da família A não lê nada da B, nem relatórios, auditoria ou famílias CADM); sem segundo fator ninguém lê; leituras registradas; valores escondidos; relatório imutável e quatro olhos; auditoria; premissas e textos; bloqueio, inclusive o caso de quem sabe a senha e tenta códigos do autenticador.
+- Conferido de ponta a ponta no Auth local: cadastro aberto recusado; login sem segundo fator sai com `aal1` e a API recusa; 5 senhas erradas bloqueiam e nem a senha certa entra depois; o bloqueio vai para a auditoria.
+- Conferido que os testes pegam falhas: com uma política aberta em `people` e o gatilho do relatório desligado, 3 testes falham; com o banco refeito, todos passam.
+- Integração contínua: novo job "Banco" sobe o Supabase local e roda o pgTAP a cada envio.
+- `/code-review`: 10 achados, todos corrigidos (o mais sério: senha e segundo fator dividiam o contador de bloqueio, e a senha certa zerava os códigos errados).
+
+## Fase 1: o que foi feito
 
 Plano aprovado por Murilo em 04/10/2026. Etapas, uma por commit:
 
@@ -298,6 +334,9 @@ Na Fase 1, o Web Worker pode aquecer o cache ao abrir o app.
 
 ## Pendências
 
+- **Rede do ambiente (D-044):** liberar `cdn.sheetjs.com` (etapa 2, leitura de XLSX) e `api.bcb.gov.br` (etapa 3, IPCA, CDI e dólar) nas configurações de rede do ambiente.
+- **Nuvem (D-042):** antes de criar o projeto Supabase em São Paulo, conferir no plano contratado o limite de sessão de 30 minutos e os ganchos de tentativa de login (bloqueio), que podem depender do plano.
+- **Fase 1:** a aprovação do Alex ao PDF de out/2026 fica para Murilo confirmar.
 - **Eventos do "E se?" sem mês (para a etapa 4 e o console):** o motor trata aportes e resgates do "E se?" como os eventos do plano. Sem mês, um aporte "em 2026" com julho já passado fica fora do cálculo, e o aviso fala em conferência. O controle do "E se?" deve sempre informar o mês.
 - **Virada do ano (D-031, item 3), para o Murilo decidir se quer:** no fechamento de 31/12, a saída sem mês do ano que acabou sai do cálculo sem aviso. Um último aviso nesse fechamento ajudaria a conferência a registrar a saída; não muda nenhum número.
 - **Rota 2, perguntas em aberto:** em vigor os padrões da D-025 (corretora e formato das posições AI, custo AI de 0,80% "a validar", responsável por família, regras da assessoria, preparo e aprovação dos relatórios, piloto e identidade visual).
