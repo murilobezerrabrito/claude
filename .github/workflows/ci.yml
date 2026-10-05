@@ -27,3 +27,22 @@ jobs:
         run: npm test
       - name: Família Andrade contra os resultados de referência
         run: npm run reference
+
+  banco:
+    name: Banco (Supabase local e pgTAP)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Supabase local (migrações e seed fictício)
+        run: npx supabase start -x studio,imgproxy,logflare,vector,supavisor,realtime,mailpit,postgres-meta,edge-runtime
+      - name: Testes do banco (pgTAP)
+        run: npx supabase test db
+      - name: Parar o Supabase
+        if: always()
+        run: npx supabase stop --no-backup
