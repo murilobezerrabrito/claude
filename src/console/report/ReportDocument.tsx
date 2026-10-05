@@ -30,10 +30,23 @@ const MARGIN = 40
 const CONTENT_W = PAGE_W - 2 * MARGIN
 
 const s = StyleSheet.create({
-  page: { backgroundColor: COLORS.page, paddingTop: 30, paddingBottom: 46, paddingHorizontal: MARGIN, fontFamily: FONTS.body, fontSize: 10, color: COLORS.fg },
-  header: { flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 0.6, borderBottomColor: COLORS.line, paddingBottom: 6, marginBottom: 14 },
-  headerText: { fontSize: 8, color: COLORS.muted, letterSpacing: 0.3 },
-  title: { fontFamily: FONTS.display, fontSize: 22, fontWeight: 600, color: COLORS.accent },
+  page: { backgroundColor: COLORS.page, paddingTop: 58, paddingBottom: 46, paddingHorizontal: MARGIN, fontFamily: FONTS.body, fontSize: 10, color: COLORS.fg },
+  // Faixa azul-escura no topo de toda página interna, de ponta a ponta.
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 34,
+    backgroundColor: COLORS.navy,
+    paddingHorizontal: MARGIN,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerText: { fontSize: 8, color: COLORS.onNavy, letterSpacing: 0.6 },
+  headerMuted: { fontSize: 8, color: COLORS.onNavyMuted, letterSpacing: 0.6 },
+  title: { fontFamily: FONTS.display, fontSize: 22, fontWeight: 600, color: COLORS.navy },
   question: { fontSize: 10.5, color: COLORS.muted, fontStyle: 'italic', marginTop: 2, marginBottom: 14 },
   footer: { position: 'absolute', left: MARGIN, right: MARGIN, bottom: 18, borderTopWidth: 0.6, borderTopColor: COLORS.line, paddingTop: 5, flexDirection: 'row', justifyContent: 'space-between' },
   footerText: { fontSize: 7, color: COLORS.muted, width: CONTENT_W - 190, lineHeight: 1.35 },
@@ -55,8 +68,10 @@ function Frame(props: { snap: ReportSnapshot; n: number; title: string; question
   return (
     <Page size="A4" orientation="landscape" style={s.page}>
       <View style={s.header} fixed>
-        <Text style={s.headerText}>AWARE OBJECTIVE · {snap.family.name.toUpperCase()}</Text>
-        <Text style={s.headerText}>{formatMonthLabel(snap.refMonth)}</Text>
+        <Text style={s.headerText}>
+          AWARE INVESTMENTS<Text style={s.headerMuted}>  ·  {snap.family.name.toUpperCase()}</Text>
+        </Text>
+        <Text style={s.headerMuted}>{formatMonthLabel(snap.refMonth)}</Text>
       </View>
       <Text style={s.title}>{props.title}</Text>
       <Text style={s.question}>{props.question}</Text>
@@ -91,38 +106,39 @@ function BandBadge(props: { band: ReportSnapshot['summary']['band'] }) {
 function Cover({ snap }: { snap: ReportSnapshot }) {
   const month = monthName(snap.refMonth)
   return (
-    <Page size="A4" orientation="landscape" style={{ ...s.page, paddingTop: 0, paddingHorizontal: 0, paddingBottom: 0 }}>
-      <View style={{ flexDirection: 'row', height: '100%' }}>
-        <View style={{ width: 230, backgroundColor: COLORS.accent, padding: 36, justifyContent: 'space-between' }}>
-          <Text style={{ color: '#ffffff', fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: 1 }}>AWARE{'\n'}Investments</Text>
-          <Text style={{ color: COLORS.accentSoft, fontSize: 8.5, lineHeight: 1.4 }}>AWARE Objective{'\n'}Carteira administrada</Text>
-        </View>
-        <View style={{ flex: 1, padding: 56, justifyContent: 'center' }}>
-          <View style={{ alignSelf: 'flex-start', borderWidth: 0.8, borderColor: COLORS.warn, borderRadius: 3, paddingVertical: 2, paddingHorizontal: 6, marginBottom: 22 }}>
-            <Text style={{ color: COLORS.warn, fontSize: 8, fontWeight: 600, letterSpacing: 0.5 }}>EXEMPLO COM DADOS FICTÍCIOS</Text>
+    <Page size="A4" orientation="landscape" style={{ ...s.page, backgroundColor: COLORS.navy, paddingTop: 0, paddingHorizontal: 0, paddingBottom: 0 }}>
+      <View style={{ height: '100%', paddingVertical: 48, paddingHorizontal: 64, justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Text style={{ color: COLORS.onNavy, fontFamily: FONTS.display, fontSize: 20, fontWeight: 600, letterSpacing: 1.2 }}>AWARE{'\n'}Investments</Text>
+          <View style={{ borderWidth: 0.8, borderColor: '#e9b949', borderRadius: 3, paddingVertical: 3, paddingHorizontal: 7 }}>
+            <Text style={{ color: '#e9b949', fontSize: 8, fontWeight: 600, letterSpacing: 0.6 }}>EXEMPLO COM DADOS FICTÍCIOS</Text>
           </View>
-          <Text style={{ ...s.label, marginBottom: 6 }}>Relatório de acompanhamento do plano</Text>
-          <Text style={{ fontFamily: FONTS.display, fontSize: 34, fontWeight: 600, color: COLORS.fg }}>{snap.family.name}</Text>
-          <Text style={{ fontFamily: FONTS.display, fontSize: 22, color: COLORS.accent, marginTop: 6 }}>
+        </View>
+        <View>
+          <Text style={{ fontSize: 9, color: COLORS.onNavyMuted, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 10 }}>
+            Relatório de acompanhamento do plano
+          </Text>
+          <Text style={{ fontFamily: FONTS.display, fontSize: 40, fontWeight: 600, color: COLORS.onNavy }}>{snap.family.name}</Text>
+          <Text style={{ fontFamily: FONTS.display, fontSize: 24, color: COLORS.onNavyMuted, marginTop: 8 }}>
             {month.charAt(0).toUpperCase() + month.slice(1)} de {snap.refMonth.slice(0, 4)}
           </Text>
-          <View style={{ marginTop: 34, borderTopWidth: 0.6, borderTopColor: COLORS.line, paddingTop: 14 }}>
-            {[
-              ['Data das posições', formatDate(snap.refDate)],
-              ['Premissas', snap.run.cmaVersion],
-              ['Gestor responsável', snap.family.manager],
-              ['Preparado por', 'Gestão da Aware Investments'],
-            ].map(([k, v]) => (
-              <View key={k} style={{ ...s.row, marginBottom: 6 }}>
-                <Text style={{ width: 150, color: COLORS.muted, fontSize: 10 }}>{k}</Text>
-                <Text style={{ fontSize: 10 }}>{v}</Text>
-              </View>
-            ))}
-          </View>
+          <View style={{ width: 64, height: 2, backgroundColor: COLORS.onNavy, marginTop: 26, marginBottom: 22 }} />
+          {[
+            ['Data das posições', formatDate(snap.refDate)],
+            ['Premissas', snap.run.cmaVersion],
+            ['Gestor responsável', snap.family.manager],
+            ['Preparado por', 'Gestão da Aware Investments'],
+          ].map(([k, v]) => (
+            <View key={k} style={{ ...s.row, marginBottom: 6 }}>
+              <Text style={{ width: 150, color: COLORS.onNavyMuted, fontSize: 10 }}>{k}</Text>
+              <Text style={{ fontSize: 10, color: COLORS.onNavy }}>{v}</Text>
+            </View>
+          ))}
         </View>
-      </View>
-      <View style={{ position: 'absolute', left: 266, right: MARGIN, bottom: 18 }}>
-        <Text style={{ ...s.footerText, width: '100%' }}>{snap.texts.footer}</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <Text style={{ fontSize: 7.5, color: COLORS.onNavyMuted, lineHeight: 1.4, width: 520 }}>{snap.texts.footer}</Text>
+          <Text style={{ fontSize: 8.5, color: COLORS.onNavyMuted, textAlign: 'right', lineHeight: 1.4 }}>AWARE Objective{'\n'}Carteira administrada</Text>
+        </View>
       </View>
     </Page>
   )
@@ -327,7 +343,7 @@ function Trajectory({ snap }: { snap: ReportSnapshot }) {
     [COLORS.band, 'Faixa do meio', 'band'],
     [COLORS.accent, 'Cenário do meio', 'line'],
     [COLORS.bad, 'Cenário ruim', 'line'],
-    [COLORS.fg, 'Realizado', 'line'],
+    [COLORS.muted, 'Realizado', 'line'],
   ]
   return (
     <Frame snap={snap} n={5} title="Trajetória" question="Onde a família está e para onde vai?">

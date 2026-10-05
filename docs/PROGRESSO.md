@@ -4,9 +4,9 @@
 
 - **Rota 2 adotada** em 02/10/2026 (D-024): app para os clientes AI; relatório mensal da gestão para os clientes CADM. A documentação foi atualizada para a nova rota; o `docs/SPEC.md` é a fonte única, e `docs/ROTA-2.md` fica como registro da mudança.
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
-- **Fase 1 (relatório de exemplo, sem servidor): em andamento** desde 04/10/2026, com o plano aprovado por Murilo. Etapas 1 a 10 concluídas; falta só o ponto de parada C (aprovação do PDF de out/2026 por Murilo e Alex).
+- **Fase 1 (relatório de exemplo, sem servidor):** iniciada em 04/10/2026 e **concluída** em 05/10/2026: Murilo aprovou o PDF de out/2026, com as cores da AWARE (azul-escuro e branco); a aprovação do Alex fica para Murilo confirmar.
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026 e D-028). Não há pull request aberto.
-- **Próximo passo:** ponto de parada C: Murilo e Alex aprovam o PDF de out/2026 (`npm run report:pdf` ou a página de `npm run dev`). Com a aprovação, a Fase 1 fecha. Ponto de parada B cumprido: `revisor-motor` sem divergências abertas nas etapas 1 a 3b (três rodadas).
+- **Próximo passo:** Fase 2 (ciclo mensal interno, com dados reais): plano primeiro, implementação só depois da aprovação de Murilo.
 
 ### Comandos de teste
 
@@ -27,7 +27,7 @@ npm run dev           # página local com a prévia do relatório, "Baixar PDF" 
 | Fase | O quê | Branch | Portão | Status |
 |---|---|---|---|---|
 | 0 | Fundação e motor, sem servidor | `fase-0-motor` | Testes 1 a 14 passando, `npm run reference` dentro das tolerâncias e `revisor-motor` sem divergências abertas | **Cumprido** (02/10/2026) |
-| 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` | Testes do motor e `npm run reference` com os resultados novos; testes da ponte (hashes dos extremos e soma em trajetórias); `revisor-motor` sem divergências; PDF de out/2026 da Andrade aprovado por Murilo e Alex | Falta só a aprovação do PDF (ponto C) |
+| 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` | Testes do motor e `npm run reference` com os resultados novos; testes da ponte (hashes dos extremos e soma em trajetórias); `revisor-motor` sem divergências; PDF de out/2026 da Andrade aprovado por Murilo e Alex | **Cumprido** (05/10/2026), com a aprovação do Alex a confirmar |
 | 2 | Ciclo mensal interno, com dados reais | `fase-2-ciclo-mensal` | pgTAP passando; família CADM real anonimizada importada, conferida e com relatório aprovado; textos do relatório aprovados por compliance; rodada de todas as famílias CADM em menos de 20 minutos | Pendente |
 | 3 | App dos clientes AI | `fase-3-app-ai` | Tela inicial em 375 px e tema escuro; "E se?" em menos de 1 s num celular intermediário; vazamento do papel cliente_ai bloqueado; uso de ponta a ponta com contas fictícias | Pendente |
 | 4 | Piloto e operação | `fase-4-piloto` | Dois fechamentos sem erro de conferência e retorno da gestão e dos clientes do piloto | Pendente |
@@ -213,7 +213,7 @@ Em 04/10/2026, Murilo decidiu manter os dados de outubro do SPEC (estilo de vida
 
 ### Etapa 9: PDF de sete páginas
 
-- `src/console/report/`: `ReportDocument.tsx` (o único componente de layout), `charts.tsx` (ponte em cascata e leque da trajetória em `<Svg>`), `theme.ts` (cores do protótipo e fontes) e `renderNode.tsx`.
+- `src/console/report/`: `ReportDocument.tsx` (o único componente de layout), `charts.tsx` (ponte em cascata e leque da trajetória em `<Svg>`), `theme.ts` (cores e fontes; azul-escuro e branco desde 05/10/2026, D-040) e `renderNode.tsx`.
 - Dependências novas, gratuitas: `@react-pdf/renderer`, `@fontsource/fraunces` e `@fontsource/ibm-plex-sans`.
 - `npm run report:pdf` grava `relatorios-pdf/andrade-2026-10.pdf` (fora do git). Conferido página a página em imagem: capa, resumo, o que mudou, carteira, trajetória, conversa do mês e notas, com o rodapé de posições, premissas e aviso.
 - Teste `pdf.test.tsx`: gera o PDF em memória e confere as sete páginas A4 paisagem e as fontes embutidas.
@@ -232,7 +232,7 @@ Em 04/10/2026, Murilo decidiu manter os dados de outubro do SPEC (estilo de vida
   - Testes do motor e `npm run reference` com os resultados novos: **ok** (172 testes; 11 de 11 métricas).
   - Testes da ponte (hashes dos extremos e soma em trajetórias): **ok** (teste 19).
   - `revisor-motor` sem divergências: **ok** (3ª rodada).
-  - PDF de out/2026 da Andrade aprovado por Murilo e Alex: **pendente** (ponto de parada C).
+  - PDF de out/2026 da Andrade aprovado por Murilo e Alex: **aprovado por Murilo** em 05/10/2026 ("Gostei, pode continuar"), com a troca para as cores da AWARE, azul-escuro e branco (D-040); a aprovação do Alex fica para Murilo confirmar.
 
 ## Fase 0: o que foi feito
 

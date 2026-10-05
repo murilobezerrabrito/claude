@@ -1,27 +1,35 @@
-// Cores e tipografia do relatório (SPEC, "Identidade"): verde-escuro institucional e cinzas levemente esverdeados,
-// como no protótipo; cores de estado só nas faixas, sempre com texto. As cores e o logotipo da Aware ainda vão chegar.
+// Cores e tipografia do relatório (SPEC, "Identidade"): azul-escuro e branco, as cores da AWARE Investments
+// (D-040). A capa é azul-escura; as páginas internas têm a faixa do topo azul-escura e o conteúdo sobre branco, para
+// ler bem na tela e impresso. Cores de estado só nas faixas da probabilidade, sempre com texto.
 
 import { Font } from '@react-pdf/renderer'
 import type { ProbabilityBand } from '../../engine/metrics.ts'
 
 export const COLORS = {
   page: '#ffffff',
-  fg: '#17201d',
-  muted: '#5b6a65',
-  line: '#dbe2df',
-  soft: '#f3f5f4',
-  accent: '#1f5f4f',
-  accentSoft: '#d6e8e2',
-  band: '#9cc7b9',
+  /** Azul-escuro da marca: capa, faixa do topo e títulos. */
+  navy: '#0b1f3a',
+  /** Texto sobre o azul-escuro. */
+  onNavy: '#ffffff',
+  onNavyMuted: '#a9b9d0',
+  fg: '#0d1b2e',
+  muted: '#56637a',
+  line: '#d8dfe9',
+  soft: '#f1f4f8',
+  /** Barras, linha do cenário do meio e colunas da ponte. */
+  accent: '#14335c',
+  accentSoft: '#e1e8f2',
+  band: '#a7b8d1',
   good: '#2f7d4f',
   warn: '#b07a16',
   bad: '#b0412f',
-  blue: '#2f5f8f',
+  /** Faixa "Folga grande": um azul mais claro que o da marca, para não se confundir com ele. */
+  blue: '#2a6db5',
 } as const
 
 /** Cor de cada faixa da probabilidade e um fundo claro para o selo. */
 export const BAND_STYLE: Record<ProbabilityBand, { color: string; soft: string }> = {
-  folga_grande: { color: COLORS.blue, soft: '#dde7f2' },
+  folga_grande: { color: COLORS.blue, soft: '#dde8f6' },
   no_caminho: { color: COLORS.good, soft: '#dcefe2' },
   atencao: { color: COLORS.warn, soft: '#f6ead2' },
   em_risco: { color: COLORS.bad, soft: '#f5ddd8' },

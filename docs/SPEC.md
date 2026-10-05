@@ -878,7 +878,7 @@ Visual sóbrio de family office: espaço generoso, números grandes e cor usada 
 
 ### Identidade
 
-- Cores e logotipo da Aware: a receber. Até lá, use um verde-escuro institucional como cor principal e cinzas levemente esverdeados, como no protótipo. No app AI, a marca do intermediário entra se compliance exigir.
+- Cores da Aware: azul-escuro e branco (definidas por Murilo em 05/10/2026, D-040). Logotipo: a receber. No app AI, a marca do intermediário entra se compliance exigir.
 - Tipografia: uma serifada para títulos e números de destaque (ex.: Fraunces) e uma sem serifa para o texto (ex.: IBM Plex Sans). Algarismos tabulares em tabelas.
 - Temas claro e escuro no app e no console.
 - Cores de estado só nas faixas (azul, verde, amarelo, vermelho), sempre acompanhadas de texto.
@@ -1214,7 +1214,7 @@ Decisões que o agente não deve tomar sozinho. Enquanto não houver resposta, u
 - [ ] Quem na gestão prepara e quem aprova os relatórios, e qual o papel do banker da CADM? Padrão: duas pessoas diferentes da gestão; o banker vê e comenta.
 - [ ] Todas as famílias CADM recebem o relatório todo mês, ou só as que têm reunião? Padrão: todas, todo mês.
 - [ ] Quais famílias entram no piloto, CADM e AI? Padrão: só a Família Andrade.
-- [ ] Logotipo, cores, domínio próprio e modelo visual do relatório. Padrão: as cores do protótipo.
+- [ ] Logotipo, domínio próprio e modelo visual do relatório. Cores definidas em 05/10/2026: azul-escuro e branco (D-040).
 - [ ] Horizonte padrão: 95 ou 100 anos? Padrão: 95.
 
 **Comitê**

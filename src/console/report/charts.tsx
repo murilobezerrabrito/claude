@@ -188,12 +188,12 @@ export function FanChart(props: {
       <Path d={line(p.p10)} stroke={COLORS.bad} strokeWidth={1} fill="none" />
       <Path
         d={realized.map((r, i) => `${i === 0 ? 'M' : 'L'}${x(r.age).toFixed(2)},${y(r.wealth).toFixed(2)}`).join(' ')}
-        stroke={COLORS.fg}
+        stroke={COLORS.muted}
         strokeWidth={1.6}
         fill="none"
       />
       {realized.map((r, i) => (
-        <Circle key={`r${i}`} cx={x(r.age)} cy={y(r.wealth)} r={2.2} fill={COLORS.fg} />
+        <Circle key={`r${i}`} cx={x(r.age)} cy={y(r.wealth)} r={2.2} fill={COLORS.muted} />
       ))}
       <Line x1={left} x2={width - right} y1={top + plotH} y2={top + plotH} stroke={COLORS.muted} strokeWidth={0.8} />
     </Svg>

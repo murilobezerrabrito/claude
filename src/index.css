@@ -1,12 +1,13 @@
 :root {
   color-scheme: light dark;
   font-family: system-ui, sans-serif;
-  --fg: #17201d;
-  --muted: #5b6a65;
-  --line: #dbe2df;
-  --bg: #f3f5f4;
+  --fg: #0d1b2e;
+  --muted: #56637a;
+  --line: #d8dfe9;
+  --bg: #f1f4f8;
   --surface: #ffffff;
-  --accent: #1f5f4f;
+  --accent: #0b1f3a;
+  --on-accent: #ffffff;
   --bad: #b0412f;
   color: var(--fg);
   background: var(--bg);
@@ -14,12 +15,13 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --fg: #e4ebe8;
-    --muted: #94a39e;
-    --line: #2a3632;
-    --bg: #111816;
-    --surface: #18211e;
-    --accent: #7fc4ae;
+    --fg: #e6ecf5;
+    --muted: #9aa8bd;
+    --line: #26344a;
+    --bg: #07111f;
+    --surface: #0f1d33;
+    --accent: #8fb0dc;
+    --on-accent: #07111f;
     --bad: #e07a66;
   }
 }
@@ -75,7 +77,7 @@ body {
 .button.primary {
   border-color: var(--accent);
   background: var(--accent);
-  color: var(--surface);
+  color: var(--on-accent);
 }
 
 .button:focus-visible {
