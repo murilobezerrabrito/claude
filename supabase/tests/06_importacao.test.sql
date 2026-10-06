@@ -2,7 +2,7 @@
 -- só a gestão, com segundo fator; prévia antes de confirmar; tudo ou nada; reimportação substitui só as famílias do
 -- arquivo e fica na auditoria; mês fechado não aceita importação. Dados próprios, desfeitos no fim (rollback).
 begin;
-select plan(48);
+select plan(56);
 
 \set G1 'a6000000-0000-4000-8000-000000000001'
 \set G2 'a6000000-0000-4000-8000-000000000002'
@@ -164,6 +164,9 @@ set local role authenticated;
 select pg_temp.entrar(:'G1');
 select is(public.import_preview('posicoes', 'moeda.csv', jsonb_build_array(pg_temp.pos(2, 'T-A', 'T-ATV-USD', 10, 'BRL'))) -> 'errors' -> 0 ->> 'message',
   'O ativo T-ATV-USD está cadastrado em USD e veio em BRL.', 'ativo cadastrado em outra moeda é recusado');
+select is(public.import_preview('posicoes', 'moedas.csv', jsonb_build_array(pg_temp.pos(2, 'T-A', 'T-ATV-NOVO', 10, 'USD'),
+  pg_temp.pos(3, 'T-B', 'T-ATV-NOVO', 10, 'BRL'))) -> 'errors' -> 0 ->> 'message',
+  'O ativo T-ATV-NOVO aparece em moedas diferentes no arquivo.', 'o mesmo ativo novo em duas moedas no arquivo é recusado');
 select is(public.import_preview('movimentos', 'mov-erro.csv', jsonb_build_array(pg_temp.mov(2, 'T-A', 'resgate', 10, '2026-09-30'))) -> 'errors' -> 0 ->> 'message',
   'data_movimento: 2026-09-30 fora do mês da data de referência.', 'movimento fora do mês é recusado');
 select public.import_preview('movimentos', 'mov.csv', jsonb_build_array(
@@ -172,6 +175,25 @@ select is(:'m1'::jsonb -> 'families' -> 0 -> 'withdrawals', '{"BRL": 300000}'::j
 select is(public.import_confirm((:'m1'::jsonb ->> 'batch_id')::uuid) ->> 'rows', '2', 'movimentos confirmados');
 reset role;
 select is((select count(*)::integer from public.flows where household_id = :'HA' and flow_date is null), 1, 'movimento sem data fica sem data');
+
+-- Movimentos importados por engano: a gestão apaga os da família no mês.
+set local role authenticated;
+select pg_temp.entrar(:'G1');
+select is(public.import_clear(:'HA', '2026-10-31', 'movimentos') ->> 'deleted', '2', 'a gestão apaga os movimentos da família no mês');
+select throws_ok(format($$ select public.import_clear(%L, '2026-10-31', 'movimentos') $$, :'HA'), 'P0002', null, 'nada mais a apagar');
+reset role;
+select is((select status::text from public.import_batches where id = (:'m1'::jsonb ->> 'batch_id')::uuid), 'substituida',
+  'o lote que ficou sem linhas fica substituído');
+
+-- A área da prévia e a conferência interna não se leem direto.
+set local role authenticated;
+select pg_temp.entrar(:'G1');
+select throws_ok($$ select * from app.import_staging $$, '42501', null, 'ninguém lê a área da prévia direto');
+select pg_temp.entrar(:'K');
+select is((select count(*)::integer from public.household_months), 1, 'o cliente AI lê o status do mês da própria família');
+select throws_ok($$ select checks, return_confirmed_by from public.household_months $$, '42501', null,
+  'mas não a conferência interna nem quem confirmou');
+reset role;
 
 -- PL oficial ----------------------------------------------------------------------------------------------------
 
@@ -200,6 +222,10 @@ select is(public.import_preview('posicoes', 'fechado.csv', jsonb_build_array(pg_
   'O mês de 2026-10-31 já está fechado para T-B: não aceita nova importação.', 'família fechada não aceita importação');
 select is(public.set_official_pl('[{"data_referencia": "2026-10-31", "codigo_cliente": "T-B", "pl_oficial": 1}]') -> 'errors' -> 0 ->> 'message',
   'O mês de 2026-10-31 já está fechado para T-B.', 'nem PL novo');
+reset role;
+set local role authenticated;
+select pg_temp.entrar(:'G1');
+select throws_ok(format($$ select public.import_clear(%L, '2026-10-31', 'posicoes') $$, :'HB'), 'P0001', null, 'nem apagar a importação');
 reset role;
 select throws_ok(format($$ delete from public.positions where household_id = %L $$, :'HB'), 'P0001', null,
   'posições de mês fechado não mudam, nem para o dono do banco');

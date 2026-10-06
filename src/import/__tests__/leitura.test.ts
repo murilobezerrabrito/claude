@@ -121,6 +121,25 @@ describe('posições: regras do SPEC', () => {
     expect(errors).toEqual([{ line: 2, message: 'A linha tem mais colunas que o cabeçalho. Num CSV separado por vírgula, número com vírgula decimal precisa de aspas (ou use ponto e vírgula como separador).' }])
   })
 
+  it('dinheiro com exatamente 3 casas é ambíguo; quantidade com 3 casas, não', () => {
+    const errors = errorsOf(readPositions(sheetOf(POSITIONS_HEADER, positionLine({ valor_liquido: '1.500', quantidade: '1.500' }))))
+    expect(errors).toEqual([{ line: 2, message: 'valor_liquido: "1.500" é ambíguo (milhar ou casas decimais?); escreva sem separador de milhar e com até 2 casas (ex.: 1500 ou 1500,00).' }])
+    expect(rowsOf(readPositions(sheetOf(POSITIONS_HEADER, positionLine({ valor_liquido: '1.5', quantidade: '1.500' }))))[0]).toMatchObject({ netValue: 1.5, quantity: 1.5 })
+    expect(rowsOf(readPositions({ rows: [POSITIONS_HEADER.split(','), positionLine().split(',').map((v, i) => (i === 10 ? 1.5 : v))] }))[0].netValue).toBe(1.5)
+  })
+
+  it('o mesmo ativo em moedas diferentes no arquivo é erro', () => {
+    const errors = errorsOf(readPositions(sheetOf(POSITIONS_HEADER, positionLine({ moeda: 'USD' }), positionLine({ codigo_cliente: 'COS001', moeda: 'BRL' }))))
+    expect(errors).toEqual([{ line: 3, message: 'O ativo NTNB-2035 veio em BRL aqui e em USD na linha 2: o mesmo ativo tem uma moeda só.' }])
+  })
+
+  it('coluna desconhecida repetida só é ignorada; coluna esperada repetida é erro', () => {
+    const r = readPositions(sheetOf(`${POSITIONS_HEADER},obs,obs`, `${positionLine()},a,b`))
+    expect(rowsOf(r)).toHaveLength(1)
+    expect(r.warnings).toEqual([{ line: 1, message: 'Colunas ignoradas: obs.' }])
+    expect(errorsOf(readPositions(sheetOf(`${POSITIONS_HEADER},moeda`, `${positionLine()},BRL`)))[0].message).toBe('A coluna "moeda" aparece mais de uma vez no cabeçalho.')
+  })
+
   it('arquivo vazio ou só com cabeçalho é recusado', () => {
     expect(errorsOf(readPositions({ rows: [] }))[0].message).toBe('O arquivo está vazio: falta o cabeçalho com os nomes das colunas.')
     expect(errorsOf(readPositions(sheetOf(POSITIONS_HEADER)))[0].message).toBe('O arquivo não tem nenhuma linha de dados.')

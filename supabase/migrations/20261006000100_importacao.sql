@@ -30,7 +30,17 @@ alter table public.import_batches
   add column confirmed_by uuid references auth.users (id),
   add column confirmed_at timestamptz;
 
--- Prévia ainda não confirmada: linhas já validadas e o resumo mostrado. Ninguém lê direto; só as funções abaixo.
+create index positions_batch_idx on public.positions (batch_id);
+create index flows_batch_idx on public.flows (batch_id);
+
+-- O cliente AI lê o status e o PL do mês da própria família, mas não a conferência interna (mensagens, totais e quem
+-- confirmou): só estas colunas, sob a política por linha de antes.
+revoke select on public.household_months from authenticated;
+grant select (household_id, ref_date, official_pl, status) on public.household_months to authenticated;
+
+-- Prévia ainda não confirmada: linhas já validadas e o resumo mostrado. Guarda linhas de várias famílias num lote, por
+-- isso não tem household_id: ninguém lê direto (sem privilégios e sem políticas; teste em 06_importacao); só as funções
+-- abaixo.
 create table app.import_staging (
   batch_id uuid primary key references public.import_batches (id) on delete cascade,
   rows jsonb not null,
@@ -378,7 +388,15 @@ begin
       v_errs := v_errs || jsonb_build_object('line', d.lines[2], 'message',
                   format('O ativo %s aparece de novo para %s em %s (linhas %s).', d.asset, d.code, d.custodian, array_to_string(d.lines, ', ')));
     end loop;
-    -- O ativo já cadastrado tem moeda: o arquivo precisa trazer a mesma.
+    -- O mesmo ativo tem uma moeda só, dentro do arquivo e no cadastro.
+    for d in
+      select r ->> 'codigo_ativo' as asset, min((r ->> 'linha')::integer) as line
+        from unnest(v_clean) r
+       group by r ->> 'codigo_ativo'
+      having count(distinct r ->> 'moeda') > 1
+    loop
+      v_errs := v_errs || jsonb_build_object('line', d.line, 'message', format('O ativo %s aparece em moedas diferentes no arquivo.', d.asset));
+    end loop;
     for d in
       select distinct r ->> 'codigo_ativo' as asset, a.currency, r ->> 'moeda' as currency_file, (r ->> 'linha')::integer as line
         from unnest(v_clean) r join public.assets a on a.asset_code = r ->> 'codigo_ativo'
@@ -456,19 +474,23 @@ begin
   v_rate := (app.usd_rate(v.ref_month_end)).rate;
 
   if p_kind = 'posicoes' then
-    select jsonb_agg(f order by f ->> 'code') into v_families from (
-      select jsonb_build_object(
-               'household_id', h.id, 'code', h.code, 'name', h.name, 'channel', h.channel,
-               'rows', count(*),
-               'net_by_currency', (select jsonb_object_agg(c.moeda, c.total) from (
-                   select r2 ->> 'moeda' as moeda, sum((r2 ->> 'valor_liquido')::numeric) as total
-                     from jsonb_array_elements(v.clean_rows) r2 where (r2 ->> 'household_id')::uuid = h.id group by 1) c),
-               'replaces', (select count(*) from public.positions p where p.household_id = h.id and p.ref_date = v.ref_month_end),
-               'status', m.status, 'official_pl', m.official_pl) as f
-        from jsonb_array_elements(v.clean_rows) r
-        join public.households h on h.id = (r ->> 'household_id')::uuid
-        left join public.household_months m on m.household_id = h.id and m.ref_date = v.ref_month_end
-       group by h.id, h.code, h.name, h.channel, m.status, m.official_pl) s;
+    -- Uma passada pelas linhas: totais por família e moeda.
+    with r as (
+      select (x ->> 'household_id')::uuid as hid, x ->> 'moeda' as moeda, (x ->> 'valor_liquido')::numeric as valor
+        from jsonb_array_elements(v.clean_rows) x
+    ), fam as (
+      select hid, sum(n) as n, jsonb_object_agg(moeda, total) as totals
+        from (select hid, moeda, count(*) as n, sum(valor) as total from r group by hid, moeda) t
+       group by hid
+    )
+    select jsonb_agg(jsonb_build_object(
+             'household_id', h.id, 'code', h.code, 'name', h.name, 'channel', h.channel, 'rows', f.n,
+             'net_by_currency', f.totals,
+             'replaces', (select count(*) from public.positions p where p.household_id = h.id and p.ref_date = v.ref_month_end),
+             'status', m.status, 'official_pl', m.official_pl) order by h.code)
+      into v_families
+      from fam f join public.households h on h.id = f.hid
+      left join public.household_months m on m.household_id = h.id and m.ref_date = v.ref_month_end;
 
     select coalesce(jsonb_agg(distinct jsonb_build_object('asset_code', r ->> 'codigo_ativo', 'name', r ->> 'nome_ativo',
                                                           'isin', r ->> 'isin', 'cnpj', r ->> 'cnpj', 'currency', r ->> 'moeda')), '[]'::jsonb)
@@ -487,25 +509,27 @@ begin
       into v_total from jsonb_array_elements(v.clean_rows) r;
     v_warnings := '[]'::jsonb;
   else
-    select jsonb_agg(f order by f ->> 'code') into v_families from (
-      select jsonb_build_object(
-               'household_id', h.id, 'code', h.code, 'name', h.name, 'channel', h.channel,
-               'rows', count(*),
-               'contributions', (select jsonb_object_agg(c.moeda, c.total) from (
-                   select r2 ->> 'moeda' as moeda, sum((r2 ->> 'valor')::numeric) as total
-                     from jsonb_array_elements(v.clean_rows) r2
-                    where (r2 ->> 'household_id')::uuid = h.id and r2 ->> 'tipo' = 'aporte' group by 1) c),
-               'withdrawals', (select jsonb_object_agg(c.moeda, c.total) from (
-                   select r2 ->> 'moeda' as moeda, sum((r2 ->> 'valor')::numeric) as total
-                     from jsonb_array_elements(v.clean_rows) r2
-                    where (r2 ->> 'household_id')::uuid = h.id and r2 ->> 'tipo' = 'resgate' group by 1) c),
-               'approximate_dates', count(*) filter (where r ->> 'data_movimento' is null),
-               'replaces', (select count(*) from public.flows fl where fl.household_id = h.id and fl.ref_date = v.ref_month_end),
-               'status', m.status, 'official_pl', m.official_pl) as f
-        from jsonb_array_elements(v.clean_rows) r
-        join public.households h on h.id = (r ->> 'household_id')::uuid
-        left join public.household_months m on m.household_id = h.id and m.ref_date = v.ref_month_end
-       group by h.id, h.code, h.name, h.channel, m.status, m.official_pl) s;
+    -- Uma passada pelas linhas: aportes e resgates por família e moeda.
+    with r as (
+      select (x ->> 'household_id')::uuid as hid, x ->> 'moeda' as moeda, x ->> 'tipo' as tipo,
+             (x ->> 'valor')::numeric as valor, x ->> 'data_movimento' is null as sem_data
+        from jsonb_array_elements(v.clean_rows) x
+    ), fam as (
+      select hid, count(*) as n, count(*) filter (where sem_data) as approx from r group by hid
+    ), cur as (
+      select hid, jsonb_object_agg(moeda, total) filter (where tipo = 'aporte') as aportes,
+             jsonb_object_agg(moeda, total) filter (where tipo = 'resgate') as resgates
+        from (select hid, tipo, moeda, sum(valor) as total from r group by hid, tipo, moeda) t
+       group by hid
+    )
+    select jsonb_agg(jsonb_build_object(
+             'household_id', h.id, 'code', h.code, 'name', h.name, 'channel', h.channel, 'rows', f.n,
+             'contributions', c.aportes, 'withdrawals', c.resgates, 'approximate_dates', f.approx,
+             'replaces', (select count(*) from public.flows fl where fl.household_id = h.id and fl.ref_date = v.ref_month_end),
+             'status', m.status, 'official_pl', m.official_pl) order by h.code)
+      into v_families
+      from fam f join cur c on c.hid = f.hid join public.households h on h.id = f.hid
+      left join public.household_months m on m.household_id = h.id and m.ref_date = v.ref_month_end;
     v_new_assets := '[]'::jsonb;
     v_unmapped := '[]'::jsonb;
     v_total := null;
@@ -556,6 +580,8 @@ as $$
 declare
   b public.import_batches;
   s app.import_staging;
+  v_lock_ref date;
+  v_lock_kind text;
   v_households uuid[];
   v_closed text;
   v_newer text;
@@ -564,6 +590,11 @@ declare
   v_new_assets integer;
 begin
   perform app.require_role('gestao', 'confirmar importações');
+  -- Uma confirmação por vez para o mesmo mês e tipo: duas ao mesmo tempo poderiam somar as linhas das duas.
+  select ref_date, kind into v_lock_ref, v_lock_kind from public.import_batches where id = p_batch;
+  if found then
+    perform pg_advisory_xact_lock(hashtext(format('importacao:%s:%s', v_lock_ref, v_lock_kind)));
+  end if;
   select * into b from public.import_batches where id = p_batch for update;
   if not found then
     raise exception 'Prévia não encontrada.' using errcode = 'P0002', hint = 'importacao_previa';
@@ -668,6 +699,50 @@ begin
 end
 $$;
 
+-- Apaga as posições ou os movimentos de uma família no mês, importados por engano (um arquivo novo só substitui as
+-- famílias que traz). O mês volta para "importado"; as linhas apagadas ficam na auditoria.
+create function public.import_clear(p_household uuid, p_ref_date date, p_kind text)
+returns jsonb
+language plpgsql security definer
+set search_path = ''
+as $$
+declare
+  v_code text;
+  v_deleted integer;
+begin
+  perform app.require_role('gestao', 'apagar importações');
+  if p_kind is null or p_kind not in ('posicoes', 'movimentos') then
+    raise exception 'Tipo de importação inválido: use posicoes ou movimentos.' using errcode = '22023', hint = 'importacao_tipo';
+  end if;
+  perform pg_advisory_xact_lock(hashtext(format('importacao:%s:%s', p_ref_date, p_kind)));
+  select code into v_code from public.households where id = p_household;
+  if not found then
+    raise exception 'Família não encontrada.' using errcode = 'P0002', hint = 'familia';
+  end if;
+  if exists (select 1 from public.household_months where household_id = p_household and ref_date = p_ref_date and status = 'fechado') then
+    raise exception 'O mês de % já está fechado para %.', p_ref_date, v_code using errcode = 'P0001', hint = 'mes_fechado';
+  end if;
+  if p_kind = 'posicoes' then
+    delete from public.positions where household_id = p_household and ref_date = p_ref_date;
+  else
+    delete from public.flows where household_id = p_household and ref_date = p_ref_date;
+  end if;
+  get diagnostics v_deleted = row_count;
+  if v_deleted = 0 then
+    raise exception 'Nada importado de % para % no mês.', p_kind, v_code using errcode = 'P0002', hint = 'mes_sem_importacao';
+  end if;
+  update public.import_batches o set status = 'substituida'
+   where o.status = 'confirmada' and o.kind = p_kind and o.ref_date = p_ref_date
+     and not exists (select 1 from public.positions p where p.batch_id = o.id)
+     and not exists (select 1 from public.flows f where f.batch_id = o.id);
+  update public.household_months set status = 'importado', checks = null, return_confirmed_by = null, return_confirmed_at = null
+   where household_id = p_household and ref_date = p_ref_date;
+  perform app.audit('apagar_importacao', case p_kind when 'posicoes' then 'positions' else 'flows' end, p_ref_date::text, p_household,
+                    jsonb_build_object('linhas', v_deleted));
+  return jsonb_build_object('code', v_code, 'kind', p_kind, 'ref_date', p_ref_date, 'deleted', v_deleted);
+end
+$$;
+
 -- PL oficial por família no mês (extrato do custodiante na CADM, da corretora na AI). Mudar o PL volta o mês para
 -- "importado". Linhas: data_referencia, codigo_cliente, pl_oficial (e linha, opcional). Tudo ou nada.
 create function public.set_official_pl(p_rows jsonb)
@@ -746,6 +821,6 @@ revoke all on function app.dec(text), app.try_date(text), app.month_end_of(date)
   app.require_role(public.app_role, text), app.validate_import_rows(text, jsonb), app.guard_household_month(),
   app.guard_closed_month_rows(), app.guard_month_closing() from public;
 revoke all on function public.import_preview(text, text, jsonb), public.import_confirm(uuid), public.import_discard(uuid),
-  public.set_official_pl(jsonb) from public, anon;
+  public.import_clear(uuid, date, text), public.set_official_pl(jsonb) from public, anon;
 grant execute on function public.import_preview(text, text, jsonb), public.import_confirm(uuid), public.import_discard(uuid),
-  public.set_official_pl(jsonb) to authenticated;
+  public.import_clear(uuid, date, text), public.set_official_pl(jsonb) to authenticated;

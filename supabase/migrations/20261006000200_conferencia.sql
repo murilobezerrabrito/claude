@@ -7,6 +7,29 @@
 -- - avisa: plano com mais de 12 meses, mês sem aportes nem resgates, possível transferência entre contas, primeiro mês
 --   (sem rentabilidade), movimento sem data (datas aproximadas) e falta do IPCA (a faixa é conferida no retorno nominal).
 -- Fechamento: o canal fecha as famílias já rodadas; as outras ficam de fora, com aviso, e podem fechar depois.
+-- A rentabilidade do mês usa o PL do mês anterior: mudar o mês anterior (importação, PL ou classe) reabre o seguinte.
+
+-- Mês que nasce, ou que volta para "importado", ou cujo PL muda: o mês seguinte da família, se ainda não fechado,
+-- volta para "importado" (e assim por diante), porque a rentabilidade dele partia deste.
+create function app.reset_next_month() returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if tg_op = 'INSERT' or new.official_pl is distinct from old.official_pl
+     or (new.status = 'importado' and old.status <> 'importado') then
+    update public.household_months
+       set status = 'importado', checks = null, return_confirmed_by = null, return_confirmed_at = null
+     where household_id = new.household_id and ref_date = app.month_end_of(new.ref_date + 1)
+       and status in ('conferido', 'bloqueado', 'rodado');
+  end if;
+  return null;
+end
+$$;
+
+create trigger reabre_o_mes_seguinte
+  after insert or update on public.household_months
+  for each row execute function app.reset_next_month();
 
 -- Porcentagem em português (vírgula decimal e sinal de menos tipográfico).
 create function app.pct(x numeric, decimals integer) returns text
@@ -157,13 +180,19 @@ begin
                  'message', format('Aporte e resgate do mesmo valor em %s: parece transferência entre contas da família, que não conta como aporte nem resgate.', v_list));
   end if;
 
-  -- Rentabilidade do mês (Dietz modificado, como monthReturn em src/report): precisa do mês anterior conferido.
+  -- Rentabilidade do mês (Dietz modificado, como monthReturn em src/report): precisa do mês anterior conferido. Sem
+  -- mês anterior, é o primeiro mês (aviso); com o mês anterior ainda não conferido, a faixa não pode ser conferida.
   select * into v_prev from public.household_months
-   where household_id = p_household and ref_date = (date_trunc('month', p_ref) - interval '1 day')::date
-     and status in ('conferido', 'rodado', 'fechado') and official_pl is not null;
+   where household_id = p_household and ref_date = (date_trunc('month', p_ref) - interval '1 day')::date;
   if v_prev.household_id is null then
     v_items := v_items || jsonb_build_object('code', 'primeiro_mes', 'level', 'aviso',
-                 'message', 'Sem o mês anterior conferido: a rentabilidade do mês não é calculada.');
+                 'message', 'Primeiro mês importado: a rentabilidade do mês não é calculada.');
+  elsif v_prev.status not in ('conferido', 'rodado', 'fechado') or v_prev.official_pl is null then
+    v_items := v_items || jsonb_build_object('code', 'mes_anterior_pendente', 'level', 'bloqueio',
+                 'message', format('O mês anterior (%s) ainda não foi conferido: confira-o antes, para calcular a rentabilidade deste mês.',
+                                   to_char(v_prev.ref_date, 'MM/YYYY')));
+    v_blocked := true;
+    v_prev := null;
   elsif m.official_pl is not null and not exists (
           select 1 from public.flows where household_id = p_household and ref_date = p_ref and amount_brl is null) then
     select coalesce(sum(case kind when 'aporte' then amount_brl else -amount_brl end), 0),
@@ -461,7 +490,7 @@ begin
 end
 $$;
 
-revoke all on function app.pct(numeric, integer), app.check_household_month(uuid, date) from public;
+revoke all on function app.pct(numeric, integer), app.check_household_month(uuid, date), app.reset_next_month() from public;
 revoke all on function public.check_month(date, uuid), public.confirm_return(uuid, date), public.unmapped_assets(),
   public.map_asset(uuid, text), public.month_overview(date, public.channel), public.close_month(date, public.channel),
   public.close_household_month(uuid, date) from public, anon;

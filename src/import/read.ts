@@ -64,16 +64,16 @@ function readTable<C extends string>(sheet: Sheet, columns: readonly C[], c: Col
     return undefined
   }
   const names = header.map(normalizeHeader)
+  const known = new Set<string>(columns)
   const index = new Map<string, number>()
   names.forEach((name, i) => {
-    if (name === '') return
+    if (!known.has(name)) return
     if (index.has(name)) addError(c, 1, `A coluna "${name}" aparece mais de uma vez no cabeçalho.`)
     else index.set(name, i)
   })
   const missing = columns.filter((col) => !index.has(col))
   if (missing.length > 0) addError(c, 1, `Faltam colunas no cabeçalho: ${missing.join(', ')}.`)
-  const known = new Set<string>(columns)
-  const extra = names.filter((n) => n !== '' && !known.has(n))
+  const extra = [...new Set(names.filter((n) => n !== '' && !known.has(n)))]
   if (extra.length > 0) c.warnings.push({ line: 1, message: `Colunas ignoradas: ${extra.join(', ')}.` })
   if (c.errors.length > 0) return undefined
 
@@ -145,6 +145,7 @@ export function readPositions(sheet: Sheet): ReadResult<PositionRow> {
   if (!table) return finish<PositionRow>(c, undefined, [])
   const rows: PositionRow[] = []
   const seen = new Map<string, number>()
+  const currencyOf = new Map<string, { currency: string; line: number }>()
   const dates: { line: number; refDate?: string }[] = []
   for (const { line, row } of table) {
     const refDate = field(c, line, 'data_referencia', parseDate(row.data_referencia))
@@ -165,6 +166,12 @@ export function readPositions(sheet: Sheet): ReadResult<PositionRow> {
       const first = seen.get(key)
       if (first !== undefined) addError(c, line, `O ativo ${assetCode} aparece de novo para ${clientCode} em ${custodian} (primeira vez na linha ${first}).`)
       else seen.set(key, line)
+    }
+    if (assetCode && currency) {
+      const known = currencyOf.get(assetCode)
+      if (known && known.currency !== currency) {
+        addError(c, line, `O ativo ${assetCode} veio em ${currency} aqui e em ${known.currency} na linha ${known.line}: o mesmo ativo tem uma moeda só.`)
+      } else if (!known) currencyOf.set(assetCode, { currency, line })
     }
     // Com qualquer erro, o arquivo inteiro é recusado; a linha só entra completa.
     if (

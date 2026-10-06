@@ -2,7 +2,7 @@
 -- canal"): PL com tolerância de 0,01%, ativo sem classe bloqueia até o comitê mapear, dólar da data de referência,
 -- plano em vigor, rentabilidade real fora de −10% a +10% confirmada por quem importou, e o mesmo Dietz de src/report.
 begin;
-select plan(41);
+select plan(43);
 
 \set G1 'a7000000-0000-4000-8000-000000000001'
 \set G2 'a7000000-0000-4000-8000-000000000002'
@@ -203,13 +203,23 @@ select ok((pg_temp.mes(:'HB', '2026-11-30')).status = 'conferido' and pg_temp.te
 select ok(pg_temp.tem(:'HB', '2026-11-30', 'possivel_transferencia'), 'aporte e resgate iguais no mesmo dia: aviso de transferência');
 select ok(pg_temp.tem(:'HB', '2026-11-30', 'datas_aproximadas'), 'movimento sem data: aviso de datas aproximadas');
 
+-- Dezembro: o mês anterior (novembro) da família A está bloqueado, então a faixa não pode ser conferida.
+set local role authenticated;
+select pg_temp.entrar(:'G1');
+select pg_temp.importar('posicoes', jsonb_build_array(pg_temp.pos(2, 'T-CA', 'T-C-POS', 100, 'BRL', '2026-12-31'))) is not null as ok_dez \gset
+select pg_temp.pl('T-CA', '2026-12-31', 100);
+select public.check_month('2026-12-31') is not null as ok_conf_dez \gset
+reset role;
+select ok((pg_temp.mes(:'HA', '2026-12-31')).status = 'bloqueado' and pg_temp.tem(:'HA', '2026-12-31', 'mes_anterior_pendente'),
+  'mês anterior não conferido bloqueia: a faixa não pode ser conferida');
+
 -- Status só pelas mudanças permitidas ----------------------------------------------------------------------------
 
 select throws_ok(format($$ update public.household_months set status = 'fechado' where household_id = %L and ref_date = '2026-09-30' $$, :'HA'),
   'P0001', null, 'conferido não pula para fechado');
 select throws_ok(format($$ update public.household_months set status = 'rodado' where household_id = %L and ref_date = '2026-09-30' $$, :'HN'),
   'P0001', null, 'bloqueado não roda');
-select throws_ok(format($$ insert into public.household_months (household_id, ref_date, status) values (%L, '2026-12-31', 'conferido') $$, :'HA'),
+select throws_ok(format($$ insert into public.household_months (household_id, ref_date, status) values (%L, '2027-01-31', 'conferido') $$, :'HA'),
   'P0001', null, 'mês novo começa importado');
 update public.household_months set status = 'rodado' where household_id = :'HA' and ref_date = '2026-10-31';
 set local role authenticated;
@@ -220,6 +230,15 @@ select pg_temp.entrar(:'C');
 select lives_ok($$ select public.map_asset((select id from public.assets where asset_code = 'T-C-USD'), 'ACOES') $$, 'o comitê corrige a classe');
 reset role;
 select is((pg_temp.mes(:'HA', '2026-10-31')).status::text, 'importado', 'corrigir a classe tira a família rodada da rodada');
+
+-- Mudar o mês anterior reabre os seguintes: outubro e novembro da família B partiam do PL de setembro.
+set local role authenticated;
+select pg_temp.entrar(:'G1');
+select pg_temp.pl('T-CB', '2026-09-30', 1000000.01);
+reset role;
+select ok((pg_temp.mes(:'HB', '2026-10-31')).status = 'importado' and (pg_temp.mes(:'HB', '2026-10-31')).return_confirmed_by is null
+          and (pg_temp.mes(:'HB', '2026-11-30')).status = 'importado',
+  'mudar o PL de setembro reabre outubro e novembro, e a confirmação de outubro cai');
 
 select * from finish();
 rollback;

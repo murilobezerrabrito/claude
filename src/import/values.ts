@@ -67,8 +67,17 @@ export function parseDecimal(cell: Cell, decimals: number): Parsed<number> {
 /** Maior valor que cabe em numeric(18,2). */
 export const MAX_MONEY = 1e16
 
-/** Valor em dinheiro, maior ou igual a zero (ou maior que zero), ao centavo. */
+/** Dinheiro com exatamente 3 dígitos depois do separador: "1.500" pode ser mil e quinhentos ou um e meio. */
+const AMBIGUOUS_MONEY = /^-?\d+[.,]\d{3}$/
+
+/**
+ * Valor em dinheiro, maior ou igual a zero (ou maior que zero), ao centavo. Texto com exatamente 3 dígitos depois do
+ * separador é recusado por ser ambíguo (milhar ou decimais); números de XLSX não têm essa ambiguidade.
+ */
 export function parseMoney(cell: Cell, positive: boolean): Parsed<number> {
+  if (typeof cell !== 'number' && AMBIGUOUS_MONEY.test(cellText(cell))) {
+    return fail(`"${cellText(cell)}" é ambíguo (milhar ou casas decimais?); escreva sem separador de milhar e com até 2 casas (ex.: 1500 ou 1500,00)`)
+  }
   const r = parseDecimal(cell, 2)
   if (!r.ok) return r
   if (r.value < 0) return fail('valor negativo')
