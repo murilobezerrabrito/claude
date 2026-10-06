@@ -4,10 +4,10 @@
 
 - **Rota 2 adotada** em 02/10/2026 (D-024): app para os clientes AI; relatório mensal da gestão para os clientes CADM. A documentação foi atualizada para a nova rota; o `docs/SPEC.md` é a fonte única, e `docs/ROTA-2.md` fica como registro da mudança.
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
-- **Fase 1 (relatório de exemplo, sem servidor):** iniciada em 04/10/2026 e **concluída** em 05/10/2026: Murilo aprovou o PDF de out/2026, com as cores da AWARE (azul-escuro e branco); a aprovação do Alex fica para Murilo confirmar.
+- **Fase 1 (relatório de exemplo, sem servidor):** iniciada em 04/10/2026 e **concluída** em 05/10/2026: Murilo aprovou o PDF de out/2026, com as cores da AWARE (azul-escuro e branco), e confirmou em 06/10/2026 a aprovação do Alex.
 - **Fase 2 (ciclo mensal interno, com dados reais): em andamento** desde 05/10/2026. Etapa 1 (Supabase local, acesso por linha, segundo fator e pgTAP) concluída.
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026, D-028 e D-045). Não há pull request aberto.
-- **Próximo passo:** Fase 2, etapa 2 (importação de posições e de aportes e resgates, conferência, mapeamento de ativos e fechamento do mês): plano primeiro. Antes, liberar `cdn.sheetjs.com` na rede do ambiente (D-044).
+- **Próximo passo:** Fase 2, etapa 2 (importação de posições e de aportes e resgates, conferência, mapeamento de ativos e fechamento do mês): plano primeiro. Murilo liberou `cdn.sheetjs.com` e `api.bcb.gov.br` na rede do ambiente em 06/10/2026 (D-044); começar numa sessão nova, porque a sessão em que a liberação foi feita continuou bloqueada.
 
 ### Comandos de teste
 
@@ -35,7 +35,7 @@ npm run db:stop
 | Fase | O quê | Branch | Portão | Status |
 |---|---|---|---|---|
 | 0 | Fundação e motor, sem servidor | `fase-0-motor` | Testes 1 a 14 passando, `npm run reference` dentro das tolerâncias e `revisor-motor` sem divergências abertas | **Cumprido** (02/10/2026) |
-| 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` | Testes do motor e `npm run reference` com os resultados novos; testes da ponte (hashes dos extremos e soma em trajetórias); `revisor-motor` sem divergências; PDF de out/2026 da Andrade aprovado por Murilo e Alex | **Cumprido** (05/10/2026), com a aprovação do Alex a confirmar |
+| 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` | Testes do motor e `npm run reference` com os resultados novos; testes da ponte (hashes dos extremos e soma em trajetórias); `revisor-motor` sem divergências; PDF de out/2026 da Andrade aprovado por Murilo e Alex | **Cumprido** (05/10/2026); aprovação do Alex confirmada por Murilo em 06/10/2026 |
 | 2 | Ciclo mensal interno, com dados reais | `fase-2-ciclo-mensal` | pgTAP passando; família CADM real anonimizada importada, conferida e com relatório aprovado; textos do relatório aprovados por compliance; rodada de todas as famílias CADM em menos de 20 minutos | Em andamento (etapa 1 de 4 concluída) |
 | 3 | App dos clientes AI | `fase-3-app-ai` | Tela inicial em 375 px e tema escuro; "E se?" em menos de 1 s num celular intermediário; vazamento do papel cliente_ai bloqueado; uso de ponta a ponta com contas fictícias | Pendente |
 | 4 | Piloto e operação | `fase-4-piloto` | Dois fechamentos sem erro de conferência e retorno da gestão e dos clientes do piloto | Pendente |
@@ -268,7 +268,7 @@ Em 04/10/2026, Murilo decidiu manter os dados de outubro do SPEC (estilo de vida
   - Testes do motor e `npm run reference` com os resultados novos: **ok** (172 testes; 11 de 11 métricas).
   - Testes da ponte (hashes dos extremos e soma em trajetórias): **ok** (teste 19).
   - `revisor-motor` sem divergências: **ok** (3ª rodada).
-  - PDF de out/2026 da Andrade aprovado por Murilo e Alex: **aprovado por Murilo** em 05/10/2026 ("Gostei, pode continuar"), com a troca para as cores da AWARE, azul-escuro e branco (D-040); a aprovação do Alex fica para Murilo confirmar.
+  - PDF de out/2026 da Andrade aprovado por Murilo e Alex: **aprovado por Murilo** em 05/10/2026 ("Gostei, pode continuar"), com a troca para as cores da AWARE, azul-escuro e branco (D-040); a aprovação do Alex foi confirmada por Murilo em 06/10/2026.
 
 ## Fase 0: o que foi feito
 
@@ -334,9 +334,8 @@ Na Fase 1, o Web Worker pode aquecer o cache ao abrir o app.
 
 ## Pendências
 
-- **Rede do ambiente (D-044):** liberar `cdn.sheetjs.com` (etapa 2, leitura de XLSX) e `api.bcb.gov.br` (etapa 3, IPCA, CDI e dólar) nas configurações de rede do ambiente.
-- **Nuvem (D-042):** antes de criar o projeto Supabase em São Paulo, conferir no plano contratado o limite de sessão de 30 minutos e os ganchos de tentativa de login (bloqueio), que podem depender do plano.
-- **Fase 1:** a aprovação do Alex ao PDF de out/2026 fica para Murilo confirmar.
+- **Rede do ambiente (D-044):** Murilo liberou `cdn.sheetjs.com` (etapa 2, leitura de XLSX) e `api.bcb.gov.br` (etapa 3, IPCA, CDI e dólar) em 06/10/2026. A sessão em que a liberação foi feita continuou recebendo 403 nos dois endereços; conferir de novo no início da próxima sessão.
+- **Nuvem (D-042):** pela documentação do Supabase (consultada em 06/10/2026), o limite de sessão (`timebox`) exige o plano Pro ou superior, e os ganchos de tentativa de senha e de segundo fator, que fazem o bloqueio após 5 erros, só existem nos planos Team e Enterprise. Antes de criar o projeto em São Paulo, Murilo decide o plano e, se não for o Team, como fazer o bloqueio (decisão a registrar).
 - **Eventos do "E se?" sem mês (para a etapa 4 e o console):** o motor trata aportes e resgates do "E se?" como os eventos do plano. Sem mês, um aporte "em 2026" com julho já passado fica fora do cálculo, e o aviso fala em conferência. O controle do "E se?" deve sempre informar o mês.
 - **Virada do ano (D-031, item 3), para o Murilo decidir se quer:** no fechamento de 31/12, a saída sem mês do ano que acabou sai do cálculo sem aviso. Um último aviso nesse fechamento ajudaria a conferência a registrar a saída; não muda nenhum número.
 - **Rota 2, perguntas em aberto:** em vigor os padrões da D-025 (corretora e formato das posições AI, custo AI de 0,80% "a validar", responsável por família, regras da assessoria, preparo e aprovação dos relatórios, piloto e identidade visual).
