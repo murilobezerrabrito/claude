@@ -5,9 +5,9 @@
 - **Rota 2 adotada** em 02/10/2026 (D-024): app para os clientes AI; relatório mensal da gestão para os clientes CADM. A documentação foi atualizada para a nova rota; o `docs/SPEC.md` é a fonte única, e `docs/ROTA-2.md` fica como registro da mudança.
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
 - **Fase 1 (relatório de exemplo, sem servidor):** iniciada em 04/10/2026 e **concluída** em 05/10/2026: Murilo aprovou o PDF de out/2026, com as cores da AWARE (azul-escuro e branco), e confirmou em 06/10/2026 a aprovação do Alex.
-- **Fase 2 (ciclo mensal interno, com dados reais): em andamento** desde 05/10/2026. Etapa 1 (Supabase local, acesso por linha, segundo fator e pgTAP) concluída.
+- **Fase 2 (ciclo mensal interno, com dados reais): em andamento** desde 05/10/2026. Etapa 1 (Supabase local, acesso por linha, segundo fator e pgTAP) concluída. Etapa 2 (importação, conferência, mapeamento de ativos e fechamento do mês) concluída em 06/10/2026, menos a leitura de XLSX, que espera a rede (D-056).
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026, D-028 e D-045). Não há pull request aberto.
-- **Próximo passo:** Fase 2, etapa 2 (importação de posições e de aportes e resgates, conferência, mapeamento de ativos e fechamento do mês): plano primeiro. Murilo liberou `cdn.sheetjs.com` e `api.bcb.gov.br` na rede do ambiente em 06/10/2026 (D-044); começar numa sessão nova, porque a sessão em que a liberação foi feita continuou bloqueada.
+- **Próximo passo:** numa sessão nova, conferir se `cdn.sheetjs.com` e `api.bcb.gov.br` respondem (liberados por Murilo em 06/10/2026, mas bloqueados na sessão em que a liberação foi feita); instalar o SheetJS e ligar a leitura de XLSX (passo 8 da etapa 2, D-056); depois, o plano da etapa 3 (console, rodada oficial em lote numa Edge Function e séries do Banco Central).
 
 ### Comandos de teste
 
@@ -15,7 +15,7 @@
 npm install
 npm run typecheck     # tsc -b: motor (só ES2023), interface, testes e scripts
 npm run lint          # ESLint; barra imports externos e imports sem .ts no motor
-npm test              # Vitest: 177 testes, incluindo T01 a T20, textos, números congelados, o PDF do relatório e o seed (~26 s)
+npm test              # Vitest: 207 testes, incluindo T01 a T20, textos, números congelados, o PDF do relatório, o seed e a importação (~26 s)
 npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 npm run report:snapshot  # regrava src/data/relatorios/andrade-2026-10.json (relatório de exemplo, ~11 s)
@@ -24,7 +24,9 @@ npm run dev           # página local com a prévia do relatório, "Baixar PDF" 
 
 # Banco local (Fase 2; precisa do Docker ligado)
 npm run db:start      # Supabase local com as migrações e o seed fictício (nesta sessão na nuvem: SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io, D-044)
-npm run db:test       # testes pgTAP (140)
+npm run db:test       # testes pgTAP (263)
+npm run db:import -- exemplo   # importação de exemplo de ponta a ponta, com login e segundo fator (setembro e outubro das 3 famílias fictícias)
+npm run db:import             # lista os comandos: previa, pl, conferir, fila, mapear, situacao
 npm run db:reset      # refaz o banco local (migrações e seed)
 npm run db:seed       # regrava supabase/seed.sql a partir de src/data
 npm run db:stop
@@ -36,21 +38,33 @@ npm run db:stop
 |---|---|---|---|---|
 | 0 | Fundação e motor, sem servidor | `fase-0-motor` | Testes 1 a 14 passando, `npm run reference` dentro das tolerâncias e `revisor-motor` sem divergências abertas | **Cumprido** (02/10/2026) |
 | 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` | Testes do motor e `npm run reference` com os resultados novos; testes da ponte (hashes dos extremos e soma em trajetórias); `revisor-motor` sem divergências; PDF de out/2026 da Andrade aprovado por Murilo e Alex | **Cumprido** (05/10/2026); aprovação do Alex confirmada por Murilo em 06/10/2026 |
-| 2 | Ciclo mensal interno, com dados reais | `fase-2-ciclo-mensal` | pgTAP passando; família CADM real anonimizada importada, conferida e com relatório aprovado; textos do relatório aprovados por compliance; rodada de todas as famílias CADM em menos de 20 minutos | Em andamento (etapa 1 de 4 concluída) |
+| 2 | Ciclo mensal interno, com dados reais | `fase-2-ciclo-mensal` | pgTAP passando; família CADM real anonimizada importada, conferida e com relatório aprovado; textos do relatório aprovados por compliance; rodada de todas as famílias CADM em menos de 20 minutos | Em andamento (etapas 1 e 2 de 4 concluídas; falta o XLSX da etapa 2) |
 | 3 | App dos clientes AI | `fase-3-app-ai` | Tela inicial em 375 px e tema escuro; "E se?" em menos de 1 s num celular intermediário; vazamento do papel cliente_ai bloqueado; uso de ponta a ponta com contas fictícias | Pendente |
 | 4 | Piloto e operação | `fase-4-piloto` | Dois fechamentos sem erro de conferência e retorno da gestão e dos clientes do piloto | Pendente |
 
 ## Fase 2: andamento
 
-Plano da etapa 1 aprovado por Murilo em 05/10/2026, com a opção (a) para o registro de leituras (D-041). Etapas:
+Plano da etapa 1 aprovado por Murilo em 05/10/2026, com a opção (a) para o registro de leituras (D-041); plano da etapa 2 aprovado em 06/10/2026 ("prossiga"). Etapas:
 
 | # | Etapa | Status |
 |---|---|---|
 | 1 | Supabase local: migrações, acesso por linha, segundo fator e pgTAP | Concluída |
-| 2 | Importação de posições e de aportes e resgates, conferência, mapeamento de ativos e fechamento do mês | Pendente |
+| 2 | Importação de posições e de aportes e resgates, conferência, mapeamento de ativos e fechamento do mês | Concluída, menos a leitura de XLSX (espera a rede, D-056) |
 | 3 | Console, rodada oficial em lote numa Edge Function (tempo de CPU medido) e séries do Banco Central | Pendente |
 | 4 | Relatórios no banco: rascunho, revisão, quatro olhos, PDF no Storage, apresentação e auditoria | Pendente |
 | — | Nuvem (região São Paulo), só com autorização de Murilo | Pendente |
+
+### Etapa 2: importação, conferência, mapeamento de ativos e fechamento do mês
+
+- Leitura e validação (`src/import/`, TypeScript puro, sem dependências): planilhas de posições, de aportes e resgates e de PL oficial, com os erros pelo número da linha (D-049); prévia por família e moeda; conversão para o fechamento do relatório (`closingFromRows`) e para as funções do banco. A leitura do arquivo fica em `src/lib/planilhas.ts` (Papa Parse; UTF-8 ou Windows-1252; vírgula, ponto e vírgula ou tabulação). XLSX ainda não (D-056).
+- Exemplos fictícios em `src/data/importacao/` (D-055): os da Andrade geram exatamente os fechamentos de set e out/2026 do relatório de exemplo.
+- Migrações:
+  - `…20261006000100_importacao.sql`: `import_preview`, `import_confirm`, `import_discard`, `import_clear` e `set_official_pl` (D-046, D-048); gatilhos de status do mês, de mês fechado e do fechamento do canal (D-053); colunas de câmbio (D-051); o cliente AI lê só status e PL do mês (D-054).
+  - `…20261006000200_conferencia.sql`: `check_month` e `confirm_return` (D-052), `unmapped_assets` e `map_asset` (D-050), `month_overview` (D-054), `close_month` e `close_household_month` (D-053); o mês seguinte reabre quando o anterior muda.
+- Testes pgTAP novos (123; 263 no total): `06_importacao` (quem importa, tudo ou nada, reimportação, prévia desatualizada, moedas, apagar, mês fechado, colunas do cliente), `07_conferencia` (PL a 0,01%, fila e mapeamento, dólar, plano, Dietz igual ao de `src/report` a 1e-12, faixa e confirmação por quem importou, IPCA, transferências, mês anterior, cadeia de reabertura) e `08_fechamento` (canal, família atrasada, sem reabertura, quem vê o quê, máscara de valores).
+- `npm run db:import` (D-047): o caminho completo pela API, com login de verdade (senha e segundo fator) em usuários fictícios. `exemplo` roda setembro (bloqueio por ativo sem classe, mapeamento do comitê, conferido) e outubro (rentabilidade real: Andrade −2,49%, Barbosa −1,50% e Costa −0,69%, com o aviso de datas aproximadas), e confere a Andrade contra `src/report`. Roda também na integração contínua.
+- Conferido que os testes pegam falhas: com a tolerância do PL em 0,02% e sem a trava de mês fechado nas posições, falham exatamente os 2 testes dessas regras; com o banco refeito, todos passam. A trava de confirmação foi conferida com duas sessões ao mesmo tempo: a segunda espera e é recusada como desatualizada, sem duplicar posições.
+- `/code-review`: 10 achados, todos corrigidos (os mais sérios: "1.500" virava R$ 1,50; duas confirmações simultâneas somavam linhas; mudar o mês anterior não reabria o seguinte; mês anterior não conferido pulava a faixa de −10% a +10%).
 
 ### Etapa 1: Supabase local, acesso por linha, segundo fator e pgTAP
 
@@ -334,7 +348,9 @@ Na Fase 1, o Web Worker pode aquecer o cache ao abrir o app.
 
 ## Pendências
 
-- **Rede do ambiente (D-044):** Murilo liberou `cdn.sheetjs.com` (etapa 2, leitura de XLSX) e `api.bcb.gov.br` (etapa 3, IPCA, CDI e dólar) em 06/10/2026. A sessão em que a liberação foi feita continuou recebendo 403 nos dois endereços; conferir de novo no início da próxima sessão.
+- **Rede do ambiente (D-044):** Murilo liberou `cdn.sheetjs.com` (etapa 2, leitura de XLSX) e `api.bcb.gov.br` (etapa 3, IPCA, CDI e dólar) em 06/10/2026. A sessão em que a liberação foi feita continuou recebendo 403 nos dois endereços até o fim da etapa 2; conferir de novo no início da próxima sessão e, se responder, ligar o XLSX (D-056).
+- **Dólar do custodiante (etapa 2, risco):** se o custodiante converter o dólar por uma cotação diferente da do Banco Central, a tolerância de 0,01% pode bloquear famílias com muito dinheiro fora do país (ex.: US$ 1 milhão com 0,1% de diferença na cotação ≈ 0,045% de um PL de R$ 12 milhões). Segue o SPEC; se acontecer com dados reais, decidir com Murilo antes de qualquer ajuste.
+- **App da Fase 3:** em `household_months`, o cliente AI só pode selecionar `household_id`, `ref_date`, `official_pl` e `status` pelo nome (`select *` é recusado, D-054).
 - **Nuvem (D-042):** pela documentação do Supabase (consultada em 06/10/2026), o limite de sessão (`timebox`) exige o plano Pro ou superior, e os ganchos de tentativa de senha e de segundo fator, que fazem o bloqueio após 5 erros, só existem nos planos Team e Enterprise. Antes de criar o projeto em São Paulo, Murilo decide o plano e, se não for o Team, como fazer o bloqueio (decisão a registrar).
 - **Eventos do "E se?" sem mês (para a etapa 4 e o console):** o motor trata aportes e resgates do "E se?" como os eventos do plano. Sem mês, um aporte "em 2026" com julho já passado fica fora do cálculo, e o aviso fala em conferência. O controle do "E se?" deve sempre informar o mês.
 - **Virada do ano (D-031, item 3), para o Murilo decidir se quer:** no fechamento de 31/12, a saída sem mês do ano que acabou sai do cálculo sem aviso. Um último aviso nesse fechamento ajudaria a conferência a registrar a saída; não muda nenhum número.
