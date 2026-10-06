@@ -21,6 +21,7 @@ describe('leitura de CSV', () => {
 
   it('aspas sem fechar e formato desconhecido dão erro claro', () => {
     expect(() => readCsv('a,b\n"x,1\n')).toThrow(SheetReadError)
-    expect(() => readSheetFile('extrato.pdf', new Uint8Array())).toThrow('Formato não aceito: .pdf. Use CSV ou XLSX.')
+    expect(() => readSheetFile('extrato.pdf', new Uint8Array())).toThrow('Formato não aceito: .pdf. Use CSV.')
+    expect(() => readSheetFile('posicoes.XLSX', new Uint8Array())).toThrow('A leitura de XLSX ainda não está disponível')
   })
 })

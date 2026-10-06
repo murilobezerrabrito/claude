@@ -50,5 +50,7 @@ export function readCsv(text: string): Sheet {
 export function readSheetFile(fileName: string, bytes: Uint8Array): Sheet {
   const ext = fileName.toLowerCase().split('.').pop()
   if (ext === 'csv' || ext === 'txt') return readCsv(decodeText(bytes))
-  throw new SheetReadError(`Formato não aceito: .${ext}. Use CSV ou XLSX.`)
+  // O SheetJS vem da CDN oficial (SPEC, "Ambiente local"), ainda não instalado: até lá, só CSV.
+  if (ext === 'xlsx' || ext === 'xls') throw new SheetReadError('A leitura de XLSX ainda não está disponível: salve a planilha como CSV (UTF-8) e importe de novo.')
+  throw new SheetReadError(`Formato não aceito: .${ext}. Use CSV.`)
 }
