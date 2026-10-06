@@ -119,3 +119,8 @@ insert into public.legal_texts (id, key, version, body, status) values ('9915dcd
 insert into public.legal_texts (id, key, version, body, status) values ('176401d5-a2ca-454a-842c-06b7838a6fb8', 'primeiro_relatorio', 1, 'Este é o primeiro mês do acompanhamento. A partir do próximo, mostramos o que mudou de um mês para o outro.', 'rascunho');
 insert into public.legal_texts (id, key, version, body, status) values ('0e237a70-8156-4e69-8a75-bc6d9c0c06f1', 'aviso_completo', 1, 'As projeções deste relatório e deste aplicativo são simulações estatísticas. Elas usam premissas de retorno, risco e correlação definidas pelo comitê de investimentos da Aware Investments e as informações do seu plano. Não garantem resultados futuros, não constituem recomendação de investimento e não substituem a análise da gestão ou do seu assessor. Rentabilidade obtida no passado não representa garantia de rentabilidade futura. Os valores estão em reais de hoje, corrigidos pela inflação. Quando as premissas ou o seu plano mudam, os resultados mudam junto.', 'rascunho');
 insert into public.legal_texts (id, key, version, body, status) values ('680e04bd-5a77-4775-8a94-53c80c7574e6', 'perfil_acima_suitability', 1, 'Este perfil está acima do perfil de investidor do cliente. Use apenas como ilustração.', 'rascunho');
+
+-- Séries de mercado fictícias para a importação de exemplo (a rotina do Banco Central vem na etapa 3)
+insert into public.market_series (series_code, date, value, source) values ('dolar', '2026-09-30', 5, 'ficticio');
+insert into public.market_series (series_code, date, value, source) values ('dolar', '2026-10-30', 5.04, 'ficticio');
+insert into public.market_series (series_code, date, value, source) values ('ipca', '2026-10-01', 0.4, 'ficticio');
