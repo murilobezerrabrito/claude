@@ -1,5 +1,5 @@
 {
-  // O motor, src/report e a formatação são TypeScript puro: sem DOM, sem Node e sem dependências.
+  // O motor, src/report, src/import e a formatação são TypeScript puro: sem DOM, sem Node e sem dependências.
   // Este projeto confere isso: só a biblioteca padrão ES2023 está disponível.
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.engine.tsbuildinfo",
@@ -19,6 +19,6 @@
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true
   },
-  "include": ["src/engine", "src/report", "src/lib/format.ts"],
-  "exclude": ["src/engine/__tests__", "src/report/__tests__"]
+  "include": ["src/engine", "src/report", "src/import", "src/lib/format.ts"],
+  "exclude": ["src/engine/__tests__", "src/report/__tests__", "src/import/__tests__"]
 }

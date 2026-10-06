@@ -1,0 +1,4 @@
+data_referencia,codigo_cliente,custodiante,data_movimento,tipo,valor,moeda,descricao
+2026-10-31,AND001,Custodiante A,2026-10-15,resgate,300000.00,BRL,Resgate para reforma
+2026-10-31,BAR001,Corretora X,2026-10-05,aporte,50000.00,BRL,Aporte mensal
+2026-10-31,COS001,Custodiante B,,resgate,40000.00,BRL,Retirada sem data no extrato

@@ -15,6 +15,9 @@ coverage
 *.xls
 *.csv
 !reference/**/*.csv
+# Exceção: os arquivos de exemplo fictícios da importação (só a Família Andrade e as outras famílias fictícias)
+!src/data/importacao/exemplo-*.csv
+!src/data/importacao/exemplo-*.xlsx
 
 # Logs
 logs

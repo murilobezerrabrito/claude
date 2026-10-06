@@ -1,0 +1,22 @@
+{
+  "descricao": "Classe de cada ativo fictício dos arquivos de exemplo (o comitê mapeia no banco). Cotações fictícias do dólar de venda: 5,0000 em 30/09/2026 e 5,0400 em 30/10/2026 (31/10 é sábado).",
+  "classes": {
+    "CDB-BANCOX-2028": "POS",
+    "LFT-2029": "POS",
+    "NTNB-2035": "INF",
+    "NTNB-2045": "INF",
+    "LTN-2029": "PRE",
+    "DEB-INFRA-Z": "CRED",
+    "FUNDO-CRED-W": "CRED",
+    "FUNDO-MM-Y": "MM",
+    "FUNDO-ACOES-K": "ACOES",
+    "FII-LOG-Q": "FII",
+    "ETF-GLOBAL-Z": "INTL",
+    "CDB-BANCOY-2027": "POS",
+    "ETF-ACOES-BR": "ACOES"
+  },
+  "dolar": {
+    "2026-09-30": 5.0,
+    "2026-10-30": 5.04
+  }
+}
