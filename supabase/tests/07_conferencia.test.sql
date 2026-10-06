@@ -2,7 +2,7 @@
 -- canal"): PL com tolerância de 0,01%, ativo sem classe bloqueia até o comitê mapear, dólar da data de referência,
 -- plano em vigor, rentabilidade real fora de −10% a +10% confirmada por quem importou, e o mesmo Dietz de src/report.
 begin;
-select plan(40);
+select plan(41);
 
 \set G1 'a7000000-0000-4000-8000-000000000001'
 \set G2 'a7000000-0000-4000-8000-000000000002'
@@ -189,17 +189,19 @@ select ok(pg_temp.tem(:'HB', '2026-10-31', 'rentabilidade_confirmada'), 'a confi
 set local role authenticated;
 select pg_temp.entrar(:'G1');
 select pg_temp.importar('posicoes', jsonb_build_array(
-  pg_temp.pos(2, 'T-CA', 'T-C-USD', 1000, 'USD', '2026-11-30'), pg_temp.pos(3, 'T-CB', 'T-C-POS', 1310000, 'BRL', '2026-11-30'))) is not null as ok_nov \gset
+  pg_temp.pos(2, 'T-CA', 'T-C-USD', 1000, 'USD', '2026-11-30'), pg_temp.pos(3, 'T-CB', 'T-C-POS', 1310500, 'BRL', '2026-11-30'))) is not null as ok_nov \gset
 select pg_temp.importar('movimentos', jsonb_build_array(
-  pg_temp.mov(2, 'T-CB', 'aporte', 1000, '2026-11-10', '2026-11-30'), pg_temp.mov(3, 'T-CB', 'resgate', 1000, '2026-11-10', '2026-11-30'))) is not null as ok_nmov \gset
+  pg_temp.mov(2, 'T-CB', 'aporte', 1000, '2026-11-10', '2026-11-30'), pg_temp.mov(3, 'T-CB', 'resgate', 1000, '2026-11-10', '2026-11-30'),
+  pg_temp.mov(4, 'T-CB', 'aporte', 500, null, '2026-11-30'))) is not null as ok_nmov \gset
 select pg_temp.pl('T-CA', '2026-11-30', 5000);
-select pg_temp.pl('T-CB', '2026-11-30', 1310000);
+select pg_temp.pl('T-CB', '2026-11-30', 1310500);
 select public.check_month('2026-11-30') is not null as ok_conf_nov \gset
 reset role;
 select ok((pg_temp.mes(:'HA', '2026-11-30')).status = 'bloqueado' and pg_temp.tem(:'HA', '2026-11-30', 'sem_dolar'), 'sem dólar da data: bloqueado');
 select ok((pg_temp.mes(:'HB', '2026-11-30')).status = 'conferido' and pg_temp.tem(:'HB', '2026-11-30', 'sem_ipca')
           and (pg_temp.mes(:'HB', '2026-11-30')).checks ->> 'real_return' is null, 'sem IPCA: faixa no retorno nominal, com aviso');
 select ok(pg_temp.tem(:'HB', '2026-11-30', 'possivel_transferencia'), 'aporte e resgate iguais no mesmo dia: aviso de transferência');
+select ok(pg_temp.tem(:'HB', '2026-11-30', 'datas_aproximadas'), 'movimento sem data: aviso de datas aproximadas');
 
 -- Status só pelas mudanças permitidas ----------------------------------------------------------------------------
 

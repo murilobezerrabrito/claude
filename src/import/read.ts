@@ -78,13 +78,19 @@ function readTable<C extends string>(sheet: Sheet, columns: readonly C[], c: Col
   if (c.errors.length > 0) return undefined
 
   const rows: { line: number; row: Row<C> }[] = []
+  let dataLines = 0
   body.forEach((cells, i) => {
     if (cells.every(isBlank)) return
+    dataLines += 1
+    if (cells.slice(header.length).some((cell) => !isBlank(cell))) {
+      addError(c, i + 2, 'A linha tem mais colunas que o cabeçalho. Num CSV separado por vírgula, número com vírgula decimal precisa de aspas (ou use ponto e vírgula como separador).')
+      return
+    }
     const row = {} as Row<C>
     for (const col of columns) row[col] = cells[index.get(col) as number]
     rows.push({ line: i + 2, row })
   })
-  if (rows.length === 0) addError(c, undefined, 'O arquivo não tem nenhuma linha de dados.')
+  if (dataLines === 0) addError(c, undefined, 'O arquivo não tem nenhuma linha de dados.')
   return rows
 }
 

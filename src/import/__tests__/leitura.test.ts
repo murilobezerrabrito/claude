@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readCsv } from '../../lib/planilhas.ts'
 import { MAX_ERRORS, readFlows, readOfficialPl, readPositions } from '../read.ts'
 import type { ReadResult } from '../types.ts'
+import { decimalText, flowsToRpc, officialPlToRpc, positionsToRpc } from '../rpc.ts'
 import { parseDecimal, toBrl } from '../values.ts'
 import { exampleSheet, FLOWS_HEADER, POSITIONS_HEADER, positionLine, sheetOf } from './helpers.ts'
 
@@ -115,6 +116,11 @@ describe('posições: regras do SPEC', () => {
     expect(errors[0].line).toBe(5)
   })
 
+  it('linha com mais colunas que o cabeçalho (vírgula decimal sem aspas) é recusada com explicação', () => {
+    const errors = errorsOf(readPositions(readCsv(`${POSITIONS_HEADER}\n${positionLine({ valor_liquido: '512020,50' })}\n`)))
+    expect(errors).toEqual([{ line: 2, message: 'A linha tem mais colunas que o cabeçalho. Num CSV separado por vírgula, número com vírgula decimal precisa de aspas (ou use ponto e vírgula como separador).' }])
+  })
+
   it('arquivo vazio ou só com cabeçalho é recusado', () => {
     expect(errorsOf(readPositions({ rows: [] }))[0].message).toBe('O arquivo está vazio: falta o cabeçalho com os nomes das colunas.')
     expect(errorsOf(readPositions(sheetOf(POSITIONS_HEADER)))[0].message).toBe('O arquivo não tem nenhuma linha de dados.')
@@ -188,5 +194,22 @@ describe('números e conversão de moeda', () => {
     expect(toBrl(33.33, 5.0412)).toBe(168.02)
     expect(toBrl(1_234_567.89, 5.4321)).toBe(6_706_296.24)
     expect(() => toBrl(1, 0)).toThrow(RangeError)
+  })
+})
+
+describe('linhas para o banco', () => {
+  it('números como texto decimal, sem expoente, e campos opcionais nulos', () => {
+    expect([decimalText(1e-8, 8), decimalText(1830000, 2), decimalText(6.56419969, 8), decimalText(0, 2)]).toEqual(['0.00000001', '1830000', '6.56419969', '0'])
+    const [p] = rowsOf(readPositions(exampleSheet('exemplo-posicoes-2026-09.csv')))
+    expect(positionsToRpc([p])[0]).toEqual({
+      linha: 2, data_referencia: '2026-09-30', codigo_cliente: 'AND001', custodiante: 'Custodiante A', codigo_ativo: 'CDB-BANCOX-2028',
+      isin: null, cnpj: null, nome_ativo: 'CDB Banco X 2028', quantidade: '1', preco_unitario: '1830000', valor_bruto: '1830000',
+      valor_liquido: '1800000', moeda: 'BRL',
+    })
+    const flows = rowsOf(readFlows(exampleSheet('exemplo-movimentos-2026-10.csv')))
+    expect(flowsToRpc(flows)[2]).toMatchObject({ data_movimento: null, tipo: 'resgate', valor: '40000' })
+    expect(officialPlToRpc(rowsOf(readOfficialPl(exampleSheet('exemplo-pl-2026-10.csv'))))[0]).toEqual({
+      linha: 2, data_referencia: '2026-10-31', codigo_cliente: 'AND001', pl_oficial: '11450961.29',
+    })
   })
 })

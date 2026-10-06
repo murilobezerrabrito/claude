@@ -43,6 +43,8 @@ jobs:
         run: npx supabase start -x studio,imgproxy,logflare,vector,supavisor,realtime,mailpit,postgres-meta,edge-runtime
       - name: Testes do banco (pgTAP)
         run: npx supabase test db
+      - name: Importação de exemplo de ponta a ponta (login com segundo fator e API)
+        run: npm run db:import -- exemplo
       - name: Parar o Supabase
         if: always()
         run: npx supabase stop --no-backup

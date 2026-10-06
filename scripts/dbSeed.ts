@@ -173,9 +173,12 @@ export function buildSeedSql(): string {
     '-- Usuários e papéis',
   ]
   for (const u of USERS) {
+    // Os campos de token vazios, e não nulos: o Auth não lista usuários com esses campos nulos.
     out.push(
-      `insert into auth.users (id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at) values (` +
-        `${q(userId(u.key))}, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', ${q(u.email)}, '{}'::jsonb, '{}'::jsonb, '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z');`,
+      `insert into auth.users (id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, ` +
+        `confirmation_token, recovery_token, email_change_token_new, email_change, email_change_token_current, phone_change, phone_change_token, reauthentication_token) values (` +
+        `${q(userId(u.key))}, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', ${q(u.email)}, '{}'::jsonb, '{}'::jsonb, '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', ` +
+        `'', '', '', '', '', '', '', '');`,
     )
   }
 

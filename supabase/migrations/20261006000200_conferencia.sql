@@ -5,7 +5,7 @@
 --   falta do PL oficial, soma das posições fora de 0,01% do PL, família sem plano e rentabilidade real fora de
 --   −10% a +10% sem a confirmação de quem importou;
 -- - avisa: plano com mais de 12 meses, mês sem aportes nem resgates, possível transferência entre contas, primeiro mês
---   (sem rentabilidade) e falta do IPCA (a faixa é conferida no retorno nominal).
+--   (sem rentabilidade), movimento sem data (datas aproximadas) e falta do IPCA (a faixa é conferida no retorno nominal).
 -- Fechamento: o canal fecha as famílias já rodadas; as outras ficam de fora, com aviso, e podem fechar depois.
 
 -- Porcentagem em português (vírgula decimal e sinal de menos tipográfico).
@@ -173,6 +173,10 @@ begin
            coalesce(bool_or(flow_date is null), false)
       into v_net, v_weighted, v_approx
       from public.flows where household_id = p_household and ref_date = p_ref;
+    if v_approx then
+      v_items := v_items || jsonb_build_object('code', 'datas_aproximadas', 'level', 'aviso',
+                   'message', 'Movimento sem data: a rentabilidade conta no meio do mês e sai marcada como "datas aproximadas".');
+    end if;
     v_base := v_prev.official_pl + v_weighted;
     if v_base <= 0 then
       v_items := v_items || jsonb_build_object('code', 'sem_base', 'level', 'aviso',
