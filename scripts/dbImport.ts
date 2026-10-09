@@ -11,8 +11,6 @@
 //   situacao <AAAA-MM-DD> [cadm|ai]                        situação do mês
 //   exemplo                                                os arquivos de exemplo da Andrade, Barbosa e Costa, de ponta a ponta
 
-import { execFileSync } from 'node:child_process'
-import { createHmac, randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -28,32 +26,14 @@ import {
   type ImportIssue,
   type ReadResult,
 } from '../src/import/index.ts'
+import type { CheckResult, ImportConfirmResult, ImportPreviewResult, MappingQueue, MonthOverview, OfficialPlResult } from '../src/lib/apiTypes.ts'
 import { formatMoneyExact, formatSignedPercent } from '../src/lib/format.ts'
 import { readSheetFile } from '../src/lib/planilhas.ts'
+import { call, ensureUser, localStack, newPassword, totp, type Local } from './localSupabase.ts'
 import { monthReturn } from '../src/report/performance.ts'
 import type { HouseholdMonths } from '../src/report/types.ts'
 
 const root = new URL('..', import.meta.url)
-
-interface Local {
-  url: string
-  publishable: string
-  secret: string
-}
-
-/** Endereço e chaves do Supabase local (`supabase status`). Recusa o que não for local. */
-function localStack(): Local {
-  let out: string
-  try {
-    out = execFileSync('npx', ['supabase', 'status', '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
-  } catch {
-    throw new Error('O Supabase local não está rodando: use npm run db:start.')
-  }
-  const s = JSON.parse(out.slice(out.indexOf('{'))) as Record<string, string>
-  const host = new URL(s.API_URL).hostname
-  if (host !== '127.0.0.1' && host !== 'localhost') throw new Error(`Só o Supabase local: ${s.API_URL} não é local.`)
-  return { url: s.API_URL, publishable: s.PUBLISHABLE_KEY, secret: s.SECRET_KEY }
-}
 
 // Usuários fictícios do comando: criados no Auth local e ligados ao papel; senha nova e segundo fator novo a cada uso.
 const USERS = {
@@ -62,57 +42,11 @@ const USERS = {
 } as const
 type UserKind = keyof typeof USERS
 
-async function call(local: Local, path: string, init: { method?: string; token?: string; admin?: boolean; body?: unknown }): Promise<unknown> {
-  const headers: Record<string, string> = { apikey: init.admin ? local.secret : local.publishable, 'Content-Type': 'application/json' }
-  if (init.token) headers.Authorization = `Bearer ${init.token}`
-  const res = await fetch(`${local.url}${path}`, {
-    method: init.method ?? (init.body === undefined ? 'GET' : 'POST'),
-    headers,
-    body: init.body === undefined ? undefined : JSON.stringify(init.body),
-  })
-  const text = await res.text()
-  const body: unknown = text === '' ? null : JSON.parse(text)
-  if (!res.ok) {
-    const b = (body ?? {}) as Record<string, unknown>
-    throw new Error(`${path}: ${String(b.message ?? b.msg ?? b.error_description ?? res.status)}`)
-  }
-  return body
-}
-
-/** Código TOTP de 6 dígitos (RFC 6238, passo de 30 s) a partir do segredo em base32. */
-function totp(secret: string, now = Date.now()): string {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
-  const bytes: number[] = []
-  let bits = 0
-  let value = 0
-  for (const c of secret.replace(/=+$/, '').toUpperCase()) {
-    value = (value << 5) | alphabet.indexOf(c)
-    bits += 5
-    if (bits >= 8) {
-      bytes.push((value >>> (bits - 8)) & 255)
-      bits -= 8
-    }
-  }
-  const counter = Buffer.alloc(8)
-  counter.writeBigUInt64BE(BigInt(Math.floor(now / 30_000)))
-  const h = createHmac('sha1', Buffer.from(bytes)).update(counter).digest()
-  const offset = h[h.length - 1] & 15
-  return String((h.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).padStart(6, '0')
-}
-
 /** Entra como o usuário fictício, com senha e segundo fator (aal2). Devolve o token de acesso. */
 async function login(local: Local, kind: UserKind): Promise<string> {
   const { email, role } = USERS[kind]
-  const password = `${randomBytes(18).toString('base64url')}aA1!`
-  const list = (await call(local, '/auth/v1/admin/users?per_page=1000', { admin: true })) as { users: { id: string; email: string }[] }
-  let user = list.users.find((u) => u.email === email)
-  if (user) await call(local, `/auth/v1/admin/users/${user.id}`, { method: 'PUT', admin: true, body: { password } })
-  else user = (await call(local, '/auth/v1/admin/users', { admin: true, body: { email, password, email_confirm: true } })) as { id: string; email: string }
-  const roles = (await call(local, `/rest/v1/user_roles?user_id=eq.${user.id}&role=eq.${role}&select=id`, { admin: true })) as unknown[]
-  if (roles.length === 0) await call(local, '/rest/v1/user_roles', { admin: true, body: { user_id: user.id, role } })
-  const factors = (await call(local, `/auth/v1/admin/users/${user.id}/factors`, { admin: true })) as { id: string }[]
-  for (const f of factors) await call(local, `/auth/v1/admin/users/${user.id}/factors/${f.id}`, { method: 'DELETE', admin: true })
-
+  const password = newPassword()
+  await ensureUser(local, email, role, password)
   const session = (await call(local, '/auth/v1/token?grant_type=password', { body: { email, password } })) as { access_token: string }
   const factor = (await call(local, '/auth/v1/factors', { token: session.access_token, body: { factor_type: 'totp', friendly_name: 'db:import' } })) as {
     id: string
@@ -168,19 +102,6 @@ function readFile<T>(path: string, read: (s: ReturnType<typeof readSheetFile>) =
   return result
 }
 
-interface ServerPreview {
-  ok: boolean
-  errors?: ImportIssue[]
-  batch_id: string
-  ref_date: string
-  rows: number
-  families: { code: string; name: string; rows: number; net_by_currency?: Record<string, number>; contributions?: Record<string, number>; withdrawals?: Record<string, number>; replaces: number; official_pl: number | null }[]
-  new_assets: { asset_code: string }[]
-  unmapped_assets: string[]
-  warnings: ImportIssue[]
-  total_value: number | null
-}
-
 async function preview(api: Api, kind: 'posicoes' | 'movimentos', path: string, confirm: boolean) {
   console.log(`\n▸ ${kind === 'posicoes' ? 'Posições' : 'Aportes e resgates'}: ${basename(path)}`)
   let rows: unknown[]
@@ -196,9 +117,9 @@ async function preview(api: Api, kind: 'posicoes' | 'movimentos', path: string, 
     printIssues('  Avisos:', local.warnings)
     rows = flowsToRpc(file.rows)
   }
-  const p = await api.rpc<ServerPreview>('gestao', 'import_preview', { p_kind: kind, p_file_name: basename(path), p_rows: rows })
+  const p = await api.rpc<ImportPreviewResult>('gestao', 'import_preview', { p_kind: kind, p_file_name: basename(path), p_rows: rows })
   if (!p.ok) {
-    printIssues('  O banco recusou o arquivo (nada foi gravado):', p.errors ?? [])
+    printIssues('  O banco recusou o arquivo (nada foi gravado):', p.errors)
     process.exit(1)
   }
   console.log(`  Prévia do banco (lote ${p.batch_id}):`)
@@ -215,26 +136,19 @@ async function preview(api: Api, kind: 'posicoes' | 'movimentos', path: string, 
     console.log('  Prévia guardada; para gravar, rode de novo com --confirmar.')
     return
   }
-  const done = await api.rpc<{ rows: number; replaced: number; new_assets: number }>('gestao', 'import_confirm', { p_batch: p.batch_id })
+  const done = await api.rpc<ImportConfirmResult>('gestao', 'import_confirm', { p_batch: p.batch_id })
   console.log(`  Confirmado: ${done.rows} linhas gravadas, ${done.replaced} substituídas, ${done.new_assets} ativos novos.`)
 }
 
 async function officialPl(api: Api, path: string) {
   console.log(`\n▸ PL oficial: ${basename(path)}`)
   const file = readFile(path, readOfficialPl)
-  const r = await api.rpc<{ ok: boolean; errors?: ImportIssue[]; families: number; changed: number }>('gestao', 'set_official_pl', { p_rows: officialPlToRpc(file.rows) })
+  const r = await api.rpc<OfficialPlResult>('gestao', 'set_official_pl', { p_rows: officialPlToRpc(file.rows) })
   if (!r.ok) {
-    printIssues('  O banco recusou o arquivo:', r.errors ?? [])
+    printIssues('  O banco recusou o arquivo:', r.errors)
     process.exit(1)
   }
   console.log(`  ${r.families} famílias; ${r.changed} com PL novo.`)
-}
-
-interface CheckResult {
-  code: string
-  name: string
-  status: string
-  checks: { items: { code: string; level: string; message: string }[]; positions_total: number | null; official_pl: number | null; real_return: number | null; nominal_return: number | null }
 }
 
 async function check(api: Api, refDate: string): Promise<CheckResult[]> {
@@ -249,13 +163,8 @@ async function check(api: Api, refDate: string): Promise<CheckResult[]> {
   return results
 }
 
-interface Queue {
-  assets: { id: string; asset_code: string; name: string; families_waiting: number; suggestion: { asset_code: string; class_code: string } | null }[]
-  classes: { class_code: string; name: string }[]
-}
-
-async function queue(api: Api): Promise<Queue> {
-  const q = await api.rpc<Queue>('comite', 'unmapped_assets')
+async function queue(api: Api): Promise<MappingQueue> {
+  const q = await api.rpc<MappingQueue>('comite', 'unmapped_assets')
   console.log(`\n▸ Fila de mapeamento: ${q.assets.length} ativos sem classe`)
   for (const a of q.assets) {
     const s = a.suggestion ? ` (sugestão: ${a.suggestion.class_code}, como ${a.suggestion.asset_code})` : ''
@@ -265,21 +174,15 @@ async function queue(api: Api): Promise<Queue> {
   return q
 }
 
-async function mapAsset(api: Api, q: Queue, code: string, classCode: string) {
+async function mapAsset(api: Api, q: MappingQueue, code: string, classCode: string) {
   const asset = q.assets.find((a) => a.asset_code === code)
   if (!asset) throw new Error(`O ativo ${code} não está na fila.`)
   const r = await api.rpc<{ months_reset: number }>('comite', 'map_asset', { p_asset: asset.id, p_class_code: classCode })
   console.log(`  ${code} → ${classCode} (meses reabertos para a conferência: ${r.months_reset})`)
 }
 
-interface Overview {
-  families: { code: string; name: string; channel: string; status: string; positions: number; flows: number }[]
-  closings: { channel: string; status: string }[]
-  batches: { kind: string; file_name: string; status: string; rows: number }[]
-}
-
 async function overview(api: Api, refDate: string, channel?: string) {
-  const o = await api.rpc<Overview>('gestao', 'month_overview', { p_ref_date: refDate, ...(channel ? { p_channel: channel } : {}) })
+  const o = await api.rpc<MonthOverview>('gestao', 'month_overview', { p_ref_date: refDate, ...(channel ? { p_channel: channel } : {}) })
   console.log(`\n▸ Situação de ${refDate}`)
   for (const f of o.families) console.log(`  [${f.channel}] ${f.code} ${f.name}: ${f.status} (${plural(f.positions, 'posição', 'posições')}, ${plural(f.flows, 'movimento', 'movimentos')})`)
   for (const c of o.closings) console.log(`  Canal ${c.channel}: ${c.status}`)
