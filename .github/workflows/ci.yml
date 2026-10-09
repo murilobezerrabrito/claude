@@ -45,6 +45,10 @@ jobs:
         run: npx supabase test db
       - name: Importação de exemplo de ponta a ponta (login com segundo fator e API)
         run: npm run db:import -- exemplo
+      - name: Navegador para os testes do console
+        run: npx playwright install --with-deps chromium
+      - name: Console de ponta a ponta (Playwright)
+        run: npm run test:e2e
       - name: Parar o Supabase
         if: always()
         run: npx supabase stop --no-backup
