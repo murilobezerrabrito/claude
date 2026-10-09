@@ -15,11 +15,12 @@ import {
 import type { ImportConfirmResult, ImportPreviewResult, OfficialPlResult } from '../../lib/apiTypes.ts'
 import { readSheetFile } from '../../lib/planilhas.ts'
 import { archiveSheet, errorText, rpc, storageName } from '../api.ts'
+import { FilePicker } from '../components.tsx'
 import { byCurrency, CHANNEL_LABELS, money, plural } from '../display.ts'
 import { Alert } from '../ui/alert.tsx'
 import { Button } from '../ui/button.tsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card.tsx'
-import { Input, Select } from '../ui/input.tsx'
+import { Select } from '../ui/input.tsx'
 import { Label } from '../ui/label.tsx'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table.tsx'
 
@@ -160,13 +161,13 @@ export function ImportCard({ onImported }: { onImported: (refDate: string) => vo
           </div>
           <div className="flex min-w-64 flex-1 flex-col gap-2">
             <Label htmlFor="arquivo">Arquivo</Label>
-            <Input
+            <FilePicker
               key={inputKey}
               id="arquivo"
-              type="file"
               accept=".csv,.txt,.xlsx"
               disabled={busy || preview !== null}
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              fileName={file?.name ?? null}
+              onFile={setFile}
             />
           </div>
           <Button onClick={read} disabled={!file || busy || preview !== null}>
@@ -191,7 +192,11 @@ export function ImportCard({ onImported }: { onImported: (refDate: string) => vo
           <div className="flex flex-col gap-3 rounded-md border p-4">
             <p className="text-sm">
               Prévia de <strong>{preview.file_name}</strong>: {plural(preview.rows, 'linha', 'linhas')} com data de referência {preview.ref_date.split('-').reverse().join('/')}.
-              {preview.kind === 'posicoes' ? ` Total em reais: ${money(preview.total_value)}.` : ''}
+              {preview.kind === 'posicoes'
+                ? typeof preview.total_value === 'number'
+                  ? ` Total em reais: ${money(preview.total_value)}.`
+                  : ' O total em reais sai na conferência, com a cotação do dólar da data de referência.'
+                : ''}
             </p>
             <Table>
               <TableHeader>

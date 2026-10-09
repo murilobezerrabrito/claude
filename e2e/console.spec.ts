@@ -23,7 +23,7 @@ test('gestão importa e confere setembro; o comitê mapeia os ativos', async ({ 
 
   await signInWithEnrollment(page, gestao)
   await page.getByRole('link', { name: 'Mês' }).click()
-  await page.getByLabel('Mês de referência').fill('2026-09')
+  await page.getByLabel('Mês de referência').selectOption('2026-09')
 
   // Posições: prévia e confirmação.
   await page.getByLabel('Planilha').selectOption('posicoes')

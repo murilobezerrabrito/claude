@@ -7,7 +7,7 @@ import { Fragment, useEffect, useState } from 'react'
 import type { Channel, CheckResult, CloseMonthResult, MonthOverview, MonthOverviewFamily } from '../../lib/apiTypes.ts'
 import { formatDate, formatMonthLabel, formatSignedPercent } from '../../lib/format.ts'
 import { errorText, rpc } from '../api.ts'
-import { CheckItems, StatusBadge } from '../components.tsx'
+import { CheckItems, MonthSelect, StatusBadge } from '../components.tsx'
 import { CHANNEL_LABELS, money, monthEnd, plural, previousMonth, STATUS_LABELS } from '../display.ts'
 import { useSession } from '../session.tsx'
 import { PageTitle } from '../Shell.tsx'
@@ -16,7 +16,6 @@ import { Badge } from '../ui/badge.tsx'
 import { Button } from '../ui/button.tsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card.tsx'
 import { ConfirmDialog } from '../ui/dialog.tsx'
-import { Input } from '../ui/input.tsx'
 import { Label } from '../ui/label.tsx'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table.tsx'
 import { ImportCard } from './ImportCard.tsx'
@@ -91,7 +90,7 @@ export function MonthPage() {
         <div className="flex items-end gap-2">
           <div className="flex flex-col gap-2">
             <Label htmlFor="mes">Mês de referência</Label>
-            <Input id="mes" type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} className="w-44" />
+            <MonthSelect id="mes" value={month} onChange={setMonth} />
           </div>
           <Button variant="outline" size="icon" onClick={reload} aria-label="Atualizar">
             <RefreshCw />
@@ -174,9 +173,9 @@ export function MonthPage() {
                       <TableCell>
                         <StatusBadge status={f.status} />
                       </TableCell>
-                      <TableCell className="text-right">{money(f.official_pl)}</TableCell>
-                      <TableCell className="text-right">{returnText(f)}</TableCell>
-                      <TableCell className="text-right text-muted-foreground">
+                      <TableCell className="text-right whitespace-nowrap">{money(f.official_pl)}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">{returnText(f)}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap text-muted-foreground">
                         {f.positions} pos. · {f.flows} mov.
                       </TableCell>
                       {isGestao ? (

@@ -1,7 +1,7 @@
 // Formatação e rótulos do console (SPEC, "Formatação de números": valores exatos em tabelas detalhadas).
 
 import type { MonthStatus } from '../lib/apiTypes.ts'
-import { formatMoneyExact } from '../lib/format.ts'
+import { formatMoneyExact, monthName } from '../lib/format.ts'
 import { lastDayOfMonth } from '../report/inflation.ts'
 
 /** Valor em reais, ou "—" quando não há (ou quando o banco escondeu o valor). */
@@ -48,3 +48,12 @@ export const STATUS_TONES: Record<MonthStatus | 'pendente', 'neutral' | 'green' 
 }
 
 export const CHANNEL_LABELS = { cadm: 'CADM', ai: 'AI' } as const
+
+/** Os últimos `count` meses até o mês de hoje, do mais recente ao mais antigo, como "outubro de 2026". */
+export function recentMonths(count = 36, today = new Date()): { value: string; label: string }[] {
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1)
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    return { value, label: `${monthName(value)} de ${d.getFullYear()}` }
+  })
+}

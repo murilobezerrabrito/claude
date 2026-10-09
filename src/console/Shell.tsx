@@ -26,52 +26,54 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
   ]
   return (
     <div className="flex min-h-svh flex-col md:flex-row">
-      <aside className="flex shrink-0 flex-col bg-sidebar text-sidebar-foreground md:sticky md:top-0 md:h-svh md:w-60">
-        <p className="px-5 pt-5 pb-3 font-serif text-xl font-semibold tracking-wide">
-          AWARE <span className="font-normal text-sidebar-muted">Objective</span>
-        </p>
-        <nav aria-label="Seções do console" className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col md:overflow-visible">
-          {items
-            .filter((i) => i.visible)
-            .map((i) => (
-              <NavLink
-                key={i.to}
-                to={i.to}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-2 rounded-md px-3 py-2 text-sm whitespace-nowrap text-sidebar-muted hover:text-sidebar-foreground [&_svg]:size-4',
-                    isActive && 'bg-sidebar-active text-sidebar-foreground',
-                  )
-                }
+      <aside className="shrink-0 bg-sidebar text-sidebar-foreground md:w-60">
+        <div className="flex flex-col md:sticky md:top-0 md:h-svh">
+          <p className="px-5 pt-5 pb-3 font-serif text-xl font-semibold tracking-wide">
+            AWARE <span className="font-normal text-sidebar-muted">Objective</span>
+          </p>
+          <nav aria-label="Seções do console" className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col md:overflow-visible">
+            {items
+              .filter((i) => i.visible)
+              .map((i) => (
+                <NavLink
+                  key={i.to}
+                  to={i.to}
+                  className={({ isActive }) =>
+                    cn(
+                      'flex items-center gap-2 rounded-md px-3 py-2 text-sm whitespace-nowrap text-sidebar-muted hover:text-sidebar-foreground [&_svg]:size-4',
+                      isActive && 'bg-sidebar-active text-sidebar-foreground',
+                    )
+                  }
+                >
+                  {i.icon}
+                  {i.label}
+                </NavLink>
+              ))}
+          </nav>
+          <div className="mt-auto hidden flex-col gap-3 border-t border-white/10 p-4 text-xs text-sidebar-muted md:flex">
+            <div>
+              <p className="truncate text-sidebar-foreground" title={session.user.email}>
+                {session.user.email}
+              </p>
+              <p>{[...new Set(session.roles.map((r) => ROLE_LABELS[r.role]))].join(', ')}</p>
+            </div>
+            <label className="flex items-center justify-between gap-2">
+              Tema
+              <Select
+                aria-label="Tema"
+                value={theme}
+                onChange={(e) => setTheme(e.target.value as ThemeChoice)}
+                className="h-8 border-white/20 bg-sidebar-active text-xs text-sidebar-foreground"
               >
-                {i.icon}
-                {i.label}
-              </NavLink>
-            ))}
-        </nav>
-        <div className="mt-auto hidden flex-col gap-3 border-t border-white/10 p-4 text-xs text-sidebar-muted md:flex">
-          <div>
-            <p className="truncate text-sidebar-foreground" title={session.user.email}>
-              {session.user.email}
-            </p>
-            <p>{[...new Set(session.roles.map((r) => ROLE_LABELS[r.role]))].join(', ')}</p>
+                <option value="sistema">Do sistema</option>
+                <option value="claro">Claro</option>
+                <option value="escuro">Escuro</option>
+              </Select>
+            </label>
+            <button type="button" onClick={onSignOut} className="flex items-center gap-2 text-sidebar-foreground hover:underline [&_svg]:size-4">
+              <LogOut /> Sair
+            </button>
           </div>
-          <label className="flex items-center justify-between gap-2">
-            Tema
-            <Select
-              aria-label="Tema"
-              value={theme}
-              onChange={(e) => setTheme(e.target.value as ThemeChoice)}
-              className="h-8 border-white/20 bg-sidebar-active text-xs text-sidebar-foreground"
-            >
-              <option value="sistema">Do sistema</option>
-              <option value="claro">Claro</option>
-              <option value="escuro">Escuro</option>
-            </Select>
-          </label>
-          <button type="button" onClick={onSignOut} className="flex items-center gap-2 text-sidebar-foreground hover:underline [&_svg]:size-4">
-            <LogOut /> Sair
-          </button>
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
