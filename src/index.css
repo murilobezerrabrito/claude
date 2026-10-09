@@ -1,152 +1,127 @@
+/* Console do AWARE Objective: Tailwind com os tokens da identidade (SPEC, "Design e linguagem"; D-040): azul-escuro e
+   branco, cor de estado só nas faixas, temas claro e escuro. Fraunces nos títulos e números, IBM Plex Sans no texto. */
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  color-scheme: light dark;
-  font-family: system-ui, sans-serif;
-  --fg: #0d1b2e;
-  --muted: #56637a;
-  --line: #d8dfe9;
-  --bg: #f1f4f8;
-  --surface: #ffffff;
-  --accent: #0b1f3a;
-  --on-accent: #ffffff;
-  --bad: #b0412f;
-  color: var(--fg);
-  background: var(--bg);
+  --background: #f4f6fa;
+  --foreground: #0d1b2e;
+  --card: #ffffff;
+  --card-foreground: #0d1b2e;
+  --primary: #0b1f3a;
+  --primary-foreground: #ffffff;
+  --secondary: #e1e8f2;
+  --secondary-foreground: #0b1f3a;
+  --muted: #eef2f7;
+  --muted-foreground: #56637a;
+  --border: #d8dfe9;
+  --input: #c3cddc;
+  --ring: #2a6db5;
+  --destructive: #b0412f;
+  --destructive-soft: #f5ddd8;
+  --sidebar: #0b1f3a;
+  --sidebar-foreground: #ffffff;
+  --sidebar-muted: #a9b9d0;
+  --sidebar-active: #14335c;
+  /* Faixas da chance (SPEC, "Faixas da probabilidade"): sempre com texto ao lado. */
+  --band-blue: #2a6db5;
+  --band-blue-soft: #dde8f6;
+  --band-green: #2f7d4f;
+  --band-green-soft: #dcefe2;
+  --band-yellow: #8a5f0f;
+  --band-yellow-soft: #f6ead2;
+  --band-red: #b0412f;
+  --band-red-soft: #f5ddd8;
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --fg: #e6ecf5;
-    --muted: #9aa8bd;
-    --line: #26344a;
-    --bg: #07111f;
-    --surface: #0f1d33;
-    --accent: #8fb0dc;
-    --on-accent: #07111f;
-    --bad: #e07a66;
+.dark {
+  --background: #07111f;
+  --foreground: #e6ecf5;
+  --card: #0f1d33;
+  --card-foreground: #e6ecf5;
+  --primary: #8fb0dc;
+  --primary-foreground: #07111f;
+  --secondary: #1a2c47;
+  --secondary-foreground: #e6ecf5;
+  --muted: #13233b;
+  --muted-foreground: #9aa8bd;
+  --border: #26344a;
+  --input: #34455f;
+  --ring: #8fb0dc;
+  --destructive: #e88a76;
+  --destructive-soft: #3a1d18;
+  --sidebar: #050d18;
+  --sidebar-foreground: #e6ecf5;
+  --sidebar-muted: #8b9bb3;
+  --sidebar-active: #13233b;
+  --band-blue: #8fb6ec;
+  --band-blue-soft: #15263f;
+  --band-green: #7fcf9c;
+  --band-green-soft: #12291c;
+  --band-yellow: #e5b55c;
+  --band-yellow-soft: #2e2410;
+  --band-red: #ef9a87;
+  --band-red-soft: #36191a;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-band-blue: var(--band-blue);
+  --color-band-blue-soft: var(--band-blue-soft);
+  --color-band-green: var(--band-green);
+  --color-band-green-soft: var(--band-green-soft);
+  --color-band-yellow: var(--band-yellow);
+  --color-band-yellow-soft: var(--band-yellow-soft);
+  --color-band-red: var(--band-red);
+  --color-band-red-soft: var(--band-red-soft);
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-serif: 'Fraunces', Georgia, serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
   }
-}
-
-body {
-  margin: 0;
-}
-
-.preview {
-  max-width: 76rem;
-  margin: 0 auto;
-  padding: 1.5rem 1rem 2rem;
-}
-
-.preview-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  align-items: flex-end;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-}
-
-.preview-header h1 {
-  margin: 0.2rem 0;
-  font-size: 1.6rem;
-}
-
-.eyebrow,
-.meta {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-.actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.button {
-  display: inline-block;
-  padding: 0.55rem 1rem;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--fg);
-  font: inherit;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.button.primary {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--on-accent);
-}
-
-.button:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.button.disabled,
-.button:disabled {
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-.pdf {
-  width: 100%;
-  height: 78vh;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--surface);
-}
-
-.loading,
-.error {
-  color: var(--muted);
-}
-
-.error {
-  color: var(--bad);
-}
-
-.stage {
-  display: none;
-}
-
-.stage.on {
-  display: block;
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  background: #000;
-}
-
-.stage-pdf {
-  width: 100%;
-  height: 100%;
-  border: 0;
-}
-
-.leave {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  padding: 0.4rem 0.8rem;
-  border: 0;
-  border-radius: 6px;
-  background: rgb(0 0 0 / 55%);
-  color: #fff;
-  font: inherit;
-  cursor: pointer;
-  opacity: 0.4;
-}
-
-.leave:hover,
-.leave:focus-visible {
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .leave {
-    transition: opacity 0.2s;
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+  /* Algarismos tabulares em tabelas (SPEC, "Identidade"). */
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }

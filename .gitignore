@@ -37,3 +37,7 @@ __pycache__/
 
 # PDFs gerados para revisão (npm run report:pdf)
 relatorios-pdf/
+
+# Resultados do Playwright
+test-results/
+playwright-report/
