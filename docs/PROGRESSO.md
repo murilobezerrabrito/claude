@@ -5,9 +5,9 @@
 - **Rota 2 adotada** em 02/10/2026 (D-024): app para os clientes AI; relatório mensal da gestão para os clientes CADM. A documentação foi atualizada para a nova rota; o `docs/SPEC.md` é a fonte única, e `docs/ROTA-2.md` fica como registro da mudança.
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
 - **Fase 1 (relatório de exemplo, sem servidor):** iniciada em 04/10/2026 e **concluída** em 05/10/2026: Murilo aprovou o PDF de out/2026, com as cores da AWARE (azul-escuro e branco), e confirmou em 06/10/2026 a aprovação do Alex.
-- **Fase 2 (ciclo mensal interno, com dados reais): em andamento** desde 05/10/2026. Etapa 1 (Supabase local, acesso por linha, segundo fator e pgTAP) concluída. Etapa 2 (importação, conferência, mapeamento de ativos e fechamento do mês) concluída em 06/10/2026, menos a leitura de XLSX, que espera a rede (D-056).
+- **Fase 2 (ciclo mensal interno, com dados reais): em andamento** desde 05/10/2026. Etapa 1 (Supabase local, acesso por linha, segundo fator e pgTAP) concluída. Etapa 2 (importação, conferência, mapeamento de ativos e fechamento do mês) concluída em 06/10/2026, menos a leitura de XLSX, que espera a rede (D-056). Etapa 3 em andamento: parte 3a (console com login, Mês e Mapeamento) pronta em 09/10/2026, no ponto de parada A.
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026, D-028 e D-045). Não há pull request aberto.
-- **Próximo passo:** numa sessão nova, conferir se `cdn.sheetjs.com` e `api.bcb.gov.br` respondem (liberados por Murilo em 06/10/2026, mas bloqueados na sessão em que a liberação foi feita); instalar o SheetJS e ligar a leitura de XLSX (passo 8 da etapa 2, D-056); depois, o plano da etapa 3 (console, rodada oficial em lote numa Edge Function e séries do Banco Central).
+- **Próximo passo:** Murilo aprova o visual do console (ponto de parada A); depois, parte 3b (rodada oficial em lote numa Edge Function, com o tempo de CPU medido, e a tela de famílias com a chance). XLSX e a chamada real ao Banco Central esperam a rede (D-044, D-056).
 
 ### Comandos de teste
 
@@ -24,9 +24,11 @@ npm run dev           # página local com a prévia do relatório, "Baixar PDF" 
 
 # Banco local (Fase 2; precisa do Docker ligado)
 npm run db:start      # Supabase local com as migrações e o seed fictício (nesta sessão na nuvem: SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io, D-044)
-npm run db:test       # testes pgTAP (263)
+npm run db:test       # testes pgTAP (273)
 npm run db:import -- exemplo   # importação de exemplo de ponta a ponta, com login e segundo fator (setembro e outubro das 3 famílias fictícias)
 npm run db:import             # lista os comandos: previa, pl, conferir, fila, mapear, situacao
+npm run env:local     # grava .env.local com o Supabase local, para o console (npm run dev)
+npm run test:e2e      # console no navegador (Playwright): login com segundo fator, importação, conferência e mapeamento
 npm run db:reset      # refaz o banco local (migrações e seed)
 npm run db:seed       # regrava supabase/seed.sql a partir de src/data
 npm run db:stop
@@ -50,9 +52,20 @@ Plano da etapa 1 aprovado por Murilo em 05/10/2026, com a opção (a) para o reg
 |---|---|---|
 | 1 | Supabase local: migrações, acesso por linha, segundo fator e pgTAP | Concluída |
 | 2 | Importação de posições e de aportes e resgates, conferência, mapeamento de ativos e fechamento do mês | Concluída, menos a leitura de XLSX (espera a rede, D-056) |
-| 3 | Console, rodada oficial em lote numa Edge Function (tempo de CPU medido) e séries do Banco Central | Pendente |
+| 3 | Console, rodada oficial em lote numa Edge Function (tempo de CPU medido) e séries do Banco Central | Em andamento: 3a pronta (ponto de parada A); faltam 3b (rodada oficial), 3c (cadastro e plano) e 3d (séries) |
 | 4 | Relatórios no banco: rascunho, revisão, quatro olhos, PDF no Storage, apresentação e auditoria | Pendente |
 | — | Nuvem (região São Paulo), só com autorização de Murilo | Pendente |
+
+### Etapa 3: console, rodada oficial em lote e séries do Banco Central
+
+Plano aprovado por Murilo em 09/10/2026 ("aprovado"), em quatro partes: 3a console (login, Mês, Mapeamento), 3b rodada oficial em lote, 3c cadastro e editor do plano, 3d séries do Banco Central. Medição prévia no Node: uma simulação de 10.000 trajetórias da Andrade custa 1,3 s de CPU a frio e 0,7 s a quente; por isso, uma simulação por chamada ao servidor.
+
+**3a, console (pronta em 09/10/2026; ponto de parada A):**
+- `index.html` é o console (D-057): Tailwind, componentes no padrão shadcn/ui em `src/console/ui`, temas claro, escuro e do sistema, menu por papel.
+- Login com senha e segundo fator; cadastro do app autenticador no primeiro acesso (D-058).
+- Telas: Mês (importação com prévia, PL oficial, conferência por família, confirmação da rentabilidade, apagar importação, fechar o mês), Mapeamento de ativos (fila do comitê) e Famílias (cadastro; a chance chega na 3b). O relatório de exemplo da Fase 1 é um item do menu.
+- Planilha original na pasta privada `planilhas` do Storage, antes de confirmar (D-059; 10 testes pgTAP em `09_planilhas`).
+- Playwright (`npm run test:e2e`, D-060): 2 testes, também na integração contínua.
 
 ### Etapa 2: importação, conferência, mapeamento de ativos e fechamento do mês
 
