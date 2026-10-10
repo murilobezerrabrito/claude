@@ -81,7 +81,7 @@ export function planSnapshotSchema(opts: PlanSchemaOptions = {}) {
     year: year('o ano'),
     month: z.number({ error: 'Informe o mês.' }).int('Use um mês de 1 a 12.').min(1, 'Use um mês de 1 a 12.').max(12, 'Use um mês de 1 a 12.').optional(),
     recurrence: z.enum(['unica', 'anual', 'a_cada_n'], { error: 'Escolha a recorrência.' }),
-    everyN: z.number({ error: 'Informe o intervalo.' }).int('Use um intervalo inteiro de anos.').min(1, 'O intervalo é de pelo menos 1 ano.').optional(),
+    everyN: z.number({ error: 'Informe o intervalo.' }).int('Use um intervalo inteiro de anos.').min(1, 'O intervalo é de pelo menos 1 ano.').max(200, 'Intervalo grande demais.').optional(),
     endYear: year('o ano de fim').optional(),
   })
 
@@ -107,7 +107,11 @@ export function planSnapshotSchema(opts: PlanSchemaOptions = {}) {
     raise: fraction('o aumento').min(0, 'O aumento não pode ser negativo.'),
     floor: fraction('o piso').gt(0, 'O piso vai de mais de 0% a 100% do estilo de vida inicial.').max(1, 'O piso vai de mais de 0% a 100% do estilo de vida inicial.'),
     cap: fraction('o teto').min(1, 'O teto é de pelo menos 100% do estilo de vida inicial.'),
-    noCutLastYears: z.number({ error: 'Informe os anos finais sem corte.' }).int('Use um número inteiro de anos.').min(0, 'Os anos sem corte não podem ser negativos.'),
+    noCutLastYears: z
+      .number({ error: 'Informe os anos finais sem corte.' })
+      .int('Use um número inteiro de anos.')
+      .min(0, 'Os anos sem corte não podem ser negativos.')
+      .max(200, 'Anos sem corte demais.'),
   })
 
   return z
