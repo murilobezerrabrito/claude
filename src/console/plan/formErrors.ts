@@ -15,6 +15,36 @@ export function fieldPath(path: string): string {
   return LISTS.has(path) ? `${path}.root` : path
 }
 
+/**
+ * Caminho de um problema do banco no formulário do plano. A meta de legado (depois das metas de padrão de vida) é o
+ * campo "legado mínimo"; identificador repetido e item inteiro vão para a raiz da lista; a regra inteira, para a raiz.
+ */
+export function planFormPath(path: string, lifeGoals: number): string {
+  const parts = path.split('.')
+  if (parts[0] === 'goals' && parts.length >= 2 && Number(parts[1]) >= lifeGoals) return 'legacyMin'
+  if (LISTS.has(parts[0]) && (parts.length === 2 || parts[2] === 'id')) return `${parts[0]}.root`
+  if (parts[0] === 'rules' && parts.length === 1) return 'root.server'
+  return fieldPath(path)
+}
+
+const SECTION_LABELS: Record<string, string> = {
+  people: 'Pessoa',
+  otherAssets: 'Bem',
+  cashFlows: 'Renda ou gasto',
+  events: 'Evento',
+  goals: 'Meta',
+  rules: 'Regras de gasto flexível',
+  legacyMin: 'Legado mínimo',
+}
+
+/** O problema com o lugar dele, para a lista que acompanha a recusa: "Pessoa 2: Informe o nome." */
+export function describeIssue(issue: FieldIssue): string {
+  const [section, index] = issue.path.split('.')
+  const label = SECTION_LABELS[section]
+  if (!label) return issue.message
+  return /^\d+$/.test(index ?? '') ? `${label} ${Number(index) + 1}: ${issue.message}` : `${label}: ${issue.message}`
+}
+
 export function issuesToFieldErrors<T extends FieldValues>(issues: readonly FieldIssue[]): FieldErrors<T> {
   const out: Record<string, unknown> = {}
   for (const issue of issues) {

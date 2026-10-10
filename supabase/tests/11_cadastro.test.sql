@@ -3,7 +3,7 @@
 -- com mês-base depois do último mês fechado e nunca antes da versão mais recente; o banco confere a versão, espelha o
 -- plano nas tabelas e volta para "importado" os meses afetados.
 begin;
-select plan(48);
+select plan(51);
 
 \set G  'ac000000-0000-4000-8000-000000000001'
 \set G2 'ac000000-0000-4000-8000-000000000002'
@@ -125,6 +125,13 @@ select is(pg_temp.campos(public.save_plan_version(:'h1', '2026-07-01',
   array['', 'events.0.month', 'note', 'otherAssets.0.classCode', 'people'], 'versão inválida: os problemas voltam por campo, e nada é gravado');
 select is(pg_temp.campos(public.save_plan_version(:'h1', '2026-07-01', jsonb_set(:'S'::jsonb, '{goals,0,personId}', '"ninguem"'), 'x')),
   array['goals.0.personId'], 'meta com pessoa que não está no plano');
+-- 65.0 é um número inteiro, mas o texto não vira integer no espelho: o banco recusa no campo, sem erro do Postgres.
+select is(pg_temp.campos(public.save_plan_version(:'h1', '2026-07-01', jsonb_set(:'S'::jsonb, '{people,0,retirementAge}', '65.0'), 'x')),
+  array['people.0.retirementAge'], 'inteiro escrito com casa decimal é recusado no campo');
+select throws_ok($$ select public.household_editor('dd000000-0000-4000-8000-000000000999') $$, 'P0002', 'Família não encontrada.',
+  'família que não existe');
+select is(pg_temp.campos(public.save_household(null, '{"code": "T-SEM", "name": "X", "channel": "cadm", "profile_id": "moderado", "fee_rate": 0.008, "horizon_age": 95, "seed": "12a"}')),
+  array['seed'], 'semente em texto é recusada, e não ignorada');
 select is(public.save_plan_version(:'h1', '2026-07-01', :'S', 'Plano inicial.') ->> 'version', '1', 'a gestão grava a primeira versão');
 reset role;
 select is((select count(*)::integer from public.people where household_id = :'h1'), 2, 'as pessoas vão para as tabelas da família');

@@ -123,4 +123,20 @@ test('gestão cadastra uma família e grava a primeira versão do plano', async 
   await expect(page.getByLabel('Valor anual da renda ou gasto 1')).toHaveValue('240.000,00')
   await expect(page.getByLabel('Nascimento da pessoa 1')).toHaveValue('01/02/1975')
   await expect(page.getByRole('button', { name: 'Gravar versão 2' })).toBeVisible()
+
+  // Segunda gravação no mesmo mês-base: substitui, e o formulário mostra o que foi gravado (não o de antes).
+  await page.getByLabel('Legado mínimo').fill('2.000.000,00')
+  await page.getByLabel('O que mudou').fill('Legado revisto.')
+  await page.getByRole('button', { name: 'Gravar versão 2' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Gravar versão' }).click()
+  await expect(page.getByText(/^Versão 2 gravada, com mês-base/)).toBeVisible()
+  await expect(page.getByLabel('Legado mínimo')).toHaveValue('2.000.000,00')
+  await expect(page.getByRole('row', { name: /Legado revisto\./ })).toBeVisible()
+  await expect(page.getByRole('row', { name: /Plano inicial do teste\./ })).toHaveCount(0)
+
+  // Cadastro de novo: o valor gravado aparece no campo.
+  await page.getByLabel('Custo anual').fill('1')
+  await page.getByRole('button', { name: 'Gravar cadastro' }).click()
+  await expect(page.getByText('Cadastro atualizado.')).toBeVisible()
+  await expect(page.getByLabel('Custo anual')).toHaveValue('1')
 })

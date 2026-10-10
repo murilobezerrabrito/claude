@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import dataset from '../../data/andrade-fechamentos.json'
 import { snapshotToForm } from '../../lib/planForm.ts'
 import type { PlanSnapshot } from '../../report/types.ts'
-import { fieldPath, issuesToFieldErrors, planFormResolver } from '../plan/formErrors.ts'
+import { describeIssue, fieldPath, issuesToFieldErrors, planFormPath, planFormResolver } from '../plan/formErrors.ts'
 
 const snapshot = (dataset as unknown as { planVersions: { snapshot: PlanSnapshot }[] }).planVersions[1].snapshot
 
@@ -12,6 +12,19 @@ describe('erros por campo do editor do plano', () => {
     expect(fieldPath('people')).toBe('people.root')
     expect(fieldPath('rules.upper')).toBe('rules.upper')
     expect(fieldPath('')).toBe('root.server')
+  })
+
+  it('problemas do banco no formulário: legado, identificador repetido, item inteiro e regras', () => {
+    // Duas metas de padrão de vida no formulário: a terceira meta da versão é a de legado.
+    expect(planFormPath('goals.2.amount', 2)).toBe('legacyMin')
+    expect(planFormPath('goals.1.targetAge', 2)).toBe('goals.1.targetAge')
+    expect(planFormPath('otherAssets.3.id', 0)).toBe('otherAssets.root')
+    expect(planFormPath('people.0', 0)).toBe('people.root')
+    expect(planFormPath('rules', 0)).toBe('root.server')
+    expect(planFormPath('rules.cap', 0)).toBe('rules.cap')
+    expect(describeIssue({ path: 'people.1.name', message: 'Informe o nome.' })).toBe('Pessoa 2: Informe o nome.')
+    expect(describeIssue({ path: 'rules.cap', message: 'x' })).toBe('Regras de gasto flexível: x')
+    expect(describeIssue({ path: '', message: 'Campo desconhecido: cpf.' })).toBe('Campo desconhecido: cpf.')
   })
 
   it('monta o objeto de erros do React Hook Form; fica a primeira mensagem de cada campo', () => {

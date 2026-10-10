@@ -13,15 +13,17 @@
 
 -- Quem edita ---------------------------------------------------------------------------------------------------------
 
+-- Quem muda o plano (app.can_write_plan, da etapa 1) e, além disso, vê os valores em reais.
 create function app.can_edit_plan(p_household uuid) returns boolean
 language sql stable security definer
 set search_path = ''
-as $$
-  select app.mfa_ok() and app.can_see_amounts() and (
-    app.has_role('gestao')
-    or exists (select 1 from public.households h
-                where h.id = p_household and h.channel = 'ai' and h.owner_id = auth.uid() and app.has_role('responsavel')))
-$$;
+as $$ select app.can_write_plan(p_household) and app.can_see_amounts() $$;
+
+-- Hoje no horário de Brasília (o banco roda em UTC): é o dia que vale para "no futuro".
+create function app.today_brazil() returns date
+language sql stable
+set search_path = ''
+as $$ select (now() at time zone 'America/Sao_Paulo')::date $$;
 
 -- Opções dos formulários ---------------------------------------------------------------------------------------------
 
@@ -73,6 +75,9 @@ begin
   end if;
   if not (app.is_internal() or app.has_role('banker') or app.has_role('responsavel')) or not app.can_read_household(p_household) then
     raise exception 'Sem acesso a esta família.' using errcode = '42501', hint = 'sem_acesso';
+  end if;
+  if not exists (select 1 from public.households where id = p_household) then
+    raise exception 'Família não encontrada.' using errcode = 'P0002', hint = 'familia_inexistente';
   end if;
   perform app.audit('ler_plano', 'households', p_household::text, p_household, jsonb_build_object('valores', app.can_see_amounts()));
   select jsonb_build_object(
@@ -176,7 +181,8 @@ begin
   if v_horizon is null or v_horizon <> trunc(v_horizon) or v_horizon < 60 or v_horizon > 110 then
     e := e || app.plan_error('horizon_age', 'A idade-limite vai de 60 a 110 anos.');
   end if;
-  if v_seed is not null and (v_seed <> trunc(v_seed) or v_seed < 0 or v_seed > 4294967295) then
+  if (p_fields ? 'seed' and jsonb_typeof(p_fields -> 'seed') not in ('number', 'null'))
+     or (v_seed is not null and (v_seed <> trunc(v_seed) or v_seed < 0 or v_seed > 4294967295)) then
     e := e || app.plan_error('seed', 'A semente é um inteiro de 0 a 4.294.967.295.');
   elsif h.id is not null and v_seed is distinct from h.seed
         and exists (select 1 from public.simulation_runs r where r.household_id = h.id) then
@@ -221,11 +227,17 @@ language sql immutable
 set search_path = ''
 as $$ select case when jsonb_typeof(x) = 'number' then (x #>> '{}')::numeric end $$;
 
--- Inteiro JSON entre os limites.
+-- Inteiro JSON entre os limites, escrito sem casa decimal (65.0 não serve: o texto vira integer no espelho).
 create function app.jint_between(x jsonb, lo numeric, hi numeric) returns boolean
 language sql immutable
 set search_path = ''
-as $$ select coalesce(app.jnum(x) = trunc(app.jnum(x)) and app.jnum(x) between lo and hi, false) $$;
+as $$ select coalesce(jsonb_typeof(x) = 'number' and (x #>> '{}') ~ '^-?[0-9]+$' and app.jnum(x) between lo and hi, false) $$;
+
+-- Valor em reais JSON: de zero até o que cabe em numeric(18,2) (o mesmo MAX_MONEY de src/import/values.ts).
+create function app.jmoney(x jsonb) returns boolean
+language sql immutable
+set search_path = ''
+as $$ select coalesce(app.jnum(x) >= 0 and app.jnum(x) < 1e16, false) $$;
 
 -- Texto JSON não vazio.
 create function app.jtext(x jsonb) returns boolean
@@ -283,7 +295,7 @@ begin
     e := e || app.plan_error('', format('Campo desconhecido: %s.', v_unknown));
   end if;
 
-  if p ? 'legacyMin' and not coalesce(app.jnum(p -> 'legacyMin') >= 0, false) then
+  if p ? 'legacyMin' and not app.jmoney(p -> 'legacyMin') then
     e := e || app.plan_error('legacyMin', 'O legado mínimo precisa ser um valor em reais, sem ser negativo.');
   end if;
 
@@ -306,8 +318,10 @@ begin
     if not app.jtext(x -> 'name') then e := e || app.plan_error(path || '.name', 'Informe o nome.'); end if;
     if jsonb_typeof(x -> 'birthDate') is distinct from 'string' or app.try_date(x ->> 'birthDate') is null then
       e := e || app.plan_error(path || '.birthDate', 'Data de nascimento inválida: use dia, mês e ano.');
-    elsif app.try_date(x ->> 'birthDate') > current_date then
+    elsif app.try_date(x ->> 'birthDate') > app.today_brazil() then
       e := e || app.plan_error(path || '.birthDate', 'A data de nascimento está no futuro.');
+    elsif app.try_date(x ->> 'birthDate') < date '1900-01-01' then
+      e := e || app.plan_error(path || '.birthDate', 'A data de nascimento é antes de 1900.');
     end if;
     if jsonb_typeof(x -> 'sex') is distinct from 'string' or (x ->> 'sex') not in ('M', 'F') then
       e := e || app.plan_error(path || '.sex', 'Escolha o sexo.');
@@ -350,11 +364,11 @@ begin
       e := e || app.plan_error(path || '.kind', 'Escolha o tipo do bem.');
     end if;
     if not app.jtext(x -> 'name') then e := e || app.plan_error(path || '.name', 'Informe o nome do bem.'); end if;
-    if not coalesce(app.jnum(x -> 'value') >= 0, false) then
+    if not app.jmoney(x -> 'value') then
       e := e || app.plan_error(path || '.value', 'Informe o valor em reais, sem ser negativo.');
     end if;
     foreach k in array array['netSaleValue', 'annualIncome'] loop
-      if x ? k and not coalesce(app.jnum(x -> k) >= 0, false) then
+      if x ? k and not app.jmoney(x -> k) then
         e := e || app.plan_error(path || '.' || k, 'Informe um valor em reais, sem ser negativo.');
       end if;
     end loop;
@@ -386,7 +400,7 @@ begin
       e := e || app.plan_error(path || '.kind', 'Escolha o tipo.');
     end if;
     if not app.jtext(x -> 'name') then e := e || app.plan_error(path || '.name', 'Informe o nome.'); end if;
-    if not coalesce(app.jnum(x -> 'annualAmountReal') >= 0, false) then
+    if not app.jmoney(x -> 'annualAmountReal') then
       e := e || app.plan_error(path || '.annualAmountReal', 'Informe o valor anual em reais, sem ser negativo.');
     end if;
     if not app.jint_between(x -> 'startYear', 1900, 2200) then
@@ -397,7 +411,7 @@ begin
     elsif app.jint_between(x -> 'startYear', 1900, 2200) and app.jnum(x -> 'endYear') < app.jnum(x -> 'startYear') then
       e := e || app.plan_error(path || '.endYear', 'O ano de fim vem antes do ano de início.');
     end if;
-    if x ? 'otherAssetId' and not ((x ->> 'otherAssetId') = any (v_assets)) then
+    if x ? 'otherAssetId' and not (app.jtext(x -> 'otherAssetId') and (x ->> 'otherAssetId') = any (v_assets)) then
       e := e || app.plan_error(path || '.otherAssetId', 'O bem ligado a este fluxo não está no plano.');
     end if;
   end loop;
@@ -416,7 +430,7 @@ begin
     if jsonb_typeof(x -> 'direction') is distinct from 'string' or (x ->> 'direction') not in ('entrada', 'saida') then
       e := e || app.plan_error(path || '.direction', 'Escolha entrada ou saída.');
     end if;
-    if not coalesce(app.jnum(x -> 'amountReal') >= 0, false) then
+    if not app.jmoney(x -> 'amountReal') then
       e := e || app.plan_error(path || '.amountReal', 'Informe o valor em reais, sem ser negativo.');
     end if;
     if not app.jint_between(x -> 'year', 1900, 2200) then e := e || app.plan_error(path || '.year', 'Ano inválido.'); end if;
@@ -452,21 +466,22 @@ begin
     end if;
     v_unknown := app.unknown_keys(x, array['kind', 'personId', 'targetAge', 'amount']);
     if v_unknown is not null then e := e || app.plan_error(path, format('Campo desconhecido: %s.', v_unknown)); end if;
-    if x ->> 'kind' = 'padrao_de_vida' then
-      if not (x ? 'personId') then
-        e := e || app.plan_error(path || '.personId', 'Escolha a pessoa da meta.');
-      elsif not ((x ->> 'personId') = any (v_people)) then
-        e := e || app.plan_error(path || '.personId', 'A pessoa da meta não está no plano.');
-      end if;
-      if not app.jint_between(x -> 'targetAge', 60, 110) then
-        e := e || app.plan_error(path || '.targetAge', 'A idade da meta vai de 60 a 110 anos.');
-      end if;
-    elsif x ->> 'kind' = 'legado' then
-      if not coalesce(app.jnum(x -> 'amount') >= 0, false) then
-        e := e || app.plan_error(path || '.amount', 'Informe o legado em reais, sem ser negativo.');
-      end if;
-    else
+    if jsonb_typeof(x -> 'kind') is distinct from 'string' or (x ->> 'kind') not in ('padrao_de_vida', 'legado') then
       e := e || app.plan_error(path || '.kind', 'Tipo de meta desconhecido.');
+    end if;
+    -- Os campos valem para os dois tipos, quando vêm; cada tipo exige os seus.
+    if x ? 'personId' and not app.jtext(x -> 'personId') then
+      e := e || app.plan_error(path || '.personId', 'Escolha a pessoa da meta.');
+    elsif x ->> 'kind' = 'padrao_de_vida' and not (x ? 'personId') then
+      e := e || app.plan_error(path || '.personId', 'Escolha a pessoa da meta.');
+    elsif x ->> 'kind' = 'padrao_de_vida' and not ((x ->> 'personId') = any (v_people)) then
+      e := e || app.plan_error(path || '.personId', 'A pessoa da meta não está no plano.');
+    end if;
+    if (x ? 'targetAge' or x ->> 'kind' = 'padrao_de_vida') and not app.jint_between(x -> 'targetAge', 60, 110) then
+      e := e || app.plan_error(path || '.targetAge', 'A idade da meta vai de 60 a 110 anos.');
+    end if;
+    if (x ? 'amount' or x ->> 'kind' = 'legado') and not app.jmoney(x -> 'amount') then
+      e := e || app.plan_error(path || '.amount', 'Informe o legado em reais, sem ser negativo.');
     end if;
   end loop;
 
@@ -481,20 +496,22 @@ begin
   if not coalesce(app.jnum(r -> 'lower') > 0, false) then
     e := e || app.plan_error('rules.lower', 'O gatilho inferior precisa ser maior que zero.');
   end if;
-  if not coalesce(app.jnum(r -> 'upper') > app.jnum(r -> 'lower'), false) then
+  if app.jnum(r -> 'upper') is null or app.jnum(r -> 'upper') > 5 then
+    e := e || app.plan_error('rules.upper', 'O gatilho superior vai até 500%.');
+  elsif app.jnum(r -> 'lower') is not null and app.jnum(r -> 'upper') <= app.jnum(r -> 'lower') then
     e := e || app.plan_error('rules.upper', 'O gatilho superior precisa ser maior que o inferior.');
   end if;
   if not coalesce(app.jnum(r -> 'cut') >= 0 and app.jnum(r -> 'cut') < 1, false) then
     e := e || app.plan_error('rules.cut', 'O corte vai de 0% a menos de 100%.');
   end if;
-  if not coalesce(app.jnum(r -> 'raise') >= 0, false) then
-    e := e || app.plan_error('rules.raise', 'O aumento não pode ser negativo.');
+  if not coalesce(app.jnum(r -> 'raise') >= 0 and app.jnum(r -> 'raise') <= 1, false) then
+    e := e || app.plan_error('rules.raise', 'O aumento vai de 0% a 100%.');
   end if;
   if not coalesce(app.jnum(r -> 'floor') > 0 and app.jnum(r -> 'floor') <= 1, false) then
     e := e || app.plan_error('rules.floor', 'O piso vai de mais de 0% a 100% do estilo de vida inicial.');
   end if;
-  if not coalesce(app.jnum(r -> 'cap') >= 1, false) then
-    e := e || app.plan_error('rules.cap', 'O teto é de pelo menos 100% do estilo de vida inicial.');
+  if not coalesce(app.jnum(r -> 'cap') >= 1 and app.jnum(r -> 'cap') <= 5, false) then
+    e := e || app.plan_error('rules.cap', 'O teto vai de 100% a 500% do estilo de vida inicial.');
   end if;
   if not app.jint_between(r -> 'noCutLastYears', 0, 200) then
     e := e || app.plan_error('rules.noCutLastYears', 'Use um número inteiro de anos.');
@@ -535,7 +552,7 @@ begin
   if p_base_month is null or p_base_month <> date_trunc('month', p_base_month)::date then
     raise exception 'Use o primeiro dia do mês como mês-base.' using errcode = '22023', hint = 'mes_base';
   end if;
-  if p_base_month > date_trunc('month', current_date)::date then
+  if p_base_month > date_trunc('month', app.today_brazil())::date then
     raise exception 'O mês-base não pode estar no futuro: os valores do plano são em reais do mês-base.' using errcode = 'P0001', hint = 'mes_base';
   end if;
   select max(ref_date) into v_closed from public.household_months where household_id = h.id and status = 'fechado';
@@ -615,8 +632,9 @@ begin
 end
 $$;
 
-revoke all on function app.can_edit_plan(uuid), app.plan_error(text, text), app.jnum(jsonb), app.jint_between(jsonb, numeric, numeric),
-  app.jtext(jsonb), app.unknown_keys(jsonb, text[]), app.plan_snapshot_errors(jsonb, text[]) from public;
+revoke all on function app.can_edit_plan(uuid), app.today_brazil(), app.plan_error(text, text), app.jnum(jsonb),
+  app.jint_between(jsonb, numeric, numeric), app.jmoney(jsonb), app.jtext(jsonb), app.unknown_keys(jsonb, text[]),
+  app.plan_snapshot_errors(jsonb, text[]) from public;
 revoke all on function public.plan_options(), public.household_editor(uuid), public.save_household(uuid, jsonb),
   public.save_plan_version(uuid, date, jsonb, text) from public, anon;
 grant execute on function public.plan_options(), public.household_editor(uuid), public.save_household(uuid, jsonb),

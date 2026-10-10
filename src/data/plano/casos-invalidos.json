@@ -1,0 +1,1190 @@
+{
+  "descricao": "Casos de paridade entre o esquema do console (src/lib/planSchema.ts) e a conferência do banco (app.plan_snapshot_errors): cada caso muda a versão de base e diz os campos com problema. O Vitest roda o esquema (src/lib/__tests__/paridade.test.ts) e `npm run db:plan-cases` gera o teste pgTAP supabase/tests/12_paridade_plano.test.sql. Fica de fora o campo desconhecido: o console tira, o banco recusa (D-068).",
+  "classes": [
+    "ACOES",
+    "CRED",
+    "FII",
+    "INF",
+    "INTL",
+    "MM",
+    "POS",
+    "PRE"
+  ],
+  "base": {
+    "legacyMin": 500000,
+    "people": [
+      {
+        "id": "ana",
+        "name": "Ana Teste",
+        "birthDate": "1970-05-01",
+        "sex": "F",
+        "role": "titular",
+        "retirementAge": 65
+      },
+      {
+        "id": "beto",
+        "name": "Beto Teste",
+        "birthDate": "1972-01-15",
+        "sex": "M",
+        "role": "conjuge"
+      }
+    ],
+    "otherAssets": [
+      {
+        "id": "vgbl",
+        "kind": "previdencia",
+        "name": "VGBL",
+        "value": 100000,
+        "classCode": "POS",
+        "inSimulation": true
+      },
+      {
+        "id": "sala",
+        "kind": "imovel",
+        "name": "Sala",
+        "value": 300000,
+        "canBeSold": true,
+        "netSaleValue": 280000,
+        "annualIncome": 24000
+      }
+    ],
+    "cashFlows": [
+      {
+        "kind": "gasto_essencial",
+        "name": "Gasto essencial",
+        "annualAmountReal": 120000,
+        "startYear": 2026,
+        "endYear": 2070
+      },
+      {
+        "kind": "aluguel",
+        "name": "Aluguel da sala",
+        "annualAmountReal": 24000,
+        "startYear": 2026,
+        "endYear": 2070,
+        "otherAssetId": "sala"
+      }
+    ],
+    "events": [
+      {
+        "name": "Carro",
+        "direction": "saida",
+        "amountReal": 100000,
+        "year": 2028,
+        "month": 3,
+        "recurrence": "a_cada_n",
+        "everyN": 5,
+        "endYear": 2048
+      }
+    ],
+    "goals": [
+      {
+        "kind": "padrao_de_vida",
+        "personId": "beto",
+        "targetAge": 95
+      },
+      {
+        "kind": "legado",
+        "amount": 500000
+      }
+    ],
+    "rules": {
+      "enabled": true,
+      "mode": "trajetoria_referencia",
+      "lower": 0.8,
+      "upper": 1.2,
+      "cut": 0.1,
+      "raise": 0.1,
+      "floor": 0.5,
+      "cap": 1.3,
+      "noCutLastYears": 15
+    }
+  },
+  "cases": [
+    {
+      "name": "plano válido",
+      "ops": [],
+      "paths": []
+    },
+    {
+      "name": "plano que não é objeto",
+      "ops": [
+        {
+          "op": "set",
+          "path": [],
+          "value": "x"
+        }
+      ],
+      "paths": [
+        ""
+      ]
+    },
+    {
+      "name": "lista de pessoas ausente",
+      "ops": [
+        {
+          "op": "remove",
+          "path": [
+            "people"
+          ]
+        }
+      ],
+      "paths": [
+        "people"
+      ]
+    },
+    {
+      "name": "regras ausentes",
+      "ops": [
+        {
+          "op": "remove",
+          "path": [
+            "rules"
+          ]
+        }
+      ],
+      "paths": [
+        "rules"
+      ]
+    },
+    {
+      "name": "mais de 200 eventos",
+      "ops": [
+        {
+          "op": "fill",
+          "path": [
+            "events"
+          ],
+          "count": 201
+        }
+      ],
+      "paths": [
+        "events"
+      ]
+    },
+    {
+      "name": "sem titular",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "people",
+            0,
+            "role"
+          ],
+          "value": "filho"
+        }
+      ],
+      "paths": [
+        "people"
+      ]
+    },
+    {
+      "name": "dois titulares",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "people",
+            1,
+            "role"
+          ],
+          "value": "titular"
+        }
+      ],
+      "paths": [
+        "people"
+      ]
+    },
+    {
+      "name": "dois cônjuges",
+      "ops": [
+        {
+          "op": "push",
+          "path": [
+            "people"
+          ],
+          "value": {
+            "id": "carla",
+            "name": "Carla",
+            "birthDate": "2000-01-01",
+            "sex": "F",
+            "role": "conjuge"
+          }
+        }
+      ],
+      "paths": [
+        "people"
+      ]
+    },
+    {
+      "name": "pessoa repetida",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "people",
+            1,
+            "id"
+          ],
+          "value": "ana"
+        }
+      ],
+      "paths": [
+        "goals.0.personId",
+        "people.1.id"
+      ]
+    },
+    {
+      "name": "identificador em branco",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "people",
+            1,
+            "id"
+          ],
+          "value": "  "
+        }
+      ],
+      "paths": [
+        "goals.0.personId",
+        "people.1.id"
+      ]
+    },
+    {
+      "name": "pessoa que não é objeto",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "people",
+            1
+          ],
+          "value": "x"
+        }
+      ],
+      "paths": [
+        "goals.0.personId",
+        "people.1"
+      ]
+    },
+    {
+      "name": "nome em branco",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "people",
+            0,
+            "name"
+          ],
+          "value": "  "
+        }
+      ],
+      "paths": [
+        "people.0.name"
+      ]
+    },
+    {
+      "name": "nascimento inexistente",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "people",
+            0,
+            "birthDate"
+          ],
+          "value": "1970-02-30"
+        }
+      ],
+      "paths": [
+        "people.0.birthDate"
+      ]
+    },
+    {
+      "name": "nascimento no futuro",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "people",
+            0,
+            "birthDate"
+          ],
+          "value": "2999-01-01"
+        }
+      ],
+      "paths": [
+        "people.0.birthDate"
+      ]
+    },
+    {
+      "name": "nascimento antes de 1900",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "people",
+            0,
+            "birthDate"
+          ],
+          "value": "1899-12-31"
+        }
+      ],
+      "paths": [
+        "people.0.birthDate"
+      ]
+    },
+    {
+      "name": "nascimento ausente",
+      "ops": [
+        {
+          "op": "remove",
+          "path": [
+            "people",
+            0,
+            "birthDate"
+          ]
+        }
+      ],
+      "paths": [
+        "people.0.birthDate"
+      ]
+    },
+    {
+      "name": "sexo inválido",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "people",
+            0,
+            "sex"
+          ],
+          "value": "X"
+        }
+      ],
+      "paths": [
+        "people.0.sex"
+      ]
+    },
+    {
+      "name": "papel inválido",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "people",
+            1,
+            "role"
+          ],
+          "value": "avo"
+        }
+      ],
+      "paths": [
+        "people.1.role"
+      ]
+    },
+    {
+      "name": "aposentadoria acima de 100",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "people",
+            0,
+            "retirementAge"
+          ],
+          "value": 101
+        }
+      ],
+      "paths": [
+        "people.0.retirementAge"
+      ]
+    },
+    {
+      "name": "aposentadoria não inteira",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "people",
+            0,
+            "retirementAge"
+          ],
+          "value": 65.5
+        }
+      ],
+      "paths": [
+        "people.0.retirementAge"
+      ]
+    },
+    {
+      "name": "aposentadoria nula",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "people",
+            0,
+            "retirementAge"
+          ],
+          "value": null
+        }
+      ],
+      "paths": [
+        "people.0.retirementAge"
+      ]
+    },
+    {
+      "name": "bem com valor negativo",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "otherAssets",
+            0,
+            "value"
+          ],
+          "value": -1
+        }
+      ],
+      "paths": [
+        "otherAssets.0.value"
+      ]
+    },
+    {
+      "name": "bem com valor grande demais",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "otherAssets",
+            0,
+            "value"
+          ],
+          "value": 1e+16
+        }
+      ],
+      "paths": [
+        "otherAssets.0.value"
+      ]
+    },
+    {
+      "name": "bem com classe fora das premissas",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "otherAssets",
+            0,
+            "classCode"
+          ],
+          "value": "XYZ"
+        }
+      ],
+      "paths": [
+        "otherAssets.0.classCode"
+      ]
+    },
+    {
+      "name": "classe com espaço",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "otherAssets",
+            0,
+            "classCode"
+          ],
+          "value": " POS"
+        }
+      ],
+      "paths": [
+        "otherAssets.0.classCode"
+      ]
+    },
+    {
+      "name": "bem na simulação sem classe",
+      "ops": [
+        {
+          "op": "remove",
+          "path": [
+            "otherAssets",
+            0,
+            "classCode"
+          ]
+        }
+      ],
+      "paths": [
+        "otherAssets.0.classCode"
+      ]
+    },
+    {
+      "name": "tipo de bem inválido",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "otherAssets",
+            0,
+            "kind"
+          ],
+          "value": "carro"
+        }
+      ],
+      "paths": [
+        "otherAssets.0.kind"
+      ]
+    },
+    {
+      "name": "venda com valor negativo",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "otherAssets",
+            1,
+            "netSaleValue"
+          ],
+          "value": -5
+        }
+      ],
+      "paths": [
+        "otherAssets.1.netSaleValue"
+      ]
+    },
+    {
+      "name": "simulação que não é sim ou não",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "otherAssets",
+            0,
+            "inSimulation"
+          ],
+          "value": "sim"
+        }
+      ],
+      "paths": [
+        "otherAssets.0.inSimulation"
+      ]
+    },
+    {
+      "name": "bem repetido",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "otherAssets",
+            1,
+            "id"
+          ],
+          "value": "vgbl"
+        }
+      ],
+      "paths": [
+        "cashFlows.1.otherAssetId",
+        "otherAssets.1.id"
+      ]
+    },
+    {
+      "name": "fluxo que termina antes de começar",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "cashFlows",
+            0,
+            "endYear"
+          ],
+          "value": 2020
+        }
+      ],
+      "paths": [
+        "cashFlows.0.endYear"
+      ]
+    },
+    {
+      "name": "fluxo com ano não inteiro",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "cashFlows",
+            0,
+            "startYear"
+          ],
+          "value": 2026.5
+        }
+      ],
+      "paths": [
+        "cashFlows.0.startYear"
+      ]
+    },
+    {
+      "name": "fluxo ligado a bem inexistente",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "cashFlows",
+            1,
+            "otherAssetId"
+          ],
+          "value": "nada"
+        }
+      ],
+      "paths": [
+        "cashFlows.1.otherAssetId"
+      ]
+    },
+    {
+      "name": "fluxo ligado a nulo",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "cashFlows",
+            1,
+            "otherAssetId"
+          ],
+          "value": null
+        }
+      ],
+      "paths": [
+        "cashFlows.1.otherAssetId"
+      ]
+    },
+    {
+      "name": "tipo de fluxo inválido",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "cashFlows",
+            0,
+            "kind"
+          ],
+          "value": "x"
+        }
+      ],
+      "paths": [
+        "cashFlows.0.kind"
+      ]
+    },
+    {
+      "name": "fluxo com valor grande demais",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "cashFlows",
+            0,
+            "annualAmountReal"
+          ],
+          "value": 1e+16
+        }
+      ],
+      "paths": [
+        "cashFlows.0.annualAmountReal"
+      ]
+    },
+    {
+      "name": "evento com mês 13",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "events",
+            0,
+            "month"
+          ],
+          "value": 13
+        }
+      ],
+      "paths": [
+        "events.0.month"
+      ]
+    },
+    {
+      "name": "evento recorrente sem fim",
+      "ops": [
+        {
+          "op": "remove",
+          "path": [
+            "events",
+            0,
+            "endYear"
+          ]
+        }
+      ],
+      "paths": [
+        "events.0.endYear"
+      ]
+    },
+    {
+      "name": "evento a cada N sem intervalo",
+      "ops": [
+        {
+          "op": "remove",
+          "path": [
+            "events",
+            0,
+            "everyN"
+          ]
+        }
+      ],
+      "paths": [
+        "events.0.everyN"
+      ]
+    },
+    {
+      "name": "evento com intervalo zero",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "events",
+            0,
+            "everyN"
+          ],
+          "value": 0
+        }
+      ],
+      "paths": [
+        "events.0.everyN"
+      ]
+    },
+    {
+      "name": "evento antes de 1900",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "events",
+            0,
+            "year"
+          ],
+          "value": 1800
+        }
+      ],
+      "paths": [
+        "events.0.year"
+      ]
+    },
+    {
+      "name": "evento que termina antes do primeiro ano",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "events",
+            0,
+            "endYear"
+          ],
+          "value": 2020
+        }
+      ],
+      "paths": [
+        "events.0.endYear"
+      ]
+    },
+    {
+      "name": "direção inválida",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "events",
+            0,
+            "direction"
+          ],
+          "value": "x"
+        }
+      ],
+      "paths": [
+        "events.0.direction"
+      ]
+    },
+    {
+      "name": "recorrência inválida",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "events",
+            0,
+            "recurrence"
+          ],
+          "value": "x"
+        }
+      ],
+      "paths": [
+        "events.0.recurrence"
+      ]
+    },
+    {
+      "name": "meta sem pessoa",
+      "ops": [
+        {
+          "op": "remove",
+          "path": [
+            "goals",
+            0,
+            "personId"
+          ]
+        }
+      ],
+      "paths": [
+        "goals.0.personId"
+      ]
+    },
+    {
+      "name": "meta com pessoa nula",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "goals",
+            0,
+            "personId"
+          ],
+          "value": null
+        }
+      ],
+      "paths": [
+        "goals.0.personId"
+      ]
+    },
+    {
+      "name": "meta com pessoa inexistente",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "goals",
+            0,
+            "personId"
+          ],
+          "value": "ninguem"
+        }
+      ],
+      "paths": [
+        "goals.0.personId"
+      ]
+    },
+    {
+      "name": "meta sem idade",
+      "ops": [
+        {
+          "op": "remove",
+          "path": [
+            "goals",
+            0,
+            "targetAge"
+          ]
+        }
+      ],
+      "paths": [
+        "goals.0.targetAge"
+      ]
+    },
+    {
+      "name": "meta com idade 59",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "goals",
+            0,
+            "targetAge"
+          ],
+          "value": 59
+        }
+      ],
+      "paths": [
+        "goals.0.targetAge"
+      ]
+    },
+    {
+      "name": "legado com idade inválida",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "goals",
+            1,
+            "targetAge"
+          ],
+          "value": 5
+        }
+      ],
+      "paths": [
+        "goals.1.targetAge"
+      ]
+    },
+    {
+      "name": "padrão de vida com valor negativo",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "goals",
+            0,
+            "amount"
+          ],
+          "value": -1
+        }
+      ],
+      "paths": [
+        "goals.0.amount"
+      ]
+    },
+    {
+      "name": "legado negativo",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "goals",
+            1,
+            "amount"
+          ],
+          "value": -1
+        }
+      ],
+      "paths": [
+        "goals.1.amount"
+      ]
+    },
+    {
+      "name": "legado sem valor",
+      "ops": [
+        {
+          "op": "remove",
+          "path": [
+            "goals",
+            1,
+            "amount"
+          ]
+        }
+      ],
+      "paths": [
+        "goals.1.amount"
+      ]
+    },
+    {
+      "name": "tipo de meta inválido",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "goals",
+            0,
+            "kind"
+          ],
+          "value": "x"
+        }
+      ],
+      "paths": [
+        "goals.0.kind"
+      ]
+    },
+    {
+      "name": "legado mínimo negativo",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "legacyMin"
+          ],
+          "value": -1
+        }
+      ],
+      "paths": [
+        "legacyMin"
+      ]
+    },
+    {
+      "name": "gatilho inferior zero",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "rules",
+            "lower"
+          ],
+          "value": 0
+        }
+      ],
+      "paths": [
+        "rules.lower"
+      ]
+    },
+    {
+      "name": "gatilho superior abaixo do inferior",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "rules",
+            "upper"
+          ],
+          "value": 0.7
+        }
+      ],
+      "paths": [
+        "rules.upper"
+      ]
+    },
+    {
+      "name": "gatilho superior acima de 500%",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "rules",
+            "upper"
+          ],
+          "value": 6
+        }
+      ],
+      "paths": [
+        "rules.upper"
+      ]
+    },
+    {
+      "name": "corte de 100%",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "rules",
+            "cut"
+          ],
+          "value": 1
+        }
+      ],
+      "paths": [
+        "rules.cut"
+      ]
+    },
+    {
+      "name": "aumento acima de 100%",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "rules",
+            "raise"
+          ],
+          "value": 1.5
+        }
+      ],
+      "paths": [
+        "rules.raise"
+      ]
+    },
+    {
+      "name": "piso zero",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "rules",
+            "floor"
+          ],
+          "value": 0
+        }
+      ],
+      "paths": [
+        "rules.floor"
+      ]
+    },
+    {
+      "name": "teto abaixo de 100%",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "rules",
+            "cap"
+          ],
+          "value": 0.9
+        }
+      ],
+      "paths": [
+        "rules.cap"
+      ]
+    },
+    {
+      "name": "teto acima de 500%",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "rules",
+            "cap"
+          ],
+          "value": 6
+        }
+      ],
+      "paths": [
+        "rules.cap"
+      ]
+    },
+    {
+      "name": "anos sem corte não inteiros",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "rules",
+            "noCutLastYears"
+          ],
+          "value": 2.5
+        }
+      ],
+      "paths": [
+        "rules.noCutLastYears"
+      ]
+    },
+    {
+      "name": "modo inválido",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "rules",
+            "mode"
+          ],
+          "value": "x"
+        }
+      ],
+      "paths": [
+        "rules.mode"
+      ]
+    },
+    {
+      "name": "regras ligadas que não são sim ou não",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "rules",
+            "enabled"
+          ],
+          "value": "sim"
+        }
+      ],
+      "paths": [
+        "rules.enabled"
+      ]
+    }
+  ]
+}

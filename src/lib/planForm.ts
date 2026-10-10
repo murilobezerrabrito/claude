@@ -79,19 +79,27 @@ export interface PlanForm {
 }
 
 /**
- * Número digitado no formato brasileiro: "1.234.567,89", "1234567,89", "1.500" (mil e quinhentos) ou "1500.5".
- * Vazio dá undefined; o que não é número dá NaN (o esquema recusa com a mensagem do campo).
+ * Valor em reais digitado no formato brasileiro: "1.234.567,89", "1234567,89", "1.500" (mil e quinhentos) ou
+ * "1500.5". Ponto com grupos de três dígitos é separador de milhar só quando o primeiro grupo não começa com zero
+ * ("0.500" é meio). Vazio dá undefined; o que não é número dá NaN (o esquema recusa com a mensagem do campo).
  */
 export function parseDecimalBr(input: string): number | undefined {
   const s = input.replace(/R\$|\s/g, '')
   if (s === '') return undefined
   if (s.includes(',')) {
-    if (!/^-?(\d{1,3}(\.\d{3})+|\d+)(,\d+)?$/.test(s)) return NaN
+    if (!/^-?([1-9]\d{0,2}(\.\d{3})+|\d+)(,\d+)?$/.test(s)) return NaN
     return Number(s.replace(/\./g, '').replace(',', '.'))
   }
-  if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) return Number(s.replace(/\./g, ''))
+  if (/^-?[1-9]\d{0,2}(\.\d{3})+$/.test(s)) return Number(s.replace(/\./g, ''))
   if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s)
   return NaN
+}
+
+/** Percentual digitado ("80", "7,5" ou "7.5"): sem separador de milhar, ponto e vírgula são a casa decimal. */
+export function parsePercentBr(input: string): number | undefined {
+  const s = input.replace(/%|\s/g, '').replace(',', '.')
+  if (s === '') return undefined
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN
 }
 
 /** Inteiro digitado (ano, idade, mês): vazio dá undefined; o resto que não é inteiro dá NaN. */
@@ -121,7 +129,7 @@ const intField = (v: number | undefined) => (v === undefined ? '' : String(v))
 /** Fração para o campo em %: 0,8 → "80". */
 const pctField = (v: number) => pct.format(Math.round(v * 1e8) / 1e6)
 const fromPct = (s: string) => {
-  const v = parseDecimalBr(s)
+  const v = parsePercentBr(s)
   return v === undefined || Number.isNaN(v) ? v : Math.round(v * 1e6) / 1e8
 }
 const omitEmpty = <T extends object>(o: T): T => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== '')) as T
@@ -246,7 +254,7 @@ export function formToSnapshot(f: PlanForm): unknown {
   }
 }
 
-/** Plano novo: só o titular, sem fluxos nem eventos, com as regras de gasto flexível padrão do SPEC, desligadas. */
+/** Plano novo: só o titular, sem fluxos nem eventos, com as regras de gasto flexível padrão do SPEC, ligadas. */
 export function emptyPlanForm(newId: () => string): PlanForm {
   return {
     legacyMin: '',
@@ -255,6 +263,6 @@ export function emptyPlanForm(newId: () => string): PlanForm {
     cashFlows: [],
     events: [],
     goals: [],
-    rules: { enabled: false, mode: 'trajetoria_referencia', lower: '80', upper: '120', cut: '10', raise: '10', floor: '50', cap: '130', noCutLastYears: '15' },
+    rules: { enabled: true, mode: 'trajetoria_referencia', lower: '80', upper: '120', cut: '10', raise: '10', floor: '50', cap: '130', noCutLastYears: '15' },
   }
 }

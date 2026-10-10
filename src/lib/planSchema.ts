@@ -4,22 +4,38 @@
 // (save_plan_version). Fica fora de src/engine, que não tem dependências.
 
 import { z } from 'zod'
+import { MAX_MONEY } from '../import/values.ts'
 import type { PlanSnapshot } from '../report/types.ts'
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
-/** Data AAAA-MM-DD que existe no calendário. */
+/** Data AAAA-MM-DD que existe no calendário (também antes do ano 100, que o Date.UTC levaria para 19xx). */
 export function isValidIsoDate(s: string): boolean {
   if (!ISO_DATE.test(s)) return false
   const [y, m, d] = s.split('-').map(Number)
-  const dt = new Date(Date.UTC(y, m - 1, d))
+  const dt = new Date(0)
+  dt.setUTCFullYear(y, m - 1, d)
   return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d
 }
 
+/** Hoje no horário de Brasília (AAAA-MM-DD), como o banco confere (America/Sao_Paulo). */
+export function brazilToday(now = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+}
+
 const YEARS = { min: 1900, max: 2200 }
+/** Nascimento a partir de 1900, como o banco confere. */
+const FIRST_BIRTH = '1900-01-01'
+/** Teto dos gatilhos e do teto das regras (500%) e do aumento (100%): acima disso, é erro de digitação (D-068). */
+export const RULES_MAX = { upper: 5, raise: 1, cap: 5 } as const
+
+const notBlank = (s: string) => s.trim() !== ''
 
 const amount = (what: string) =>
-  z.number({ error: `Informe ${what} em reais.` }).min(0, `${what[0].toUpperCase()}${what.slice(1)} não pode ser negativo.`)
+  z
+    .number({ error: `Informe ${what} em reais.` })
+    .min(0, `${what[0].toUpperCase()}${what.slice(1)} não pode ser negativo.`)
+    .lt(MAX_MONEY, `${what[0].toUpperCase()}${what.slice(1)} é grande demais.`)
 const optionalAmount = (what: string) => amount(what).optional()
 const year = (what: string) =>
   z.number({ error: `Informe ${what}.` }).refine(Number.isInteger, `Use um ano inteiro em ${what}.`).min(YEARS.min, `Ano fora do intervalo em ${what}.`).max(YEARS.max, `Ano fora do intervalo em ${what}.`)
@@ -37,21 +53,25 @@ function hasPlanShape(v: unknown): boolean {
 export interface PlanSchemaOptions {
   /** Classes das premissas vigentes: o bem que entra na simulação precisa de uma delas. */
   classes?: readonly string[]
-  /** Hoje (AAAA-MM-DD), para recusar nascimento no futuro. */
+  /** Hoje (AAAA-MM-DD), para recusar nascimento no futuro; sem ele, hoje no horário de Brasília. */
   today?: string
 }
 
+const MAX_ITEMS = 200
+
 /** Esquema da versão do plano. Saída: o plano limpo (sem campos desconhecidos), pronto para gravar. */
 export function planSnapshotSchema(opts: PlanSchemaOptions = {}) {
-  const today = opts.today ?? new Date().toISOString().slice(0, 10)
+  const today = opts.today ?? brazilToday()
+  const id = z.string().refine(notBlank, 'Identificador vazio.')
 
   const person = z.object({
-    id: z.string().min(1),
+    id,
     name: text('o nome'),
     birthDate: z
       .string({ error: 'Informe a data de nascimento.' })
       .refine(isValidIsoDate, 'Data de nascimento inválida: use dia, mês e ano.')
-      .refine((d) => d <= today, 'A data de nascimento está no futuro.'),
+      .refine((d) => d <= today, 'A data de nascimento está no futuro.')
+      .refine((d) => d >= FIRST_BIRTH, 'A data de nascimento é antes de 1900.'),
     sex: z.enum(['M', 'F'], { error: 'Escolha o sexo.' }),
     role: z.enum(['titular', 'conjuge', 'filho'], { error: 'Escolha o papel na família.' }),
     retirementAge: z
@@ -63,11 +83,11 @@ export function planSnapshotSchema(opts: PlanSchemaOptions = {}) {
   })
 
   const otherAsset = z.object({
-    id: z.string().min(1),
+    id,
     kind: z.enum(['previdencia', 'imovel', 'empresa', 'exterior'], { error: 'Escolha o tipo do bem.' }),
     name: text('o nome do bem'),
     value: amount('o valor'),
-    classCode: z.string().trim().min(1).optional(),
+    classCode: z.string().refine(notBlank, 'Escolha a classe.').optional(),
     inSimulation: z.boolean().optional(),
     canBeSold: z.boolean().optional(),
     netSaleValue: optionalAmount('o valor líquido de venda'),
@@ -80,7 +100,7 @@ export function planSnapshotSchema(opts: PlanSchemaOptions = {}) {
     annualAmountReal: amount('o valor anual'),
     startYear: year('o ano de início'),
     endYear: year('o ano de fim'),
-    otherAssetId: z.string().min(1).optional(),
+    otherAssetId: z.string().refine(notBlank, 'Escolha o bem.').optional(),
   })
 
   const event = z.object({
@@ -95,8 +115,8 @@ export function planSnapshotSchema(opts: PlanSchemaOptions = {}) {
   })
 
   const goal = z.object({
-    kind: z.enum(['padrao_de_vida', 'legado']),
-    personId: z.string().min(1).optional(),
+    kind: z.enum(['padrao_de_vida', 'legado'], { error: 'Tipo de meta desconhecido.' }),
+    personId: z.string().refine(notBlank, 'Escolha a pessoa da meta.').optional(),
     targetAge: z
       .number({ error: 'Informe a idade.' })
       .refine(Number.isInteger, 'Use uma idade inteira.')
@@ -111,11 +131,11 @@ export function planSnapshotSchema(opts: PlanSchemaOptions = {}) {
     enabled: z.boolean(),
     mode: z.enum(['trajetoria_referencia', 'guyton_klinger'], { error: 'Escolha o modo das regras.' }),
     lower: fraction('o gatilho inferior').gt(0, 'O gatilho inferior precisa ser maior que zero.'),
-    upper: fraction('o gatilho superior'),
+    upper: fraction('o gatilho superior').max(RULES_MAX.upper, 'O gatilho superior vai até 500%.'),
     cut: fraction('o corte').min(0, 'O corte vai de 0% a menos de 100%.').lt(1, 'O corte vai de 0% a menos de 100%.'),
-    raise: fraction('o aumento').min(0, 'O aumento não pode ser negativo.'),
+    raise: fraction('o aumento').min(0, 'O aumento não pode ser negativo.').max(RULES_MAX.raise, 'O aumento vai até 100%.'),
     floor: fraction('o piso').gt(0, 'O piso vai de mais de 0% a 100% do estilo de vida inicial.').max(1, 'O piso vai de mais de 0% a 100% do estilo de vida inicial.'),
-    cap: fraction('o teto').min(1, 'O teto é de pelo menos 100% do estilo de vida inicial.'),
+    cap: fraction('o teto').min(1, 'O teto é de pelo menos 100% do estilo de vida inicial.').max(RULES_MAX.cap, 'O teto vai até 500% do estilo de vida inicial.'),
     noCutLastYears: z
       .number({ error: 'Informe os anos finais sem corte.' })
       .refine(Number.isInteger, 'Use um número inteiro de anos.')
@@ -126,11 +146,11 @@ export function planSnapshotSchema(opts: PlanSchemaOptions = {}) {
   return z
     .object({
       legacyMin: optionalAmount('o legado mínimo'),
-      people: z.array(person),
-      otherAssets: z.array(otherAsset),
-      cashFlows: z.array(cashFlow),
-      events: z.array(event),
-      goals: z.array(goal),
+      people: z.array(person).max(MAX_ITEMS, 'Mais de 200 itens.'),
+      otherAssets: z.array(otherAsset).max(MAX_ITEMS, 'Mais de 200 itens.'),
+      cashFlows: z.array(cashFlow).max(MAX_ITEMS, 'Mais de 200 itens.'),
+      events: z.array(event).max(MAX_ITEMS, 'Mais de 200 itens.'),
+      goals: z.array(goal).max(MAX_ITEMS, 'Mais de 200 itens.'),
       rules,
     })
     .superRefine(
@@ -156,9 +176,9 @@ export function planSnapshotSchema(opts: PlanSchemaOptions = {}) {
         assets.forEach((a, i) => {
           if (assetIds.has(a.id)) issue(['otherAssets', i, 'id'], 'Bem repetido.')
           assetIds.add(a.id)
-          const classCode = typeof a.classCode === 'string' ? a.classCode.trim() : ''
-          if (a.inSimulation === true && !classCode) issue(['otherAssets', i, 'classCode'], 'O bem que entra na simulação precisa de uma classe.')
-          if (classCode && opts.classes && !opts.classes.includes(classCode)) {
+          const classCode = typeof a.classCode === 'string' ? a.classCode : ''
+          if (a.inSimulation === true && !classCode.trim()) issue(['otherAssets', i, 'classCode'], 'O bem que entra na simulação precisa de uma classe.')
+          if (classCode.trim() && opts.classes && !opts.classes.includes(classCode)) {
             issue(['otherAssets', i, 'classCode'], `A classe ${classCode} não está nas premissas vigentes.`)
           }
         })

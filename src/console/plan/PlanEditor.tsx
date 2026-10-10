@@ -9,7 +9,7 @@ import { get, useFieldArray, useForm, useWatch, type FieldPath } from 'react-hoo
 import type { SavedPlanVersion, SaveResult } from '../../lib/apiTypes.ts'
 import { formatMonthLabel, monthName } from '../../lib/format.ts'
 import { emptyPlanForm, formToSnapshot, snapshotToForm, type PlanForm } from '../../lib/planForm.ts'
-import { planSnapshotSchema } from '../../lib/planSchema.ts'
+import { brazilToday, planSnapshotSchema } from '../../lib/planSchema.ts'
 import { cn } from '../../lib/utils.ts'
 import type { PlanSnapshot } from '../../report/types.ts'
 import { errorText, rpc } from '../api.ts'
@@ -18,10 +18,10 @@ import { Button } from '../ui/button.tsx'
 import { ConfirmDialog } from '../ui/dialog.tsx'
 import { Input, Select } from '../ui/input.tsx'
 import { allowedBaseMonths } from './baseMonths.ts'
-import { fieldPath, planFormResolver } from './formErrors.ts'
+import { describeIssue, planFormPath, planFormResolver } from './formErrors.ts'
 
 const newId = () => crypto.randomUUID().slice(0, 8)
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => brazilToday()
 
 const KINDS_CASH = { renda: 'Renda do trabalho', dividendos: 'Dividendos', aluguel: 'Aluguel', gasto_essencial: 'Gasto essencial', gasto_estilo: 'Gasto de estilo de vida' }
 const KINDS_ASSET = { imovel: 'Imóvel', empresa: 'Empresa', previdencia: 'Previdência', exterior: 'No exterior' }
@@ -108,6 +108,7 @@ export function PlanEditor(props: PlanEditorProps) {
   const [noteError, setNoteError] = useState<string | null>(null)
   const [pending, setPending] = useState<PlanSnapshot | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
+  const [serverIssues, setServerIssues] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
 
   const replacing = props.latest !== null && props.latest.base_month.slice(0, 7) === baseMonth
@@ -115,6 +116,7 @@ export function PlanEditor(props: PlanEditorProps) {
 
   const onValid = (values: PlanForm) => {
     setFailure(null)
+    setServerIssues([])
     if (note.trim() === '') {
       setNoteError('Diga em poucas palavras o que mudou.')
       return
@@ -129,11 +131,14 @@ export function PlanEditor(props: PlanEditorProps) {
     try {
       const r = await rpc<SaveResult<SavedPlanVersion>>('save_plan_version', { p_household: props.householdId, p_base_month: `${baseMonth}-01`, p_snapshot: pending, p_note: note.trim() })
       if (!r.ok) {
+        // Cada problema no campo dele, quando há campo, e todos na lista da recusa (nenhum fica sem aparecer).
+        const lifeGoals = form.getValues('goals').length
         for (const issue of r.errors) {
           if (issue.path === 'note') setNoteError(issue.message)
-          else setError(fieldPath(issue.path) as FieldPath<PlanForm>, { type: 'server', message: issue.message })
+          else setError(planFormPath(issue.path, lifeGoals) as FieldPath<PlanForm>, { type: 'server', message: issue.message })
         }
-        setFailure('O banco recusou a versão: veja os campos marcados.')
+        setServerIssues(r.errors.filter((i) => i.path !== 'note').map(describeIssue))
+        setFailure('O banco recusou a versão:')
         return
       }
       setNote('')
@@ -446,7 +451,18 @@ export function PlanEditor(props: PlanEditorProps) {
           </div>
           {months.length === 0 ? <Alert tone="warning">O mês de hoje já está fechado para esta família: o plano novo espera o mês seguinte.</Alert> : null}
           {Object.keys(errors).length > 0 && !failure ? <Alert tone="error">Corrija os campos marcados antes de gravar.</Alert> : null}
-          {failure ? <Alert tone="error">{failure}</Alert> : null}
+          {failure ? (
+            <Alert tone="error">
+              {failure}
+              {serverIssues.length > 0 ? (
+                <ul className="mt-1 list-disc pl-5">
+                  {serverIssues.map((m, i) => (
+                    <li key={i}>{m}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </Alert>
+          ) : null}
         </div>
       )}
 

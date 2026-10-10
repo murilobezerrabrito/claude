@@ -37,6 +37,12 @@ interface RegistrationForm {
   status: 'ativa' | 'encerrada'
 }
 
+/** A lista de quem pode ser escolhido, com o atual no fim se ele perdeu o papel (o banco recusa ao gravar, com aviso). */
+function withCurrent(list: { id: string; email: string }[], currentId: string | null, currentEmail: string | null, role: string) {
+  if (!currentId || list.some((x) => x.id === currentId)) return list
+  return [...list, { id: currentId, email: `${currentEmail ?? 'Usuário'} (sem o papel de ${role})` }]
+}
+
 const pctText = (fraction: number) => (fraction * 100).toLocaleString('pt-BR', { maximumFractionDigits: 4 })
 
 function F({ label, error, hint, children }: { label: string; error?: string; hint?: string; children: ReactNode }) {
@@ -70,20 +76,24 @@ function Registration(props: { data: HouseholdEditorData | null; options: PlanOp
       : { code: '', name: '', channel: 'cadm', banker_id: '', owner_id: '', intermediary: '', profile_id: 'moderado', suitability: '', fee_pct: '0,8', horizon_age: '95', seed: '', status: 'ativa' },
   })
   const [failure, setFailure] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const channel = useWatch({ control, name: 'channel' })
   const err = (k: keyof RegistrationForm) => formState.errors[k]?.message
   const seedLocked = props.data?.has_runs ?? false
 
   const submit = async (v: RegistrationForm) => {
+    // Semente: vazia (o banco sorteia) ou um inteiro; o que não for número não é ignorado em silêncio.
+    const seedText = (v.seed ?? '').trim()
+    const seedValue = parseIntBr(seedText)
+    if (seedText !== '' && (seedValue === undefined || Number.isNaN(seedValue))) {
+      setError('seed', { type: 'manual', message: 'A semente é um inteiro de 0 a 4.294.967.295, sem pontos.' })
+      return
+    }
     setBusy(true)
     setFailure(null)
-    setMessage(null)
     try {
       // Campos desabilitados (o canal na edição, a semente fixa) não vêm no envio: valem os do cadastro.
       const ch = h?.channel ?? v.channel
-      const seed = v.seed ?? ''
       const fee = parseDecimalBr(v.fee_pct)
       const fields = {
         code: v.code,
@@ -96,7 +106,7 @@ function Registration(props: { data: HouseholdEditorData | null; options: PlanOp
         suitability: v.suitability,
         fee_rate: fee === undefined || Number.isNaN(fee) ? null : Math.round(fee * 1e4) / 1e6,
         horizon_age: parseIntBr(v.horizon_age) ?? null,
-        ...(seed.trim() === '' ? {} : { seed: parseIntBr(seed) ?? null }),
+        ...(seedText === '' ? {} : { seed: seedValue }),
         status: v.status,
       }
       const r = await rpc<SaveResult<{ household_id: string; code: string }>>('save_household', { p_household: h?.id ?? null, p_fields: fields })
@@ -108,7 +118,6 @@ function Registration(props: { data: HouseholdEditorData | null; options: PlanOp
         setFailure('O cadastro não foi gravado: veja os campos marcados.')
         return
       }
-      setMessage(h ? 'Cadastro atualizado.' : `Família ${r.code} cadastrada.`)
       props.onSaved(r.household_id, !h)
     } catch (e) {
       setFailure(errorText(e))
@@ -135,8 +144,8 @@ function Registration(props: { data: HouseholdEditorData | null; options: PlanOp
         {channel === 'cadm' ? (
           <F label="Banker" error={err('banker_id')}>
             <Select aria-label="Banker" {...register('banker_id')}>
-              <option value="">{h?.banker_email ?? 'A definir'}</option>
-              {props.options.bankers.map((b) => (
+              <option value="">A definir</option>
+              {withCurrent(props.options.bankers, h?.banker_id ?? null, h?.banker_email ?? null, 'banker').map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.email}
                 </option>
@@ -146,8 +155,8 @@ function Registration(props: { data: HouseholdEditorData | null; options: PlanOp
         ) : (
           <F label="Responsável" error={err('owner_id')}>
             <Select aria-label="Responsável" {...register('owner_id')}>
-              <option value="">{h?.owner_email ?? 'A definir'}</option>
-              {props.options.owners.map((o) => (
+              <option value="">A definir</option>
+              {withCurrent(props.options.owners, h?.owner_id ?? null, h?.owner_email ?? null, 'responsável').map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.email}
                 </option>
@@ -205,7 +214,6 @@ function Registration(props: { data: HouseholdEditorData | null; options: PlanOp
             {h ? 'Gravar cadastro' : 'Cadastrar família'}
           </Button>
           {failure ? <Alert tone="error">{failure}</Alert> : null}
-          {message ? <Alert tone="success">{message}</Alert> : null}
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">Só a gestão muda o cadastro.</p>
@@ -223,6 +231,7 @@ export function HouseholdPage() {
   const [options, setOptions] = useState<PlanOptions | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const [saved, setSaved] = useState<string | null>(null)
+  const [registrationSaved, setRegistrationSaved] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
 
   useEffect(() => {
@@ -240,13 +249,18 @@ export function HouseholdPage() {
     }
   }, [id, isNew, version])
 
-  const reload = () => setVersion((v) => v + 1)
+  // Recarrega do banco; os formulários só voltam a aparecer com os dados novos (montam de novo com eles).
+  const reload = () => {
+    setData(null)
+    setVersion((v) => v + 1)
+  }
   const h = data?.household
   const title = isNew ? 'Nova família' : h ? `${h.code} · ${h.name}` : 'Família'
   const latest = data?.latest
   const planHidden = latest !== null && latest !== undefined && latest.snapshot === undefined
 
   const onPlanSaved = (r: SavedPlanVersion) => {
+    setRegistrationSaved(null)
     setSaved(
       `Versão ${r.version} gravada, com mês-base ${formatMonthLabel(r.base_month.slice(0, 7))}.` +
         (r.months_reset > 0 ? ` ${plural(r.months_reset, 'mês voltou', 'meses voltaram')} para importado: confira e rode de novo.` : ''),
@@ -279,14 +293,20 @@ export function HouseholdPage() {
             <CardTitle>Cadastro</CardTitle>
             <CardDescription>Canal, responsável ou banker, intermediário, origem dos pesos, suitability, custo e semente.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-4">
+            {registrationSaved ? <Alert tone="success">{registrationSaved}</Alert> : null}
             {options && (isNew || data) ? (
               <Registration
-                key={`${h?.id ?? 'nova'}-${version}`}
+                key={h?.id ?? 'nova'}
                 data={data}
                 options={options}
                 canEdit={isNew ? session.has('gestao') : (data?.can_edit_registration ?? false)}
-                onSaved={(newId, created) => (created ? navigate(`/familias/${newId}`) : reload())}
+                onSaved={(newId, created) => {
+                  setSaved(null)
+                  setRegistrationSaved(created ? 'Família cadastrada: preencha e grave a primeira versão do plano.' : 'Cadastro atualizado.')
+                  if (created) navigate(`/familias/${newId}`)
+                  else reload()
+                }}
               />
             ) : (
               <p className="text-sm text-muted-foreground">Carregando…</p>
@@ -311,7 +331,7 @@ export function HouseholdPage() {
                   <Alert tone="info">Sem permissão para ver os valores em reais: o plano não aparece.</Alert>
                 ) : (
                   <PlanEditor
-                    key={`${latest?.id ?? 'sem-plano'}-${version}`}
+                    key={latest?.id ?? 'sem-plano'}
                     householdId={data.household.id}
                     latest={latest?.snapshot ? { version: latest.version, base_month: latest.base_month, snapshot: latest.snapshot } : null}
                     lastClosedMonth={data.last_closed_month}

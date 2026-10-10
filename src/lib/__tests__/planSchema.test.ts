@@ -3,7 +3,7 @@ import andrade from '../../data/andrade.json'
 import dataset from '../../data/andrade-fechamentos.json'
 import type { HouseholdData } from '../../engine/types.ts'
 import type { PlanSnapshot } from '../../report/types.ts'
-import { emptyPlanForm, formToSnapshot, parseDecimalBr, parseIntBr, planLegacy, snapshotToForm } from '../planForm.ts'
+import { emptyPlanForm, formToSnapshot, parseDecimalBr, parseIntBr, parsePercentBr, planLegacy, snapshotToForm } from '../planForm.ts'
 import { isValidIsoDate, planSnapshotIssues, planSnapshotSchema } from '../planSchema.ts'
 
 const versions = (dataset as unknown as { planVersions: { baseMonth: string; snapshot: PlanSnapshot }[] }).planVersions
@@ -122,7 +122,9 @@ describe('esquema da versão do plano', () => {
     expect('cpf' in out.people[0]).toBe(false)
   })
 
-  it('datas do calendário', () => {
+  it('datas do calendário, também antes do ano 100', () => {
+    expect(isValidIsoDate('0050-01-01')).toBe(true)
+    expect(isValidIsoDate('0050-02-29')).toBe(false)
     expect(isValidIsoDate('2024-02-29')).toBe(true)
     expect(isValidIsoDate('2026-02-29')).toBe(false)
     expect(isValidIsoDate('29/02/2024')).toBe(false)
@@ -149,6 +151,13 @@ describe('formulário do plano', () => {
     expect(parseDecimalBr('1,2,3')).toBeNaN()
     expect(parseDecimalBr('12.34.56')).toBeNaN()
     expect(parseDecimalBr('abc')).toBeNaN()
+    // "0.500" não é milhar: é meio; "0.500,00" é ambíguo e é recusado.
+    expect(parseDecimalBr('0.500')).toBe(0.5)
+    expect(parseDecimalBr('0.500,00')).toBeNaN()
+    // Percentuais não têm milhar: "12.345" é 12,345%.
+    expect(parsePercentBr('12.345')).toBe(12.345)
+    expect(parsePercentBr('7,5')).toBe(7.5)
+    expect(parsePercentBr('1.000,5')).toBeNaN()
     expect(parseIntBr('2030')).toBe(2030)
     expect(parseIntBr('')).toBeUndefined()
     expect(parseIntBr('20,5')).toBeNaN()
@@ -195,13 +204,13 @@ describe('formulário do plano', () => {
     ])
   })
 
-  it('plano novo: só o titular a preencher, regras padrão desligadas', () => {
+  it('plano novo: só o titular a preencher, regras padrão do SPEC ligadas', () => {
     let n = 0
     const form = emptyPlanForm(() => `p${++n}`)
     expect(messages(formToSnapshot(form))).toEqual(['people.0.name: Informe o nome.', 'people.0.birthDate: Informe a data de nascimento.', 'people.0.sex: Escolha o sexo.'])
     form.people[0] = { ...form.people[0], name: 'Fulana', birthDate: '1/2/1980', sex: 'F' }
     const ok = planSnapshotSchema(opts).parse(formToSnapshot(form))
     expect(ok.people[0].birthDate).toBe('1980-02-01')
-    expect(ok.rules).toEqual({ enabled: false, mode: 'trajetoria_referencia', lower: 0.8, upper: 1.2, cut: 0.1, raise: 0.1, floor: 0.5, cap: 1.3, noCutLastYears: 15 })
+    expect(ok.rules).toEqual({ enabled: true, mode: 'trajetoria_referencia', lower: 0.8, upper: 1.2, cut: 0.1, raise: 0.1, floor: 0.5, cap: 1.3, noCutLastYears: 15 })
   })
 })
