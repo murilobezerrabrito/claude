@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FamilyOverviewRow } from '../../lib/apiTypes.ts'
-import { attentionReasons, bandOf, sortFamilies, variationTenths } from '../families.ts'
+import { attentionReasons, bandOf, sortFamilies, tenths, variationTenths } from '../families.ts'
 
 function family(code: string, probability: number | null, previous: number | null = null, slack: number | null = 0.01): FamilyOverviewRow {
   return {
@@ -26,6 +26,16 @@ describe('famílias por canal', () => {
     expect(variationTenths(family('X', null, 0.8))).toBeNull()
   })
 
+  it('décimos iguais aos do relatório, sem o erro do ponto flutuante', () => {
+    // 5.005 de 10.000 trajetórias: o relatório arredonda 500,5 décimos para 501 ("50,1%").
+    expect(tenths(0.5005)).toBe(501)
+    expect(tenths(0.5115)).toBe(512)
+    expect(tenths(0.6195)).toBe(620)
+    expect(tenths(0.50049)).toBe(500)
+    expect(tenths(0)).toBe(0)
+    expect(tenths(1)).toBe(1000)
+  })
+
   it('filtro "precisam de atenção": abaixo de 70%, queda de mais de 5 p.p., 99% ou mais', () => {
     expect(attentionReasons(family('A', 0.6999))).toEqual(['abaixo_de_70'])
     expect(attentionReasons(family('B', 0.7))).toEqual([])
@@ -36,8 +46,9 @@ describe('famílias por canal', () => {
     expect(attentionReasons(family('D', 0.85, 0.9001))).toEqual([])
     expect(attentionReasons(family('E', 0.99))).toEqual(['acima_de_99'])
     expect(attentionReasons(family('F', 0.6, 0.8))).toEqual(['abaixo_de_70', 'queda_no_mes'])
-    // Sem rodada, sem número: não entra no filtro.
+    // Sem rodada, sem número: não entra no filtro. Família encerrada também não.
     expect(attentionReasons(family('G', null))).toEqual([])
+    expect(attentionReasons({ ...family('H', 0.5), status: 'encerrada' })).toEqual([])
   })
 
   it('selo da faixa pelos limites do SPEC', () => {

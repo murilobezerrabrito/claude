@@ -1,8 +1,11 @@
 // Rodada oficial em lote (SPEC, "Mês": rodada oficial em lote): família por família, uma simulação por chamada à
 // função `official-run` (D-061). As partes de uma família vão em paralelo, até `parallel` chamadas de cada vez; a
-// família só conclui com todas as partes gravadas. Uma parte que falha por erro do servidor (não por regra) é pedida
-// de novo uma vez: a parte é gravada por cima, então repetir não muda nada. A chamada à função vem de fora (`call`),
-// para testar sem servidor.
+// família só conclui com todas as partes gravadas. Um pedido de partes ou uma parte que falha por erro do servidor
+// (não por regra) é pedido de novo uma vez: a parte é gravada por cima, então repetir não muda nada. "Concluir" não se
+// repete: grava a rodada e muda o status, e um "concluir" que gravou mas perdeu a resposta seria recusado na segunda
+// vez. A chamada à função vem de fora (`call`), para testar sem servidor; `npm run db:import` usa a mesma rodada.
+
+import type { OfficialRunDone, OfficialRunPart, OfficialRunParts } from '../lib/apiTypes.ts'
 
 export type RunAction =
   | { acao: 'partes'; household_id: string; ref_date: string }
@@ -80,15 +83,15 @@ export async function runMonthBatch(
     const where = { household_id: states[i].household_id, ref_date: refDate }
     update(i, { state: 'rodando' })
     try {
-      const { partes } = await withOneRetry(() => call<{ partes: string[] }>({ acao: 'partes', ...where }))
+      const { partes } = await withOneRetry(() => call<OfficialRunParts>({ acao: 'partes', ...where }))
       update(i, { partsTotal: partes.length })
       let maxPartMs = 0
       await pool(partes, parallel, async (parte) => {
-        const r = await withOneRetry(() => call<{ tempo_de_calculo_ms: number }>({ acao: 'parte', parte, ...where }))
+        const r = await withOneRetry(() => call<OfficialRunPart>({ acao: 'parte', parte, ...where }))
         maxPartMs = Math.max(maxPartMs, r.tempo_de_calculo_ms)
         update(i, { partsDone: states[i].partsDone + 1, maxPartMs })
       })
-      const done = await withOneRetry(() => call<{ probability: number }>({ acao: 'concluir', ...where }))
+      const done = await call<OfficialRunDone>({ acao: 'concluir', ...where })
       update(i, { state: 'rodada', probability: done.probability })
     } catch (e) {
       update(i, { state: 'erro', error: errorText(e) })

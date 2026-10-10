@@ -4,8 +4,12 @@
 import { probabilityBand, type ProbabilityBand } from '../engine/metrics.ts'
 import type { FamilyOverviewRow } from '../lib/apiTypes.ts'
 
-/** Chance em décimos de ponto, como no relatório (0,6195 → 620, "62,0%"). */
-export const tenths = (p: number) => Math.round(p * 1000)
+/**
+ * Chance em décimos de ponto, como no relatório (0,6195 → 620, "62,0%"). O relatório arredonda a contagem inteira de
+ * trajetórias (meio para cima); aqui, a fração vem do banco, e 0,5005 × 1000 dá 500,4999… em ponto flutuante. Arredondar
+ * antes a 1e-7 tira esse erro e devolve o mesmo número do relatório (501).
+ */
+export const tenths = (p: number) => Math.round(Math.round(p * 1e7) / 1e4)
 
 /** Variação da chance no mês em décimos de ponto, a partir dos números já arredondados (o que aparece fecha a conta). */
 export function variationTenths(f: FamilyOverviewRow): number | null {
@@ -29,9 +33,9 @@ export const ATTENTION_LABELS: Record<AttentionReason, string> = {
   acima_de_99: '99% ou mais: talvez conservador demais',
 }
 
-/** Por que a família precisa de atenção (vazio quando não precisa, ou quando ainda não tem rodada). */
+/** Por que a família precisa de atenção (vazio quando não precisa, quando ainda não tem rodada ou quando está encerrada). */
 export function attentionReasons(f: FamilyOverviewRow): AttentionReason[] {
-  if (!f.latest) return []
+  if (!f.latest || f.status === 'encerrada') return []
   const p = f.latest.probability
   const out: AttentionReason[] = []
   if (p < ATTENTION.below) out.push('abaixo_de_70')

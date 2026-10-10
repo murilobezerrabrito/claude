@@ -65,6 +65,13 @@ describe('rodada oficial em lote', () => {
     expect(server.calls.filter((c) => c.acao === 'parte' && c.parte === 'mercado')).toHaveLength(2)
   })
 
+  it('"concluir" não se repete: a gravação muda o status, e a segunda vez seria recusada', async () => {
+    const server = fakeServer({ fail: (a) => (a.acao === 'concluir' ? new HttpFailure(504, 'tempo esgotado no gateway') : null) })
+    const states = await runMonthBatch(families.slice(0, 1), '2026-10-31', server.call, () => {})
+    expect(states[0]).toMatchObject({ state: 'erro', error: 'tempo esgotado no gateway' })
+    expect(server.calls.filter((c) => c.acao === 'concluir')).toHaveLength(1)
+  })
+
   it('recusa por regra (4xx) não se repete; a família fica com o erro e as outras rodam', async () => {
     const server = fakeServer({ fail: (a) => (a.household_id === 'h1' && a.acao === 'partes' ? new HttpFailure(422, 'O mês anterior (09/2026) ainda não foi fechado.') : null) })
     const states = await runMonthBatch(families, '2026-10-31', server.call, () => {})

@@ -5,6 +5,8 @@
 //   { acao: 'concluir' }   monta a rodada, a ponte e a rentabilidade a partir das partes e grava (família rodada).
 // Quem pede precisa ser da gestão, com segundo fator (o banco confere com o token de quem pede). Entradas, partes e
 // gravação usam a chave do servidor, que nunca vai ao navegador.
+// Respostas de erro: 403 sem permissão; 422 recusa por regra (não adianta repetir); 503 falha do banco ou da rede
+// (o console tenta de novo uma vez). O tempo de cálculo gravado cobre a montagem das entradas e a simulação.
 
 import { ReportInputError } from '../_shared/aware/report/errors.ts'
 import { assembleRun, runPart, runTasks, type PartOutcome, type RunInputs, type RunPart } from '../_shared/aware/report/runTasks.ts'
@@ -37,8 +39,14 @@ async function rpc<T>(fn: string, args: Record<string, unknown>, as: { user: str
       : { apikey: ANON_KEY, Authorization: as.user, 'Content-Type': 'application/json' }
   const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, { method: 'POST', headers, body: JSON.stringify(args) })
   const text = await res.text()
-  const body = text === '' ? null : (JSON.parse(text) as { message?: string; code?: string } | null)
+  let body: { message?: string; code?: string } | null = null
+  try {
+    body = text === '' ? null : (JSON.parse(text) as { message?: string; code?: string } | null)
+  } catch {
+    // Resposta sem JSON (gateway): fica o status.
+  }
   if (!res.ok) {
+    if (res.status >= 500) throw new HttpError(503, 'O banco não respondeu agora. Tente de novo em instantes.')
     const denied = res.status === 401 || res.status === 403 || body?.code === '42501'
     throw new HttpError(denied ? 403 : 422, body?.message ?? `Erro ${res.status} em ${fn}.`)
   }
@@ -62,6 +70,7 @@ Deno.serve(async (req) => {
     const body = (await req.json()) as Request_
     const where = { p_household: body.household_id, p_ref_date: body.ref_date }
     const loaded = await rpc<{ inputs: RunInputs; cma_version_id: string; plan_version_id: string }>('run_inputs', { ...where, p_actor: actor }, 'servidor')
+    const t0 = performance.now()
     const tasks = runTasks(loaded.inputs)
 
     if (body.acao === 'partes') return reply(200, { partes: tasks.parts })
@@ -69,7 +78,6 @@ Deno.serve(async (req) => {
     if (body.acao === 'parte') {
       const part = body.parte
       if (!part || !tasks.parts.includes(part)) throw new HttpError(400, `Parte desconhecida: ${String(part)}.`)
-      const t0 = performance.now()
       const outcome = runPart(tasks, part)
       const ms = performance.now() - t0
       await rpc('record_run_part', { ...where, p_part: part, p_inputs_hash: outcome.inputsHash, p_result: outcome.result, p_compute_ms: ms, p_actor: actor }, 'servidor')

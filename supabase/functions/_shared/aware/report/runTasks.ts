@@ -20,10 +20,12 @@ export interface RunInputs {
   previous: { pkg: MonthPackage; published: OfficialRun } | null
 }
 
-/** Os passos intermediários da ponte (o último, "premissas", é a rodada principal). */
-const BRIDGE_PARTS = ['passagem_do_tempo', 'mercado', 'aportes_e_resgates', 'carteira', 'plano'] as const
-
-export type RunPart = 'principal' | 'gasto_flexivel' | 'inicio' | (typeof BRIDGE_PARTS)[number]
+/**
+ * Os passos do plano da ponte que viram parte da rodada: todos menos o último ("premissas"), que é a rodada principal.
+ * A "atualização do método" não é passo do plano: sai da parte "inicio".
+ */
+export type BridgePart = Exclude<BridgeStepId, 'premissas' | 'atualizacao_do_metodo'>
+export type RunPart = 'principal' | 'gasto_flexivel' | 'inicio' | BridgePart
 
 export interface RunTasks {
   official: OfficialRunPlan
@@ -40,7 +42,7 @@ export function runTasks(inputs: RunInputs, opts: { paths?: number } = {}): RunT
   }
   const parts: RunPart[] = ['principal']
   if (official.rules) parts.push('gasto_flexivel')
-  if (bridge) parts.push('inicio', ...BRIDGE_PARTS)
+  if (bridge) parts.push('inicio', ...bridge.steps.slice(0, -1).map((s) => s.id as BridgePart))
   return { official, bridge, parts }
 }
 
@@ -53,7 +55,7 @@ export function partInput(tasks: RunTasks, part: RunPart): SimInput {
   }
   if (!tasks.bridge) throw new ReportInputError('parte_invalida', 'Primeiro mês acompanhado: não há ponte.')
   if (part === 'inicio') return tasks.bridge.startInput
-  const step = tasks.bridge.steps.find((s) => s.id === (part as BridgeStepId))
+  const step = tasks.bridge.steps.slice(0, -1).find((s) => s.id === part)
   if (!step) throw new ReportInputError('parte_invalida', `Parte desconhecida: ${part}.`)
   return step.input
 }
@@ -101,7 +103,9 @@ export function assembleRun(inputs: RunInputs, tasks: RunTasks, stored: Partial<
   const run = assembleOfficialRun(inputs.pkg, tasks.official, main, rules)
   if (!tasks.bridge || !inputs.previous) return { run, attribution: { kind: 'primeiro_mes' }, realizedReturnReal: null }
   const final: BridgeState = { inputsHash: main.inputsHash, successCount: run.successCount, requiredReturn: run.requiredReturn, wealth: run.wealth }
-  const states = [...BRIDGE_PARTS.map((p) => stored[p]!.result as BridgeState), final]
+  // Cada passo recebe a parte com o seu nome; o último é a rodada principal.
+  const last = tasks.bridge.steps.length - 1
+  const states = tasks.bridge.steps.map((s, i) => (i === last ? final : (stored[s.id as BridgePart]!.result as BridgeState)))
   const attribution = assembleBridge(tasks.bridge, stored.inicio!.result as BridgeState, states)
   const prev = inputs.previous.pkg.closing
   const cur = inputs.pkg.closing
