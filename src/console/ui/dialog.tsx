@@ -3,9 +3,14 @@ import type { ComponentProps, ReactNode } from 'react'
 import { cn } from '../../lib/utils.ts'
 import { Button } from './button.tsx'
 
-/** Confirmação de uma ação que muda dados (apagar, fechar o mês): título, explicação e dois botões. */
+/**
+ * Confirmação de uma ação que muda dados (apagar, fechar o mês): título, explicação e dois botões. Abre pelo botão
+ * (`trigger`) ou de fora (`open` e `onOpenChange`), quando a ação precisa conferir algo antes de pedir a confirmação.
+ */
 export function ConfirmDialog(props: {
-  trigger: ReactNode
+  trigger?: ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   title: string
   description: ReactNode
   confirmLabel: string
@@ -13,8 +18,8 @@ export function ConfirmDialog(props: {
   onConfirm: () => void
 }) {
   return (
-    <DialogPrimitive.Root>
-      <DialogPrimitive.Trigger asChild>{props.trigger}</DialogPrimitive.Trigger>
+    <DialogPrimitive.Root open={props.open} onOpenChange={props.onOpenChange}>
+      {props.trigger ? <DialogPrimitive.Trigger asChild>{props.trigger}</DialogPrimitive.Trigger> : null}
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-black/50" />
         <DialogContent>

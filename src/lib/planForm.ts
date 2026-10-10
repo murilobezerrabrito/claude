@@ -9,6 +9,7 @@ import type { PlanSnapshot } from '../report/types.ts'
 export interface PersonForm {
   id: string
   name: string
+  /** "dd/mm/aaaa", como a pessoa digita (o seletor de data do navegador segue o idioma do sistema, D-057). */
   birthDate: string
   sex: Sex | ''
   role: PersonRole
@@ -100,6 +101,17 @@ export function parseIntBr(input: string): number | undefined {
   return /^-?\d+$/.test(s) ? Number(s) : NaN
 }
 
+/** "1974-03-15" → "15/03/1974". */
+export const isoToBrDate = (iso: string) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split('-').reverse().join('/') : iso)
+
+/** "15/03/1974" (ou "5/3/1974") → "1974-03-15"; vazio dá undefined; o resto volta como foi digitado (o esquema recusa). */
+export function brDateToIso(input: string): string | undefined {
+  const s = input.trim()
+  if (s === '') return undefined
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s)
+  return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : s
+}
+
 const brl = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const pct = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 4 })
 
@@ -123,7 +135,7 @@ export function planLegacy(p: PlanSnapshot): number | undefined {
 export function snapshotToForm(p: PlanSnapshot): PlanForm {
   return {
     legacyMin: moneyField(planLegacy(p)),
-    people: p.people.map((x) => ({ id: x.id, name: x.name, birthDate: x.birthDate, sex: x.sex, role: x.role, retirementAge: intField(x.retirementAge) })),
+    people: p.people.map((x) => ({ id: x.id, name: x.name, birthDate: isoToBrDate(x.birthDate), sex: x.sex, role: x.role, retirementAge: intField(x.retirementAge) })),
     otherAssets: p.otherAssets.map((a) => ({
       id: a.id,
       kind: a.kind,
@@ -179,7 +191,7 @@ export function formToSnapshot(f: PlanForm): unknown {
   return {
     ...(hasLegacy ? { legacyMin: legacy } : {}),
     people: f.people.map((x) =>
-      omitEmpty({ id: x.id, name: x.name, birthDate: x.birthDate, sex: x.sex === '' ? undefined : x.sex, role: x.role, retirementAge: parseIntBr(x.retirementAge) }),
+      omitEmpty({ id: x.id, name: x.name, birthDate: brDateToIso(x.birthDate), sex: x.sex === '' ? undefined : x.sex, role: x.role, retirementAge: parseIntBr(x.retirementAge) }),
     ),
     otherAssets: f.otherAssets.map((a) =>
       omitEmpty({

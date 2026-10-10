@@ -2,8 +2,9 @@
 // e status do mês, ordenável, com o filtro "precisam de atenção". O retrato vem de families_overview, que confere o
 // papel e registra a leitura; a família sem rodada aparece sem os números.
 
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router'
 import type { ProbabilityBand } from '../../engine/metrics.ts'
 import type { Channel, FamilyOverviewRow } from '../../lib/apiTypes.ts'
 import { formatDate, formatMonthLabel, formatPp, formatRealReturn, formatTenthsPercent, formatTenthsPp } from '../../lib/format.ts'
@@ -12,9 +13,11 @@ import { errorText, rpc } from '../api.ts'
 import { StatusBadge } from '../components.tsx'
 import { CHANNEL_LABELS } from '../display.ts'
 import { ATTENTION_LABELS, attentionReasons, bandOf, sortFamilies, tenths, variationTenths, type SortKey } from '../families.ts'
+import { useSession } from '../session.tsx'
 import { PageTitle } from '../Shell.tsx'
 import { Alert } from '../ui/alert.tsx'
 import { Badge } from '../ui/badge.tsx'
+import { Button } from '../ui/button.tsx'
 import { Card, CardContent } from '../ui/card.tsx'
 import { Select } from '../ui/input.tsx'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table.tsx'
@@ -45,6 +48,7 @@ function SortHead({ label, column, sort, onSort, right }: { label: string; colum
 }
 
 export function FamiliesPage() {
+  const isGestao = useSession().has('gestao')
   const [channel, setChannel] = useState<Channel | ''>('')
   const [onlyAttention, setOnlyAttention] = useState(false)
   const [sort, setSort] = useState<{ key: SortKey; asc: boolean }>({ key: 'familia', asc: true })
@@ -84,6 +88,14 @@ export function FamiliesPage() {
             <input type="checkbox" className="size-4 accent-primary" checked={onlyAttention} onChange={(e) => setOnlyAttention(e.target.checked)} />
             Precisam de atenção{rows ? ` (${attentionCount})` : ''}
           </label>
+          {isGestao ? (
+            <Button asChild>
+              <Link to="/familias/nova">
+                <Plus />
+                Nova família
+              </Link>
+            </Button>
+          ) : null}
         </div>
       </PageTitle>
       {failure ? <Alert tone="error">{failure}</Alert> : null}
@@ -110,7 +122,9 @@ export function FamiliesPage() {
                 return (
                   <TableRow key={f.household_id}>
                     <TableCell>
-                      <span className="font-medium">{f.code}</span> {f.name}
+                      <Link to={`/familias/${f.household_id}`} className="hover:underline">
+                        <span className="font-medium">{f.code}</span> {f.name}
+                      </Link>
                       {f.status === 'encerrada' ? (
                         <Badge className="ml-2" tone="neutral">
                           Encerrada

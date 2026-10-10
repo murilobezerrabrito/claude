@@ -5,6 +5,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { LoginScreen } from './console/auth/LoginScreen.tsx'
 import { useConsoleAuth } from './console/auth/useConsoleAuth.ts'
 import { FamiliesPage } from './console/pages/FamiliesPage.tsx'
+import { HouseholdPage } from './console/pages/HouseholdPage.tsx'
 import { MappingPage } from './console/pages/MappingPage.tsx'
 import { MonthPage } from './console/pages/MonthPage.tsx'
 import { ReportPreview } from './console/report/ReportPreview.tsx'
@@ -34,6 +35,7 @@ export default function App() {
         <Shell onSignOut={auth.signOut}>
           <Routes>
             <Route path="/familias" element={<FamiliesPage />} />
+            <Route path="/familias/:id" element={<HouseholdPage />} />
             <Route path="/mes" element={<MonthPage />} />
             <Route path="/mapeamento" element={<MappingPage />} />
             <Route path="/relatorio-exemplo" element={<ReportPreview />} />

@@ -22,8 +22,17 @@ const amount = (what: string) =>
   z.number({ error: `Informe ${what} em reais.` }).min(0, `${what[0].toUpperCase()}${what.slice(1)} não pode ser negativo.`)
 const optionalAmount = (what: string) => amount(what).optional()
 const year = (what: string) =>
-  z.number({ error: `Informe ${what}.` }).int(`Use um ano inteiro em ${what}.`).min(YEARS.min, `Ano fora do intervalo em ${what}.`).max(YEARS.max, `Ano fora do intervalo em ${what}.`)
+  z.number({ error: `Informe ${what}.` }).refine(Number.isInteger, `Use um ano inteiro em ${what}.`).min(YEARS.min, `Ano fora do intervalo em ${what}.`).max(YEARS.max, `Ano fora do intervalo em ${what}.`)
 const text = (what: string) => z.string({ error: `Informe ${what}.` }).trim().min(1, `Informe ${what}.`)
+
+const LISTS = ['people', 'otherAssets', 'cashFlows', 'events', 'goals'] as const
+
+/** Objeto com as cinco listas e as regras: o mínimo para conferir as regras entre campos. */
+function hasPlanShape(v: unknown): boolean {
+  if (v === null || typeof v !== 'object') return false
+  const o = v as Record<string, unknown>
+  return LISTS.every((k) => Array.isArray(o[k])) && o.rules !== null && typeof o.rules === 'object'
+}
 
 export interface PlanSchemaOptions {
   /** Classes das premissas vigentes: o bem que entra na simulação precisa de uma delas. */
@@ -47,7 +56,7 @@ export function planSnapshotSchema(opts: PlanSchemaOptions = {}) {
     role: z.enum(['titular', 'conjuge', 'filho'], { error: 'Escolha o papel na família.' }),
     retirementAge: z
       .number({ error: 'Informe a idade de aposentadoria.' })
-      .int('Use uma idade inteira.')
+      .refine(Number.isInteger, 'Use uma idade inteira.')
       .min(30, 'A idade de aposentadoria vai de 30 a 100 anos.')
       .max(100, 'A idade de aposentadoria vai de 30 a 100 anos.')
       .optional(),
@@ -79,9 +88,9 @@ export function planSnapshotSchema(opts: PlanSchemaOptions = {}) {
     direction: z.enum(['entrada', 'saida'], { error: 'Escolha entrada ou saída.' }),
     amountReal: amount('o valor'),
     year: year('o ano'),
-    month: z.number({ error: 'Informe o mês.' }).int('Use um mês de 1 a 12.').min(1, 'Use um mês de 1 a 12.').max(12, 'Use um mês de 1 a 12.').optional(),
+    month: z.number({ error: 'Informe o mês.' }).refine(Number.isInteger, 'Use um mês de 1 a 12.').min(1, 'Use um mês de 1 a 12.').max(12, 'Use um mês de 1 a 12.').optional(),
     recurrence: z.enum(['unica', 'anual', 'a_cada_n'], { error: 'Escolha a recorrência.' }),
-    everyN: z.number({ error: 'Informe o intervalo.' }).int('Use um intervalo inteiro de anos.').min(1, 'O intervalo é de pelo menos 1 ano.').max(200, 'Intervalo grande demais.').optional(),
+    everyN: z.number({ error: 'Informe o intervalo.' }).refine(Number.isInteger, 'Use um intervalo inteiro de anos.').min(1, 'O intervalo é de pelo menos 1 ano.').max(200, 'Intervalo grande demais.').optional(),
     endYear: year('o ano de fim').optional(),
   })
 
@@ -90,7 +99,7 @@ export function planSnapshotSchema(opts: PlanSchemaOptions = {}) {
     personId: z.string().min(1).optional(),
     targetAge: z
       .number({ error: 'Informe a idade.' })
-      .int('Use uma idade inteira.')
+      .refine(Number.isInteger, 'Use uma idade inteira.')
       .min(60, 'A idade da meta vai de 60 a 110 anos.')
       .max(110, 'A idade da meta vai de 60 a 110 anos.')
       .optional(),
@@ -109,7 +118,7 @@ export function planSnapshotSchema(opts: PlanSchemaOptions = {}) {
     cap: fraction('o teto').min(1, 'O teto é de pelo menos 100% do estilo de vida inicial.'),
     noCutLastYears: z
       .number({ error: 'Informe os anos finais sem corte.' })
-      .int('Use um número inteiro de anos.')
+      .refine(Number.isInteger, 'Use um número inteiro de anos.')
       .min(0, 'Os anos sem corte não podem ser negativos.')
       .max(200, 'Anos sem corte demais.'),
   })
@@ -124,51 +133,69 @@ export function planSnapshotSchema(opts: PlanSchemaOptions = {}) {
       goals: z.array(goal),
       rules,
     })
-    .superRefine((p, ctx) => {
-      const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path, message })
+    .superRefine(
+      (plan, ctx) => {
+        // Roda mesmo com erros de campo (para mostrar tudo de uma vez), então os valores podem ainda estar inválidos.
+        const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path, message })
+        const p = plan as unknown as Record<string, unknown>
+        const rows = (k: string) => (p[k] as unknown[]).map((x) => (x !== null && typeof x === 'object' ? (x as Record<string, unknown>) : {}))
+        const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+        const people = rows('people')
+        const assets = rows('otherAssets')
 
-      const titulares = p.people.filter((x) => x.role === 'titular').length
-      if (titulares !== 1) issue(['people'], titulares === 0 ? 'O plano precisa de um titular.' : 'O plano tem um titular só.')
-      if (p.people.filter((x) => x.role === 'conjuge').length > 1) issue(['people'], 'O plano tem no máximo um cônjuge.')
-      const personIds = new Set<string>()
-      p.people.forEach((x, i) => {
-        if (personIds.has(x.id)) issue(['people', i, 'id'], 'Pessoa repetida.')
-        personIds.add(x.id)
-      })
+        const titulares = people.filter((x) => x.role === 'titular').length
+        if (titulares !== 1) issue(['people'], titulares === 0 ? 'O plano precisa de um titular.' : 'O plano tem um titular só.')
+        if (people.filter((x) => x.role === 'conjuge').length > 1) issue(['people'], 'O plano tem no máximo um cônjuge.')
+        const personIds = new Set<unknown>()
+        people.forEach((x, i) => {
+          if (personIds.has(x.id)) issue(['people', i, 'id'], 'Pessoa repetida.')
+          personIds.add(x.id)
+        })
 
-      const assetIds = new Set<string>()
-      p.otherAssets.forEach((a, i) => {
-        if (assetIds.has(a.id)) issue(['otherAssets', i, 'id'], 'Bem repetido.')
-        assetIds.add(a.id)
-        if (a.inSimulation && !a.classCode) issue(['otherAssets', i, 'classCode'], 'O bem que entra na simulação precisa de uma classe.')
-        if (a.classCode && opts.classes && !opts.classes.includes(a.classCode)) {
-          issue(['otherAssets', i, 'classCode'], `A classe ${a.classCode} não está nas premissas vigentes.`)
-        }
-      })
+        const assetIds = new Set<unknown>()
+        assets.forEach((a, i) => {
+          if (assetIds.has(a.id)) issue(['otherAssets', i, 'id'], 'Bem repetido.')
+          assetIds.add(a.id)
+          const classCode = typeof a.classCode === 'string' ? a.classCode.trim() : ''
+          if (a.inSimulation === true && !classCode) issue(['otherAssets', i, 'classCode'], 'O bem que entra na simulação precisa de uma classe.')
+          if (classCode && opts.classes && !opts.classes.includes(classCode)) {
+            issue(['otherAssets', i, 'classCode'], `A classe ${classCode} não está nas premissas vigentes.`)
+          }
+        })
 
-      p.cashFlows.forEach((c, i) => {
-        if (c.endYear < c.startYear) issue(['cashFlows', i, 'endYear'], 'O ano de fim vem antes do ano de início.')
-        if (c.otherAssetId && !assetIds.has(c.otherAssetId)) issue(['cashFlows', i, 'otherAssetId'], 'O bem ligado a este fluxo não está no plano.')
-      })
+        rows('cashFlows').forEach((c, i) => {
+          const from = num(c.startYear)
+          const to = num(c.endYear)
+          if (from !== null && to !== null && to < from) issue(['cashFlows', i, 'endYear'], 'O ano de fim vem antes do ano de início.')
+          if (c.otherAssetId !== undefined && !assetIds.has(c.otherAssetId)) issue(['cashFlows', i, 'otherAssetId'], 'O bem ligado a este fluxo não está no plano.')
+        })
 
-      p.events.forEach((e, i) => {
-        if (e.recurrence !== 'unica') {
-          if (e.endYear === undefined) issue(['events', i, 'endYear'], 'O evento recorrente precisa de um ano de fim.')
-          else if (e.endYear < e.year) issue(['events', i, 'endYear'], 'O ano de fim vem antes do primeiro ano.')
-        }
-        if (e.recurrence === 'a_cada_n' && e.everyN === undefined) issue(['events', i, 'everyN'], 'Informe a cada quantos anos.')
-      })
+        rows('events').forEach((e, i) => {
+          if (e.recurrence === 'anual' || e.recurrence === 'a_cada_n') {
+            const year = num(e.year)
+            const to = num(e.endYear)
+            if (e.endYear === undefined) issue(['events', i, 'endYear'], 'O evento recorrente precisa de um ano de fim.')
+            else if (year !== null && to !== null && to < year) issue(['events', i, 'endYear'], 'O ano de fim vem antes do primeiro ano.')
+          }
+          if (e.recurrence === 'a_cada_n' && e.everyN === undefined) issue(['events', i, 'everyN'], 'Informe a cada quantos anos.')
+        })
 
-      p.goals.forEach((g, i) => {
-        if (g.kind === 'padrao_de_vida') {
-          if (!g.personId) issue(['goals', i, 'personId'], 'Escolha a pessoa da meta.')
-          else if (!personIds.has(g.personId)) issue(['goals', i, 'personId'], 'A pessoa da meta não está no plano.')
-          if (g.targetAge === undefined) issue(['goals', i, 'targetAge'], 'Informe até que idade.')
-        } else if (g.amount === undefined) issue(['goals', i, 'amount'], 'Informe o legado.')
-      })
+        rows('goals').forEach((g, i) => {
+          if (g.kind === 'padrao_de_vida') {
+            if (!g.personId) issue(['goals', i, 'personId'], 'Escolha a pessoa da meta.')
+            else if (!personIds.has(g.personId)) issue(['goals', i, 'personId'], 'A pessoa da meta não está no plano.')
+            if (g.targetAge === undefined) issue(['goals', i, 'targetAge'], 'Informe até que idade.')
+          } else if (g.kind === 'legado' && g.amount === undefined) issue(['goals', i, 'amount'], 'Informe o legado.')
+        })
 
-      if (!(p.rules.upper > p.rules.lower)) issue(['rules', 'upper'], 'O gatilho superior precisa ser maior que o inferior.')
-    })
+        const rules = p.rules as Record<string, unknown>
+        const lower = num(rules.lower)
+        const upper = num(rules.upper)
+        if (lower !== null && upper !== null && !(upper > lower)) issue(['rules', 'upper'], 'O gatilho superior precisa ser maior que o inferior.')
+      },
+      // Só falta a estrutura (as listas e as regras) para não rodar.
+      { when: (payload) => hasPlanShape(payload.value) },
+    )
 }
 
 /** Confere uma versão do plano (por exemplo, a que veio do banco) e devolve as mensagens, vazio quando está boa. */

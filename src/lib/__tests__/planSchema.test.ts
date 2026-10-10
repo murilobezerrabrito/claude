@@ -101,12 +101,18 @@ describe('esquema da versão do plano', () => {
         'rules.floor: O piso vai de mais de 0% a 100% do estilo de vida inicial.',
         'rules.cap: O teto é de pelo menos 100% do estilo de vida inicial.',
         'rules.noCutLastYears: Use um número inteiro de anos.',
+        'rules.upper: O gatilho superior precisa ser maior que o inferior.',
       ]),
     )
-    // As regras entre campos só rodam com os campos válidos (o Zod não as roda antes).
-    const q = v2()
-    q.rules = { ...q.rules, lower: 1.3 }
-    expect(messages(q)).toEqual(['rules.upper: O gatilho superior precisa ser maior que o inferior.'])
+  })
+
+  it('as regras entre campos aparecem junto com os erros de campo, e não repetem o erro do campo', () => {
+    const p = v2() as unknown as { people: { name: string }[]; cashFlows: { endYear: number }[]; rules: { lower: number } }
+    p.people[0].name = ''
+    p.cashFlows[0].endYear = 2020
+    p.rules.lower = Number.NaN
+    expect(messages(p)).toEqual(['people.0.name: Informe o nome.', 'rules.lower: Informe o gatilho inferior.', 'cashFlows.0.endYear: O ano de fim vem antes do ano de início.'])
+    expect(messages({ people: 'x' })).toEqual(expect.arrayContaining(['people: Invalid input: expected array, received string']))
   })
 
   it('campos desconhecidos saem da versão gravada', () => {
@@ -124,6 +130,15 @@ describe('esquema da versão do plano', () => {
 })
 
 describe('formulário do plano', () => {
+  it('datas no formato brasileiro', () => {
+    expect(snapshotToForm(v2()).people[0].birthDate).toBe('15/03/1974')
+    const form = snapshotToForm(v2())
+    form.people[0].birthDate = '31/02/1974'
+    expect(messages(formToSnapshot(form))).toEqual(['people.0.birthDate: Data de nascimento inválida: use dia, mês e ano.'])
+    form.people[0].birthDate = '1974-03-15'
+    expect(messages(formToSnapshot(form))).toEqual([])
+  })
+
   it('números no formato brasileiro', () => {
     expect(parseDecimalBr('1.204.800,00')).toBe(1204800)
     expect(parseDecimalBr('R$ 1.500')).toBe(1500)
@@ -184,8 +199,9 @@ describe('formulário do plano', () => {
     let n = 0
     const form = emptyPlanForm(() => `p${++n}`)
     expect(messages(formToSnapshot(form))).toEqual(['people.0.name: Informe o nome.', 'people.0.birthDate: Informe a data de nascimento.', 'people.0.sex: Escolha o sexo.'])
-    form.people[0] = { ...form.people[0], name: 'Fulana', birthDate: '1980-01-01', sex: 'F' }
+    form.people[0] = { ...form.people[0], name: 'Fulana', birthDate: '1/2/1980', sex: 'F' }
     const ok = planSnapshotSchema(opts).parse(formToSnapshot(form))
+    expect(ok.people[0].birthDate).toBe('1980-02-01')
     expect(ok.rules).toEqual({ enabled: false, mode: 'trajetoria_referencia', lower: 0.8, upper: 1.2, cut: 0.1, raise: 0.1, floor: 0.5, cap: 1.3, noCutLastYears: 15 })
   })
 })

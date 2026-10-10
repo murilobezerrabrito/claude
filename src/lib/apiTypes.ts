@@ -1,6 +1,8 @@
 // Respostas das funções do banco usadas pelo console e por `npm run db:import` (supabase/migrations). Só tipos.
 // Campos com valores em reais podem faltar: somem para quem não pode ver valores (D-042).
 
+import type { PlanSnapshot } from '../report/types.ts'
+
 export type Channel = 'cadm' | 'ai'
 export type MonthStatus = 'importado' | 'conferido' | 'bloqueado' | 'rodado' | 'fechado'
 export type ImportKind = 'posicoes' | 'movimentos'
@@ -174,4 +176,58 @@ export interface OfficialRunDone {
   run_id: string
   probability: number
   compute_ms: number
+}
+
+/** Problema de preenchimento devolvido pelo banco, com o caminho do campo ("people.0.name"; vazio para o plano todo). */
+export interface FieldIssue {
+  path: string
+  message: string
+}
+
+export type SaveResult<T> = ({ ok: true } & T) | { ok: false; errors: FieldIssue[] }
+
+/** Opções dos formulários de cadastro e plano (`plan_options`). */
+export interface PlanOptions {
+  profiles: { id: string; name: string }[]
+  classes: { class_code: string; name: string }[]
+  bankers: { id: string; email: string }[]
+  owners: { id: string; email: string }[]
+}
+
+/** Linha de `households`, como o editor recebe. */
+export interface HouseholdRecordRow {
+  id: string
+  code: string
+  name: string
+  channel: Channel
+  owner_id: string | null
+  intermediary: string | null
+  banker_id: string | null
+  profile_id: string
+  weights_source: 'perfil' | 'carteira_atual'
+  suitability: string | null
+  fee_rate: number
+  horizon_age: number
+  seed: number
+  status: 'ativa' | 'encerrada'
+  banker_email: string | null
+  owner_email: string | null
+}
+
+/** Resposta de `household_editor`. Sem permissão para valores, a versão vem sem o conteúdo (`snapshot`). */
+export interface HouseholdEditorData {
+  household: HouseholdRecordRow
+  versions: { id: string; version: number; base_month: string; note: string | null; created_at: string; created_by_email: string | null }[]
+  latest: { id: string; version: number; base_month: string; snapshot?: PlanSnapshot } | null
+  last_closed_month: string | null
+  has_runs: boolean
+  can_edit_registration: boolean
+  can_edit_plan: boolean
+}
+
+export interface SavedPlanVersion {
+  plan_version_id: string
+  version: number
+  base_month: string
+  months_reset: number
 }
