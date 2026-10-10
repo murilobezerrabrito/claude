@@ -84,3 +84,43 @@ test('gestão importa, confere e roda o mês; o comitê mapeia os ativos; a list
   const rows = page.getByRole('row').filter({ hasText: /E2E-|[A-Z]{3}\d{3}/ })
   for (const r of await rows.all()) await expect(r).toContainText(/Chance abaixo de 70%|Queda de mais de 5 p\.p\.|99% ou mais/)
 })
+
+test('gestão cadastra uma família e grava a primeira versão do plano', async ({ page }) => {
+  const gestao = await testUser('e2e.gestao@exemplo.invalid', 'gestao')
+  const code = `E2E-${Date.now().toString(36).toUpperCase()}-C`
+  await signInWithEnrollment(page, gestao)
+  await page.getByRole('navigation', { name: 'Seções do console' }).getByRole('link', { name: 'Famílias' }).click()
+  await page.getByRole('link', { name: 'Nova família' }).click()
+
+  // Cadastro: erro por campo vindo do banco e, corrigido, a família criada.
+  await page.getByLabel('Código').fill('código inválido')
+  await page.getByLabel('Nome da família').fill('Família C do teste (fictícia)')
+  await page.getByRole('button', { name: 'Cadastrar família' }).click()
+  await expect(page.getByText('Use de 2 a 30 letras sem acento, números ou hífen, como AND001.')).toBeVisible()
+  await page.getByLabel('Código').fill(code)
+  await page.getByLabel('Custo anual').fill('0,75')
+  await page.getByRole('button', { name: 'Cadastrar família' }).click()
+  await expect(page.getByRole('heading', { name: `${code} · Família C do teste (fictícia)` })).toBeVisible()
+  await expect(page.getByText('Família sem plano: preencha e grave a primeira versão.')).toBeVisible()
+
+  // Plano: o esquema recusa antes de gravar; preenchido, vira a versão 1.
+  await page.getByLabel('O que mudou').fill('Plano inicial do teste.')
+  await page.getByRole('button', { name: 'Gravar versão 1' }).click()
+  await expect(page.getByText('Informe o nome.')).toBeVisible()
+  await expect(page.getByText('Corrija os campos marcados antes de gravar.')).toBeVisible()
+  await page.getByLabel('Nome da pessoa 1').fill('Carla Teste')
+  await page.getByLabel('Nascimento da pessoa 1').fill('01/02/1975')
+  await page.getByLabel('Sexo da pessoa 1').selectOption('F')
+  await page.getByRole('button', { name: 'Adicionar renda ou gasto' }).click()
+  await page.getByLabel('Nome da renda ou gasto 1').fill('Gasto essencial')
+  await page.getByLabel('Valor anual da renda ou gasto 1').fill('240.000,00')
+  await page.getByLabel('Ano de fim da renda ou gasto 1').fill('2070')
+  await page.getByLabel('Legado mínimo').fill('1.000.000')
+  await page.getByRole('button', { name: 'Gravar versão 1' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Gravar versão' }).click()
+  await expect(page.getByText(/^Versão 1 gravada, com mês-base/)).toBeVisible()
+  await expect(page.getByRole('row', { name: /Plano inicial do teste\./ })).toContainText('e2e.gestao@exemplo.invalid')
+  await expect(page.getByLabel('Valor anual da renda ou gasto 1')).toHaveValue('240.000,00')
+  await expect(page.getByLabel('Nascimento da pessoa 1')).toHaveValue('01/02/1975')
+  await expect(page.getByRole('button', { name: 'Gravar versão 2' })).toBeVisible()
+})
