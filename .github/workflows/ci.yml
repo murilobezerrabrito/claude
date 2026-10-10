@@ -39,8 +39,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Supabase local (migrações e seed fictício)
-        run: npx supabase start -x studio,imgproxy,logflare,vector,supavisor,realtime,mailpit,postgres-meta,edge-runtime
+      - name: Supabase local (migrações, seed fictício e funções do servidor)
+        run: npx supabase start -x studio,imgproxy,logflare,vector,supavisor,realtime,mailpit,postgres-meta
       - name: Testes do banco (pgTAP)
         run: npx supabase test db
       - name: Importação de exemplo de ponta a ponta (login com segundo fator e API)

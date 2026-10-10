@@ -25,8 +25,12 @@ export function localStack(): Local {
   return { url: s.API_URL, publishable: s.PUBLISHABLE_KEY, secret: s.SECRET_KEY }
 }
 
-export async function call(local: Local, path: string, init: { method?: string; token?: string; admin?: boolean; body?: unknown }): Promise<unknown> {
-  const headers: Record<string, string> = { apikey: init.admin ? local.secret : local.publishable, 'Content-Type': 'application/json' }
+export async function call(
+  local: Local,
+  path: string,
+  init: { method?: string; token?: string; admin?: boolean; body?: unknown; headers?: Record<string, string> },
+): Promise<unknown> {
+  const headers: Record<string, string> = { apikey: init.admin ? local.secret : local.publishable, 'Content-Type': 'application/json', ...init.headers }
   if (init.token) headers.Authorization = `Bearer ${init.token}`
   const res = await fetch(`${local.url}${path}`, {
     method: init.method ?? (init.body === undefined ? 'GET' : 'POST'),
