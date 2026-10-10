@@ -109,6 +109,8 @@ export interface MonthOverviewFamily {
   official_pl?: number | null
   checks: MonthChecks | null
   return_confirmed_by: string | null
+  /** Chance da rodada oficial do mês, quando já rodou. */
+  probability: number | null
   positions: number
   flows: number
 }
@@ -139,15 +141,37 @@ export interface CloseMonthResult {
   left_out: { code: string; status: string }[]
 }
 
-/** Linha de `list_households`. */
-export interface HouseholdRow {
-  id: string
+/** Linha de `families_overview`: o retrato mais recente de cada família e o status do mês mais recente. */
+export interface FamilyOverviewRow {
+  household_id: string
   code: string
   name: string
   channel: Channel
-  intermediary: string | null
+  status: 'ativa' | 'encerrada'
   profile_id: string
   weights_source: 'perfil' | 'carteira_atual'
-  suitability: string | null
-  status: 'ativa' | 'encerrada'
+  latest: {
+    ref_date: string
+    probability: number
+    required_return: number | null
+    slack: number | null
+    wealth?: number | null
+    realized_return_real: number | null
+  } | null
+  previous_probability: number | null
+  month: { ref_date: string; status: MonthStatus } | null
+}
+
+/** Respostas da função `official-run`, uma por ação. */
+export interface OfficialRunParts {
+  partes: string[]
+}
+export interface OfficialRunPart {
+  parte: string
+  tempo_de_calculo_ms: number
+}
+export interface OfficialRunDone {
+  run_id: string
+  probability: number
+  compute_ms: number
 }

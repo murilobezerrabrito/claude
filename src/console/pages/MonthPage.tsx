@@ -1,12 +1,14 @@
 // Tela "Mês" (SPEC, "Console interno" e "Fluxo do mês"): importar, conferir família por família, confirmar a
-// rentabilidade fora da faixa, apagar o que entrou por engano e fechar. Só a gestão age; banker, responsável,
-// comitê e compliance acompanham. O banco confere cada ação de novo.
+// rentabilidade fora da faixa, apagar o que entrou por engano, rodar as famílias conferidas e fechar. Só a gestão age;
+// banker, responsável, comitê e compliance acompanham. O banco e a função da rodada conferem cada ação de novo.
 
-import { RefreshCw } from 'lucide-react'
+import { CircleAlert, CircleCheck, LoaderCircle, Play, RefreshCw } from 'lucide-react'
 import { Fragment, useEffect, useState } from 'react'
 import type { Channel, CheckResult, CloseMonthResult, MonthOverview, MonthOverviewFamily } from '../../lib/apiTypes.ts'
-import { formatDate, formatMonthLabel, formatSignedPercent } from '../../lib/format.ts'
-import { errorText, rpc } from '../api.ts'
+import { formatDate, formatMonthLabel, formatSignedPercent, formatTenthsPercent } from '../../lib/format.ts'
+import { callFunction, errorText, rpc } from '../api.ts'
+import { tenths } from '../families.ts'
+import { runMonthBatch, type FamilyRunState, type RunAction } from '../monthRun.ts'
 import { CheckItems, MonthSelect, StatusBadge } from '../components.tsx'
 import { CHANNEL_LABELS, money, monthEnd, plural, previousMonth, STATUS_LABELS } from '../display.ts'
 import { useSession } from '../session.tsx'
@@ -37,6 +39,7 @@ export function MonthPage() {
   const [failure, setFailure] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [run, setRun] = useState<{ refDate: string; states: FamilyRunState[] } | null>(null)
 
   const [version, setVersion] = useState(0)
   const reload = () => setVersion((v) => v + 1)
@@ -74,6 +77,16 @@ export function MonthPage() {
         : `${plural(results.length, 'família conferida', 'famílias conferidas')}: ${results.length - blocked} sem bloqueio e ${blocked} com bloqueio.`
     })
 
+  const runMonth = (toRun: MonthOverviewFamily[]) =>
+    act(async () => {
+      const call = <T,>(body: RunAction) => callFunction<T>('official-run', body)
+      const states = await runMonthBatch(toRun, refDate, call, (st) => setRun({ refDate, states: st }))
+      const failed = states.filter((s) => s.state === 'erro').length
+      const ran = states.length - failed
+      if (failed > 0) throw new Error(`${plural(ran, 'família rodada', 'famílias rodadas')} e ${plural(failed, 'com erro', 'com erro')}: veja abaixo.`)
+      return `${plural(ran, 'família rodada', 'famílias rodadas')}. Confira a chance de cada uma e feche o mês do canal.`
+    })
+
   const closeChannel = (channel: Channel) =>
     act(async () => {
       const r = await rpc<CloseMonthResult>('close_month', { p_ref_date: refDate, p_channel: channel })
@@ -82,6 +95,7 @@ export function MonthPage() {
     })
 
   const families = overview?.families ?? []
+  const toRun = families.filter((f) => f.status === 'conferido')
   const counts = families.reduce<Record<string, number>>((acc, f) => ({ ...acc, [f.status]: (acc[f.status] ?? 0) + 1 }), {})
 
   return (
@@ -114,6 +128,15 @@ export function MonthPage() {
                 <Button onClick={check} disabled={busy}>
                   Conferir o mês
                 </Button>
+                <Button
+                  variant="outline"
+                  disabled={busy || toRun.length === 0}
+                  onClick={() => void runMonth(toRun)}
+                  title={toRun.length === 0 ? 'Nenhuma família conferida para rodar.' : undefined}
+                >
+                  <Play />
+                  Rodar o mês{toRun.length > 0 ? ` (${toRun.length})` : ''}
+                </Button>
                 {(['cadm', 'ai'] as Channel[]).map((ch) => {
                   const closing = overview?.closings.find((c) => c.channel === ch)
                   if (!closing || closing.status === 'fechado') return null
@@ -138,6 +161,7 @@ export function MonthPage() {
           <CardContent className="flex flex-col gap-4">
             {failure ? <Alert tone="error">{failure}</Alert> : null}
             {message ? <Alert tone="success">{message}</Alert> : null}
+            {run && run.refDate === refDate && run.states.length > 0 ? <RunProgress states={run.states} /> : null}
             <div className="flex flex-wrap gap-2 text-sm">
               {overview?.closings.map((c) => (
                 <Badge key={c.channel} tone={c.status === 'fechado' ? 'primary' : 'neutral'}>
@@ -158,6 +182,7 @@ export function MonthPage() {
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">PL oficial</TableHead>
                   <TableHead className="text-right">Rentabilidade</TableHead>
+                  <TableHead className="text-right">Chance</TableHead>
                   <TableHead className="text-right">Linhas</TableHead>
                   {isGestao ? <TableHead className="text-right">Ações</TableHead> : null}
                 </TableRow>
@@ -175,6 +200,7 @@ export function MonthPage() {
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap">{money(f.official_pl)}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">{returnText(f)}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">{f.probability !== null ? formatTenthsPercent(tenths(f.probability)) : '—'}</TableCell>
                       <TableCell className="text-right whitespace-nowrap text-muted-foreground">
                         {f.positions} pos. · {f.flows} mov.
                       </TableCell>
@@ -186,7 +212,7 @@ export function MonthPage() {
                     </TableRow>
                     {f.checks?.items.length ? (
                       <TableRow>
-                        <TableCell colSpan={isGestao ? 7 : 6} className="pt-0 pb-3 pl-6">
+                        <TableCell colSpan={isGestao ? 8 : 7} className="pt-0 pb-3 pl-6">
                           <CheckItems items={f.checks.items} />
                         </TableCell>
                       </TableRow>
@@ -195,7 +221,7 @@ export function MonthPage() {
                 ))}
                 {families.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-muted-foreground">
+                    <TableCell colSpan={8} className="text-muted-foreground">
                       {overview ? 'Nenhuma família.' : 'Carregando…'}
                     </TableCell>
                   </TableRow>
@@ -321,6 +347,42 @@ function FamilyActions({
           onConfirm={() => void clear('movimentos')}
         />
       ) : null}
+    </div>
+  )
+}
+
+/** Andamento da rodada em lote, família por família. */
+function RunProgress({ states }: { states: FamilyRunState[] }) {
+  return (
+    <div className="rounded-md border p-3" aria-label="Andamento da rodada">
+      <p className="mb-2 text-sm font-medium">Rodada oficial: uma simulação por chamada ao servidor</p>
+      <ul className="flex flex-col gap-1 text-sm">
+        {states.map((s) => (
+          <li key={s.household_id} className="flex flex-wrap items-center gap-2" data-testid={`rodada-${s.code}`}>
+            {s.state === 'rodada' ? (
+              <CircleCheck className="size-4 text-band-green" aria-hidden />
+            ) : s.state === 'erro' ? (
+              <CircleAlert className="size-4 text-band-red" aria-hidden />
+            ) : s.state === 'rodando' ? (
+              <LoaderCircle className="size-4 animate-spin text-muted-foreground" aria-hidden />
+            ) : (
+              <span className="size-4" aria-hidden />
+            )}
+            <span className="font-medium">{s.code}</span>
+            <span className="text-muted-foreground">
+              {s.state === 'esperando'
+                ? 'na fila'
+                : s.state === 'erro'
+                  ? s.error
+                  : s.state === 'rodada' && s.probability !== undefined
+                    ? `chance ${formatTenthsPercent(tenths(s.probability))} · ${s.partsTotal ?? 0} partes, a mais longa com ${(s.maxPartMs ?? 0).toLocaleString('pt-BR')} ms de cálculo`
+                    : s.partsTotal === null
+                      ? 'preparando'
+                      : `${s.partsDone} de ${s.partsTotal} partes`}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

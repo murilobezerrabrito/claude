@@ -6,11 +6,14 @@ import { supabase } from '../lib/supabase.ts'
 export class ApiError extends Error {
   readonly code?: string
   readonly hint?: string
-  constructor(message: string, code?: string, hint?: string) {
+  /** Status HTTP, nas chamadas às funções do servidor. */
+  readonly status?: number
+  constructor(message: string, code?: string, hint?: string, status?: number) {
     super(message)
     this.name = 'ApiError'
     this.code = code
     this.hint = hint
+    this.status = status
   }
 }
 
@@ -21,6 +24,29 @@ export async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Pr
       throw new ApiError('Sua sessão terminou ou perdeu o segundo fator. Entre de novo.', error.code, error.hint ?? undefined)
     }
     throw new ApiError(error.message, error.code, error.hint ?? undefined)
+  }
+  return data as T
+}
+
+/**
+ * Chama uma função do servidor (supabase/functions) com o token de quem está no console. As recusas vêm em português,
+ * no campo `erro`; falha de rede ou do servidor vira uma mensagem genérica.
+ */
+export async function callFunction<T>(name: string, body: unknown): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(name, { body: body as Record<string, unknown> })
+  if (error) {
+    const response = (error as { context?: unknown }).context
+    if (response instanceof Response) {
+      let message = `O servidor recusou o pedido (erro ${response.status}).`
+      try {
+        const parsed = (await response.json()) as { erro?: string }
+        if (parsed.erro) message = parsed.erro
+      } catch {
+        // Resposta sem corpo em JSON: fica a mensagem com o status.
+      }
+      throw new ApiError(message, undefined, undefined, response.status)
+    }
+    throw new ApiError('Não foi possível falar com o servidor. Confira a conexão e tente de novo.')
   }
   return data as T
 }
