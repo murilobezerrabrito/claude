@@ -1,5 +1,5 @@
 {
-  "descricao": "Classe de cada ativo fictício dos arquivos de exemplo (o comitê mapeia no banco). Cotações fictícias do dólar de venda: 5,0000 em 30/09/2026 e 5,0400 em 30/10/2026 (31/10 é sábado).",
+  "descricao": "Classe de cada ativo fictício dos arquivos de exemplo (o comitê mapeia no banco). Cotações fictícias do dólar de venda: 5,0000 em 30/09/2026 e 5,0400 em 30/10/2026 (31/10 é sábado). IPCA fictício de setembro/2026 (0,48%), só para a rodada de setembro: não entra em nenhum número de outubro.",
   "classes": {
     "CDB-BANCOX-2028": "POS",
     "LFT-2029": "POS",
@@ -18,5 +18,8 @@
   "dolar": {
     "2026-09-30": 5.0,
     "2026-10-30": 5.04
+  },
+  "ipca": {
+    "2026-09": 0.0048
   }
 }

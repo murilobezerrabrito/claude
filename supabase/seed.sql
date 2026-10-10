@@ -123,4 +123,5 @@ insert into public.legal_texts (id, key, version, body, status) values ('680e04b
 -- Séries de mercado fictícias para a importação de exemplo (a rotina do Banco Central vem na etapa 3)
 insert into public.market_series (series_code, date, value, source) values ('dolar', '2026-09-30', 5, 'ficticio');
 insert into public.market_series (series_code, date, value, source) values ('dolar', '2026-10-30', 5.04, 'ficticio');
+insert into public.market_series (series_code, date, value, source) values ('ipca', '2026-09-01', 0.48, 'ficticio');
 insert into public.market_series (series_code, date, value, source) values ('ipca', '2026-10-01', 0.4, 'ficticio');

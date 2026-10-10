@@ -9,7 +9,10 @@
 //   fila                                                   ativos sem classe (fila do comitê)
 //   mapear <codigo_ativo> <classe>                         o comitê dá a classe de um ativo
 //   situacao <AAAA-MM-DD> [cadm|ai]                        situação do mês
-//   exemplo                                                os arquivos de exemplo da Andrade, Barbosa e Costa, de ponta a ponta
+//   rodar <AAAA-MM-DD>                                     rodada oficial das famílias conferidas (Edge Function)
+//   fechar <AAAA-MM-DD> <cadm|ai>                          fecha o mês do canal
+//   exemplo                                                set e out/2026 das famílias fictícias, de ponta a ponta,
+//                                                          com as rodadas e a comparação com src/report
 
 import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
@@ -30,6 +33,10 @@ import type { CheckResult, ImportConfirmResult, ImportPreviewResult, MappingQueu
 import { formatMoneyExact, formatSignedPercent } from '../src/lib/format.ts'
 import { readSheetFile } from '../src/lib/planilhas.ts'
 import { call, ensureUser, localStack, newPassword, totp, type Local } from './localSupabase.ts'
+import type { Cma, Profile } from '../src/engine/types.ts'
+import { monthAttribution, type Bridge } from '../src/report/attribution.ts'
+import { planVersionFor } from '../src/report/monthInputs.ts'
+import { officialRun, type MonthPackage } from '../src/report/officialRun.ts'
 import { monthReturn } from '../src/report/performance.ts'
 import type { HouseholdMonths } from '../src/report/types.ts'
 
@@ -76,6 +83,19 @@ class Api {
       console.log(`  (entrou como ${USERS[as].email}, com segundo fator)`)
     }
     return (await call(this.local, `/rest/v1/rpc/${fn}`, { token, body: args })) as T
+  }
+
+  /** Edge Function, com o token de quem está logado. */
+  async fn<T>(as: UserKind, name: string, body: Record<string, unknown>): Promise<T> {
+    await this.rpc(as, 'run_permission')
+    const res = await fetch(`${this.local.url}/functions/v1/${name}`, {
+      method: 'POST',
+      headers: { apikey: this.local.publishable, Authorization: `Bearer ${this.tokens.get(as)}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const json = (await res.json()) as T & { erro?: string }
+    if (!res.ok) throw new Error(`${name}: ${json.erro ?? res.status}`)
+    return json
   }
 }
 
@@ -189,20 +209,65 @@ async function overview(api: Api, refDate: string, channel?: string) {
   for (const b of o.batches) console.log(`  Lote ${b.kind} ${b.file_name}: ${b.status}, ${b.rows} linhas`)
 }
 
+interface FamilyRun {
+  code: string
+  probability: number
+  parts: number
+  maxMs: number
+}
+
+/** Rodada oficial das famílias conferidas no mês, uma simulação por chamada à função `official-run`. */
+async function runMonth(api: Api, refDate: string): Promise<FamilyRun[]> {
+  console.log(`\n▸ Rodada oficial de ${refDate}`)
+  const o = await api.rpc<MonthOverview>('gestao', 'month_overview', { p_ref_date: refDate })
+  const out: FamilyRun[] = []
+  for (const f of o.families.filter((x) => x.status === 'conferido')) {
+    const where = { household_id: f.household_id, ref_date: refDate }
+    const { partes } = await api.fn<{ partes: string[] }>('gestao', 'official-run', { acao: 'partes', ...where })
+    const times: number[] = []
+    for (const parte of partes) {
+      const r = await api.fn<{ tempo_de_calculo_ms: number }>('gestao', 'official-run', { acao: 'parte', parte, ...where })
+      times.push(r.tempo_de_calculo_ms)
+    }
+    const done = await api.fn<{ probability: number }>('gestao', 'official-run', { acao: 'concluir', ...where })
+    const maxMs = Math.max(...times)
+    console.log(`  ${f.code}: chance ${(done.probability * 100).toFixed(2).replace('.', ',')}% · ${partes.length} partes (${partes.join(', ')}) · cálculo por chamada: ${times.join(', ')} ms`)
+    out.push({ code: f.code, probability: done.probability, parts: partes.length, maxMs })
+  }
+  if (out.length === 0) console.log('  Nenhuma família conferida para rodar.')
+  return out
+}
+
+async function closeMonth(api: Api, refDate: string, channel: 'cadm' | 'ai') {
+  const r = await api.rpc<{ closed: string[]; left_out: { code: string; status: string }[] }>('gestao', 'close_month', { p_ref_date: refDate, p_channel: channel })
+  const left = r.left_out.length > 0 ? `; de fora: ${r.left_out.map((f) => `${f.code} (${f.status})`).join(', ')}` : ''
+  console.log(`  Mês ${channel.toUpperCase()} de ${refDate} fechado com ${r.closed.join(', ')}${left}.`)
+}
+
 async function example(api: Api) {
   const file = (name: string) => fileURLToPath(new URL(`src/data/importacao/${name}`, root))
   const classes = (JSON.parse(readFileSync(new URL('src/data/importacao/exemplo-classes.json', root), 'utf8')) as { classes: Record<string, string> }).classes
-  await preview(api, 'posicoes', file('exemplo-posicoes-2026-09.csv'), true)
-  await officialPl(api, file('exemplo-pl-2026-09.csv'))
-  await check(api, '2026-09-30')
-  const q = await queue(api)
-  console.log('\n▸ O comitê mapeia os ativos de exemplo')
-  for (const a of q.assets) if (classes[a.asset_code]) await mapAsset(api, q, a.asset_code, classes[a.asset_code])
-  await check(api, '2026-09-30')
+  const september = await api.rpc<MonthOverview>('gestao', 'month_overview', { p_ref_date: '2026-09-30' })
+  const sepClosed = ['AND001', 'BAR001', 'COS001'].every((c) => september.families.find((f) => f.code === c)?.status === 'fechado')
+  if (sepClosed) console.log('\n▸ Setembro/2026 já está fechado para as três famílias: segue para outubro.')
+  else {
+    await preview(api, 'posicoes', file('exemplo-posicoes-2026-09.csv'), true)
+    await officialPl(api, file('exemplo-pl-2026-09.csv'))
+    await check(api, '2026-09-30')
+    const q = await queue(api)
+    console.log('\n▸ O comitê mapeia os ativos de exemplo')
+    for (const a of q.assets) if (classes[a.asset_code]) await mapAsset(api, q, a.asset_code, classes[a.asset_code])
+    await check(api, '2026-09-30')
+    await runMonth(api, '2026-09-30')
+    console.log('\n▸ Fechamento de setembro')
+    await closeMonth(api, '2026-09-30', 'cadm')
+    await closeMonth(api, '2026-09-30', 'ai')
+  }
   await preview(api, 'posicoes', file('exemplo-posicoes-2026-10.csv'), true)
   await preview(api, 'movimentos', file('exemplo-movimentos-2026-10.csv'), true)
   await officialPl(api, file('exemplo-pl-2026-10.csv'))
   const october = await check(api, '2026-10-31')
+  const runs = await runMonth(api, '2026-10-31')
   await overview(api, '2026-10-31')
 
   // Confere o resultado: as três famílias conferidas e a rentabilidade da Andrade igual à de src/report.
@@ -210,14 +275,36 @@ async function example(api: Api) {
   const [sep, oct] = months.closings
   const expected = monthReturn({ refDate: oct.refDate, startValue: sep.officialPl, endValue: oct.officialPl, flows: oct.flows, ipca: months.ipca })
   const andrade = october.find((r) => r.code === 'AND001')
+  // A rodada do servidor e a ponte contra o cálculo direto de src/report, com os mesmos dados (fechamentos fictícios).
+  const cmaData = JSON.parse(readFileSync(new URL('src/data/premissas-ilustrativas-2026-10.json', root), 'utf8')) as Cma & { profiles: Profile[] }
+  const pkgOf = (i: number): MonthPackage => ({
+    household: months.household,
+    planVersion: planVersionFor(months.planVersions, months.closings[i].refDate.slice(0, 7)),
+    closing: months.closings[i],
+    cma: cmaData,
+    profiles: cmaData.profiles,
+  })
+  const publishedSep = officialRun(pkgOf(0), months.ipca)
+  const expectedRun = officialRun(pkgOf(1), months.ipca)
+  const expectedBridge = monthAttribution({ previous: { pkg: pkgOf(0), published: publishedSep }, current: pkgOf(1), ipca: months.ipca }) as Bridge
+  const families = await api.rpc<{ code: string; latest: { probability: number } | null; previous_probability: number | null }[]>('gestao', 'families_overview', {})
+  const andradeRun = families.find((f) => f.code === 'AND001')
+  const andradeDelta = andradeRun?.latest && andradeRun.previous_probability !== null ? Math.round((andradeRun.latest.probability - andradeRun.previous_probability) * 10_000) : null
   const problems = [
+    ...(runs.find((r) => r.code === 'AND001')?.probability === expectedRun.probability
+      ? []
+      : [`chance da Andrade em out/2026 ${runs.find((r) => r.code === 'AND001')?.probability} diferente da de src/report (${expectedRun.probability})`]),
+    ...(andradeDelta === expectedBridge.totalSuccessDelta ? [] : [`variação da Andrade ${andradeDelta} trajetórias, diferente da ponte de src/report (${expectedBridge.totalSuccessDelta})`]),
+    ...runs.filter((r) => r.maxMs > 1500).map((r) => `${r.code}: uma chamada levou ${r.maxMs} ms de cálculo, acima de 1,5 s`),
     ...['AND001', 'BAR001', 'COS001'].filter((code) => october.find((r) => r.code === code)?.status !== 'conferido').map((code) => `${code} não ficou conferida`),
     ...(andrade?.checks.real_return !== undefined && andrade.checks.real_return !== null && Math.abs(andrade.checks.real_return - expected.real) < 1e-12
       ? []
       : [`rentabilidade real da Andrade ${andrade?.checks.real_return} diferente da de src/report (${expected.real})`]),
   ]
   if (problems.length > 0) throw new Error(`Exemplo com problema: ${problems.join('; ')}.`)
-  console.log(`\n✔ Exemplo conferido: 3 famílias conferidas; rentabilidade real da Andrade em out/2026 igual à de src/report (${formatSignedPercent(expected.real, 4)}).`)
+  console.log(
+    `\n✔ Exemplo conferido: 3 famílias rodadas em out/2026; Andrade com a chance (${(expectedRun.probability * 100).toFixed(2).replace('.', ',')}%), a variação no mês (${expectedBridge.totalSuccessDelta} trajetórias) e a rentabilidade real (${formatSignedPercent(expected.real, 4)}) iguais às de src/report; cálculo por chamada até ${Math.max(...runs.map((r) => r.maxMs))} ms.`,
+  )
 }
 
 async function main() {
@@ -237,6 +324,11 @@ async function main() {
       return mapAsset(api, await queue(api), args[0], args[1])
     case 'situacao':
       return overview(api, args[0], args[1])
+    case 'rodar':
+      return void (await runMonth(api, args[0]))
+    case 'fechar':
+      if (args[1] !== 'cadm' && args[1] !== 'ai') throw new Error('Use: fechar <AAAA-MM-DD> <cadm|ai>')
+      return closeMonth(api, args[0], args[1])
     case 'exemplo':
       return example(api)
     default:

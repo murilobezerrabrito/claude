@@ -232,11 +232,11 @@ export function buildSeedSql(): string {
 
   // Valores como o Banco Central publica: dólar de venda em reais (série 1) e IPCA do mês em % (série 433, no dia 1).
   out.push('', '-- Séries de mercado fictícias para a importação de exemplo (a rotina do Banco Central vem na etapa 3)')
-  const example = readJson<{ dolar: Record<string, number> }>('src/data/importacao/exemplo-classes.json')
+  const example = readJson<{ dolar: Record<string, number>; ipca: Record<string, number> }>('src/data/importacao/exemplo-classes.json')
   for (const [date, value] of Object.entries(example.dolar)) {
     out.push(`insert into public.market_series (series_code, date, value, source) values ('dolar', ${q(date)}, ${n(value)}, 'ficticio');`)
   }
-  for (const [month, value] of Object.entries(months.ipca)) {
+  for (const [month, value] of Object.entries({ ...example.ipca, ...months.ipca }).sort()) {
     out.push(`insert into public.market_series (series_code, date, value, source) values ('ipca', ${q(`${month}-01`)}, ${n(Math.round(value * 1e6) / 1e4)}, 'ficticio');`)
   }
   return `${out.join('\n')}\n`
