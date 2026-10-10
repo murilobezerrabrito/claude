@@ -15,16 +15,33 @@ export {
   type PerformanceSummary,
   type PeriodReturn,
 } from './performance.ts'
-export { mainInput, officialRun, OFFICIAL_PATHS, type MonthPackage, type OfficialRun } from './officialRun.ts'
 export {
+  assembleOfficialRun,
+  mainInput,
+  mainRunResult,
+  officialRun,
+  officialRunPlan,
+  OFFICIAL_PATHS,
+  runInputsHash,
+  type MainRunResult,
+  type MonthPackage,
+  type OfficialRun,
+  type OfficialRunPlan,
+} from './officialRun.ts'
+export {
+  assembleBridge,
   BRIDGE_LABELS,
   bridgeDisplay,
+  bridgePlan,
   monthAttribution,
+  runBridgeState,
   type AttributionArgs,
   type Bridge,
   type BridgeBar,
+  type BridgePlan,
   type BridgeState,
   type BridgeStep,
   type BridgeStepId,
   type MonthAttribution,
 } from './attribution.ts'
+export { assembleRun, partInput, runPart, runTasks, type AssembledRun, type PartOutcome, type RunInputs, type RunPart, type RunTasks } from './runTasks.ts'
