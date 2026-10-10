@@ -1,3 +1,4 @@
+// Cópia gerada por `npm run sync:engine` a partir de src/. Não edite aqui: edite a fonte e rode o comando de novo.
 // Ponte "o que mudou no mês" (SPEC, "O que mudou no mês (a ponte)"). A variação da chance e do benchmark pessoal, do
 // número publicado no mês anterior até a rodada oficial do mês, é separada em seis passos que trocam um grupo de
 // entradas por vez, nesta ordem fixa e com os mesmos sorteios (mesma semente da família). Cada entrada pertence a um

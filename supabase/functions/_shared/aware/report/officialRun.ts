@@ -1,3 +1,4 @@
+// Cópia gerada por `npm run sync:engine` a partir de src/. Não edite aqui: edite a fonte e rode o comando de novo.
 // Rodada oficial do mês (SPEC, "Fluxo do mês" e "Termômetro mensal"): as entradas do mês no motor, com a semente da
 // família e 10.000 trajetórias. "A chance" é a probabilidade sem gasto flexível; com as regras ligadas no plano, a
 // chance com ajustes em anos ruins vem ao lado, como informação secundária.
