@@ -215,14 +215,16 @@ async function overview(api: Api, refDate: string, channel?: string) {
   for (const b of o.batches) console.log(`  Lote ${b.kind} ${b.file_name}: ${b.status}, ${b.rows} linhas`)
 }
 
-/** Rodada oficial das famílias conferidas no mês, como o console faz (src/console/monthRun.ts). */
+/** Rodada oficial das famílias conferidas no mês, como o console faz (src/console/monthRun.ts), em sequência. */
 async function runMonth(api: Api, refDate: string): Promise<FamilyRunState[]> {
   console.log(`\n▸ Rodada oficial de ${refDate}`)
   const o = await api.rpc<MonthOverview>('gestao', 'month_overview', { p_ref_date: refDate })
   const toRun = o.families.filter((x) => x.status === 'conferido')
   if (toRun.length === 0) console.log('  Nenhuma família conferida para rodar.')
   const call: RunCall = <T,>(body: RunAction) => api.fn<T>('gestao', 'official-run', body)
-  const states = await runMonthBatch(toRun, refDate, call, () => {})
+  // Uma chamada de cada vez: o tempo de cada uma é o de uma simulação sozinha (ponto de parada B), e a máquina de dois
+  // núcleos da integração contínua não recusa simulações simultâneas por carga.
+  const states = await runMonthBatch(toRun, refDate, call, () => {}, 1)
   for (const r of states) {
     console.log(
       r.state === 'rodada'

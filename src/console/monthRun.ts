@@ -1,9 +1,11 @@
 // Rodada oficial em lote (SPEC, "Mês": rodada oficial em lote): família por família, uma simulação por chamada à
 // função `official-run` (D-061). As partes de uma família vão em paralelo, até `parallel` chamadas de cada vez; a
-// família só conclui com todas as partes gravadas. Um pedido de partes ou uma parte que falha por erro do servidor
-// (não por regra) é pedido de novo uma vez: a parte é gravada por cima, então repetir não muda nada. "Concluir" não se
-// repete: grava a rodada e muda o status, e um "concluir" que gravou mas perdeu a resposta seria recusado na segunda
-// vez. A chamada à função vem de fora (`call`), para testar sem servidor; `npm run db:import` usa a mesma rodada.
+// família só conclui com todas as partes gravadas. Uma parte que falha por erro do servidor ou da rede (não por regra)
+// é pedida de novo uma vez, sozinha, depois das outras: se o servidor recusou por carga (várias simulações ao mesmo
+// tempo), a nova tentativa não disputa com nenhuma. A parte é gravada por cima, então repetir não muda nada. O pedido
+// das partes também se repete uma vez; "concluir" não: grava a rodada e muda o status, e um "concluir" que gravou mas
+// perdeu a resposta seria recusado na segunda vez. A chamada à função vem de fora (`call`), para testar sem servidor;
+// `npm run db:import` usa a mesma rodada, uma chamada de cada vez.
 
 import type { OfficialRunDone, OfficialRunPart, OfficialRunParts } from '../lib/apiTypes.ts'
 
@@ -70,7 +72,9 @@ export async function runMonthBatch(
   refDate: string,
   call: RunCall,
   onProgress: (states: FamilyRunState[]) => void,
-  parallel = 4,
+  // Duas de cada vez: no servidor local com dois núcleos (o da integração contínua), quatro simulações simultâneas são
+  // recusadas por carga (546) e a rodada demora mais; duas não. A medição no Supabase hospedado decide se sobe.
+  parallel = 2,
 ): Promise<FamilyRunState[]> {
   const states: FamilyRunState[] = families.map((f) => ({ household_id: f.household_id, code: f.code, state: 'esperando', partsDone: 0, partsTotal: null }))
   const update = (i: number, patch: Partial<FamilyRunState>) => {
@@ -86,11 +90,22 @@ export async function runMonthBatch(
       const { partes } = await withOneRetry(() => call<OfficialRunParts>({ acao: 'partes', ...where }))
       update(i, { partsTotal: partes.length })
       let maxPartMs = 0
-      await pool(partes, parallel, async (parte) => {
-        const r = await withOneRetry(() => call<OfficialRunPart>({ acao: 'parte', parte, ...where }))
+      const runOne = async (parte: string) => {
+        const r = await call<OfficialRunPart>({ acao: 'parte', parte, ...where })
         maxPartMs = Math.max(maxPartMs, r.tempo_de_calculo_ms)
         update(i, { partsDone: states[i].partsDone + 1, maxPartMs })
+      }
+      // Em paralelo; as que falham por erro do servidor ficam para depois, uma de cada vez. Recusa por regra para tudo.
+      const again: string[] = []
+      await pool(partes, parallel, async (parte) => {
+        try {
+          await runOne(parte)
+        } catch (e) {
+          if (!isRetryable(e)) throw e
+          again.push(parte)
+        }
       })
+      for (const parte of again) await runOne(parte)
       const done = await call<OfficialRunDone>({ acao: 'concluir', ...where })
       update(i, { state: 'rodada', probability: done.probability })
     } catch (e) {

@@ -9,14 +9,16 @@ class HttpFailure extends Error {
   }
 }
 
-/** Servidor falso: registra as chamadas e o máximo de chamadas ao mesmo tempo. */
+/** Servidor falso: registra as chamadas, quantas já estavam em andamento quando cada uma começou e o máximo. */
 function fakeServer(opts: { parts?: string[]; fail?: (a: RunAction, attempt: number) => Error | null } = {}) {
   const calls: RunAction[] = []
+  const busyAtStart: number[] = []
   const attempts = new Map<string, number>()
   let inFlight = 0
   let maxInFlight = 0
   const call: RunCall = async <T,>(a: RunAction): Promise<T> => {
     calls.push(a)
+    busyAtStart.push(inFlight)
     const key = `${a.household_id}:${a.acao}:${a.acao === 'parte' ? a.parte : ''}`
     const attempt = (attempts.get(key) ?? 0) + 1
     attempts.set(key, attempt)
@@ -30,7 +32,7 @@ function fakeServer(opts: { parts?: string[]; fail?: (a: RunAction, attempt: num
     if (a.acao === 'parte') return { parte: a.parte, tempo_de_calculo_ms: a.parte.length * 100 } as T
     return { probability: a.household_id === 'h1' ? 0.6195 : 0.9 } as T
   }
-  return { call, calls, maxInFlight: () => maxInFlight }
+  return { call, calls, busyAtStart, maxInFlight: () => maxInFlight }
 }
 
 const families = [
@@ -39,7 +41,7 @@ const families = [
 ]
 
 describe('rodada oficial em lote', () => {
-  it('cada família: partes, uma simulação por chamada (até 4 de cada vez) e concluir', async () => {
+  it('cada família: partes, uma simulação por chamada (duas de cada vez, ou até `parallel`) e concluir', async () => {
     const server = fakeServer()
     const seen: FamilyRunState[][] = []
     const states = await runMonthBatch(families, '2026-10-31', server.call, (s) => seen.push(s))
@@ -48,7 +50,10 @@ describe('rodada oficial em lote', () => {
       ['COS001', 'rodada', 0.9, 5, 5],
     ])
     expect(states[0].maxPartMs).toBe('principal'.length * 100)
-    expect(server.maxInFlight()).toBe(4)
+    expect(server.maxInFlight()).toBe(2)
+    const wide = fakeServer()
+    await runMonthBatch(families, '2026-10-31', wide.call, () => {}, 4)
+    expect(wide.maxInFlight()).toBe(4)
     // A segunda família só começa depois que a primeira conclui.
     const order = server.calls.map((c) => `${c.household_id}:${c.acao}`)
     expect(order.indexOf('h1:concluir')).toBeLessThan(order.indexOf('h2:partes'))
@@ -58,11 +63,26 @@ describe('rodada oficial em lote', () => {
     expect(seen[0].map((s) => s.state)).toEqual(['esperando', 'esperando'])
   })
 
-  it('erro do servidor numa parte: pede de novo uma vez e segue', async () => {
-    const server = fakeServer({ fail: (a, attempt) => (a.acao === 'parte' && a.parte === 'mercado' && attempt === 1 ? new HttpFailure(546, 'limite de CPU') : null) })
+  it('erro do servidor numa parte: as outras seguem, e ela é pedida de novo uma vez, sozinha', async () => {
+    const server = fakeServer({ fail: (a, attempt) => (a.acao === 'parte' && a.parte === 'mercado' && attempt === 1 ? new HttpFailure(546, 'limite de recursos') : null) })
     const states = await runMonthBatch(families.slice(0, 1), '2026-10-31', server.call, () => {})
-    expect(states[0].state).toBe('rodada')
-    expect(server.calls.filter((c) => c.acao === 'parte' && c.parte === 'mercado')).toHaveLength(2)
+    expect(states[0]).toMatchObject({ state: 'rodada', partsDone: 5, partsTotal: 5 })
+    const tries = server.calls.flatMap((c, i) => (c.acao === 'parte' && c.parte === 'mercado' ? [i] : []))
+    expect(tries).toHaveLength(2)
+    // A nova tentativa vem depois de todas as outras partes e começa sem nenhuma outra chamada em andamento.
+    expect(server.calls.slice(tries[1] + 1).map((c) => c.acao)).toEqual(['concluir'])
+    expect(server.busyAtStart[tries[1]]).toBe(0)
+  })
+
+  it('recusa por regra numa parte: não começa outras partes nem conclui', async () => {
+    const server = fakeServer({
+      parts: ['principal', 'inicio', 'mercado', 'carteira', 'plano', 'passagem_do_tempo', 'aportes_e_resgates', 'gasto_flexivel'],
+      fail: (a) => (a.acao === 'parte' && a.parte === 'principal' ? new HttpFailure(422, 'A parte "principal" foi rodada com outras entradas.') : null),
+    })
+    const states = await runMonthBatch(families.slice(0, 1), '2026-10-31', server.call, () => {}, 2)
+    expect(states[0]).toMatchObject({ state: 'erro', error: 'A parte "principal" foi rodada com outras entradas.' })
+    expect(server.calls.some((c) => c.acao === 'concluir')).toBe(false)
+    expect(server.calls.filter((c) => c.acao === 'parte').length).toBeLessThan(8)
   })
 
   it('"concluir" não se repete: a gravação muda o status, e a segunda vez seria recusada', async () => {
@@ -80,14 +100,17 @@ describe('rodada oficial em lote', () => {
     expect(server.calls.filter((c) => c.household_id === 'h1')).toHaveLength(1)
   })
 
-  it('parte que falha duas vezes: não começa outras partes nem conclui', async () => {
-    const server = fakeServer({
-      parts: ['principal', 'inicio', 'mercado', 'carteira', 'plano', 'passagem_do_tempo', 'aportes_e_resgates', 'gasto_flexivel'],
-      fail: (a) => (a.acao === 'parte' && a.parte === 'principal' ? new HttpFailure(500, 'Erro inesperado na rodada.') : null),
-    })
+  it('parte que falha duas vezes por erro do servidor: a família fica com o erro, sem concluir', async () => {
+    const server = fakeServer({ fail: (a) => (a.acao === 'parte' && a.parte === 'principal' ? new HttpFailure(500, 'Erro inesperado na rodada.') : null) })
     const states = await runMonthBatch(families.slice(0, 1), '2026-10-31', server.call, () => {}, 2)
-    expect(states[0]).toMatchObject({ state: 'erro', error: 'Erro inesperado na rodada.' })
+    expect(states[0]).toMatchObject({ state: 'erro', error: 'Erro inesperado na rodada.', partsDone: 4 })
+    expect(server.calls.filter((c) => c.acao === 'parte' && c.parte === 'principal')).toHaveLength(2)
     expect(server.calls.some((c) => c.acao === 'concluir')).toBe(false)
-    expect(server.calls.filter((c) => c.acao === 'parte').length).toBeLessThan(8 + 1)
+  })
+
+  it('uma chamada de cada vez quando pedido (db:import)', async () => {
+    const server = fakeServer()
+    await runMonthBatch(families, '2026-10-31', server.call, () => {}, 1)
+    expect(server.maxInFlight()).toBe(1)
   })
 })
