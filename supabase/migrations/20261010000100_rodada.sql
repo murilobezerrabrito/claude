@@ -8,7 +8,8 @@
 -- - Toda rodada gera um registro em simulation_runs (só inserção) e o retrato do mês em monthly_snapshots, que trava
 --   quando a família fecha o mês. Se o mês volta para "importado", o retrato sai (o histórico fica em simulation_runs).
 
--- Partes da rodada já simuladas, à espera da montagem. Só as funções abaixo leem e escrevem.
+-- Partes da rodada já simuladas, à espera da montagem. Só as funções abaixo leem e escrevem: acesso por linha ligado e
+-- sem nenhuma política nem privilégio para os papéis da API (como app.import_staging, D-048; teste em 10_rodada).
 create table app.run_parts (
   household_id uuid not null references public.households (id),
   ref_date public.month_end not null,
@@ -24,12 +25,17 @@ create table app.run_parts (
 alter table app.run_parts enable row level security;
 revoke all on app.run_parts from public, anon, authenticated;
 
--- Registro de rodada é só de inserção.
+-- Registro de rodada é só de inserção. A única mudança aceita é a que o próprio banco faz quando o cliente apaga um
+-- cenário (scenario_id vira nulo, on delete set null); nada mais muda.
 create function app.deny_run_change() returns trigger
 language plpgsql
 set search_path = ''
 as $$
 begin
+  if tg_op = 'UPDATE' and old.scenario_id is not null and new.scenario_id is null
+     and to_jsonb(new) - 'scenario_id' = to_jsonb(old) - 'scenario_id' then
+    return new;
+  end if;
   raise exception 'O registro de rodada não muda nem é apagado.' using errcode = 'P0001', hint = 'rodada_imutavel';
 end
 $$;
@@ -327,8 +333,11 @@ begin
            'latest', (select jsonb_build_object('ref_date', s.ref_date, 'probability', s.probability, 'required_return', s.required_return,
                                                 'slack', s.slack, 'wealth', s.wealth, 'realized_return_real', s.realized_return_real)
                         from public.monthly_snapshots s where s.household_id = h.id order by s.ref_date desc limit 1),
-           'previous_probability', (select s.probability from public.monthly_snapshots s where s.household_id = h.id
-                                     order by s.ref_date desc offset 1 limit 1),
+           -- A do mês imediatamente anterior ao do retrato mais recente; família que pulou um mês fica sem variação.
+           'previous_probability', (select p.probability from public.monthly_snapshots p
+                                     where p.household_id = h.id
+                                       and p.ref_date = (select (date_trunc('month', max(s.ref_date)) - interval '1 day')::date
+                                                           from public.monthly_snapshots s where s.household_id = h.id)),
            'month', (select jsonb_build_object('ref_date', m.ref_date, 'status', m.status)
                        from public.household_months m where m.household_id = h.id order by m.ref_date desc limit 1))
          order by h.channel, h.code), '[]'::jsonb)
@@ -384,8 +393,77 @@ begin
 end
 $$;
 
+-- Leitura do cliente AI: só o que foi fechado ---------------------------------------------------------------------------
+
+-- "Só família fechada alimenta relatório e app" (SPEC, "Fluxo do mês"): o cliente AI lê o retrato e a rodada oficial
+-- do mês só depois que a família fecha o mês. Rodadas que ficaram para trás (mês que voltou para "importado") não
+-- aparecem. As rodadas dos cenários do "E se?" ganham a sua regra no app (Fase 3).
+create function app.is_closed_month(p_household uuid, p_ref date) returns boolean
+language sql stable security definer
+set search_path = ''
+as $$
+  select exists (select 1 from public.household_months m
+                  where m.household_id = p_household and m.ref_date = p_ref and m.status = 'fechado')
+$$;
+
+create function app.is_published_run(p_run uuid) returns boolean
+language sql stable security definer
+set search_path = ''
+as $$
+  select exists (select 1 from public.monthly_snapshots s
+                   join public.household_months m on m.household_id = s.household_id and m.ref_date = s.ref_date
+                  where s.run_id = p_run and m.status = 'fechado')
+$$;
+
+drop policy cliente_le_a_propria_familia on public.monthly_snapshots;
+create policy cliente_le_a_propria_familia on public.monthly_snapshots
+  for select to authenticated using (app.is_client_of(household_id) and app.is_closed_month(household_id, ref_date));
+drop policy cliente_le_a_propria_familia on public.simulation_runs;
+create policy cliente_le_a_propria_familia on public.simulation_runs
+  for select to authenticated using (app.is_client_of(household_id) and app.is_published_run(id));
+
+-- O detalhe da família (api_leitura) mostra ao cliente AI o retrato mais recente de mês fechado; à equipe, o mais
+-- recente, rodado ou fechado.
+create or replace function public.household_detail(p_household uuid)
+returns jsonb
+language plpgsql security definer
+set search_path = ''
+as $$
+declare result jsonb;
+begin
+  if not app.can_read_household(p_household) then
+    raise exception 'Sem acesso a esta família.' using errcode = '42501', hint = 'sem_acesso';
+  end if;
+  perform app.audit('ler_familia', 'households', p_household::text, p_household, jsonb_build_object('valores', app.can_see_amounts()));
+  select jsonb_build_object(
+           'household', to_jsonb(h),
+           'people', coalesce((select jsonb_agg(to_jsonb(p) order by p.birth_date) from public.people p where p.household_id = h.id), '[]'::jsonb),
+           'other_assets', coalesce((select jsonb_agg(to_jsonb(a) order by a.name) from public.other_assets a where a.household_id = h.id), '[]'::jsonb),
+           'cash_flows', coalesce((select jsonb_agg(to_jsonb(c) order by c.kind, c.name) from public.cash_flows c where c.household_id = h.id), '[]'::jsonb),
+           'events', coalesce((select jsonb_agg(to_jsonb(e) order by e.year, e.name) from public.events e where e.household_id = h.id), '[]'::jsonb),
+           'goals', coalesce((select jsonb_agg(to_jsonb(g)) from public.goals g where g.household_id = h.id), '[]'::jsonb),
+           'plan_version', (select to_jsonb(v) from public.plan_versions v
+                             where v.household_id = h.id and v.base_month <= date_trunc('month', current_date)::date
+                             order by v.base_month desc limit 1),
+           'latest_plan_version', (select to_jsonb(v) from public.plan_versions v where v.household_id = h.id order by v.base_month desc limit 1),
+           'month', (select to_jsonb(m) from public.household_months m where m.household_id = h.id order by m.ref_date desc limit 1),
+           'snapshot', (select to_jsonb(s) from public.monthly_snapshots s
+                         where s.household_id = h.id and (not app.is_client_of(h.id) or app.is_closed_month(h.id, s.ref_date))
+                         order by s.ref_date desc limit 1)
+         )
+    into result
+    from public.households h
+   where h.id = p_household;
+  if not app.can_see_amounts() then
+    result := app.mask_amounts(result);
+  end if;
+  return result;
+end
+$$;
+
 revoke all on function app.deny_run_change(), app.guard_snapshot(), app.drop_stale_snapshot(), app.act_as(uuid, text),
-  app.cma_json(uuid) from public;
+  app.cma_json(uuid), app.is_closed_month(uuid, date), app.is_published_run(uuid) from public;
+grant execute on function app.is_closed_month(uuid, date), app.is_published_run(uuid) to authenticated;
 revoke all on function public.run_permission(), public.run_inputs(uuid, date, uuid),
   public.record_run_part(uuid, date, text, text, jsonb, numeric, uuid), public.run_parts(uuid, date),
   public.record_official_run(uuid, date, uuid, jsonb, jsonb, jsonb), public.families_overview(public.channel) from public, anon, authenticated;

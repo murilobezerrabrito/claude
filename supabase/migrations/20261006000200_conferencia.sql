@@ -208,8 +208,10 @@ begin
     end if;
     v_base := v_prev.official_pl + v_weighted;
     if v_base <= 0 then
-      v_items := v_items || jsonb_build_object('code', 'sem_base', 'level', 'aviso',
-                   'message', 'O patrimônio médio do mês não é positivo: a rentabilidade não é calculada.');
+      -- A rodada calcula a rentabilidade do mês (Dietz de src/report) e não roda sem base: a família fica de fora.
+      v_items := v_items || jsonb_build_object('code', 'sem_base', 'level', 'bloqueio',
+                   'message', 'O patrimônio médio do mês não é positivo: a rentabilidade não pode ser calculada. Confira o PL do mês anterior e as datas e valores dos aportes e resgates.');
+      v_blocked := true;
     else
       v_nominal := (m.official_pl - v_prev.official_pl - v_net) / v_base;
       select s.value / 100 into v_ipca from public.market_series s

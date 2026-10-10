@@ -1,8 +1,9 @@
 -- Rodada oficial (SPEC, "Fluxo do mês" e "Onde roda a rodada oficial"): só a gestão, com segundo fator, pede; só a
 -- função do servidor lê as entradas e grava; só família conferida roda, com o mês anterior fechado; registro só de
--- inserção; retrato do mês travado quando a família fecha; famílias com a chance, com as regras de leitura.
+-- inserção; retrato do mês travado quando a família fecha; famílias com a chance, com as regras de leitura; o cliente
+-- AI só lê retrato e rodada de mês fechado.
 begin;
-select plan(30);
+select plan(45);
 
 \set G  'aa000000-0000-4000-8000-000000000001'
 \set C  'aa000000-0000-4000-8000-000000000002'
@@ -145,6 +146,72 @@ select is((select count(*)::integer from public.monthly_snapshots where househol
 update public.household_months set status = 'importado' where household_id = :'H' and ref_date = '2026-10-31';
 select is((select count(*)::integer from public.monthly_snapshots where household_id = :'H' and ref_date = '2026-10-31'), 0,
   'mês que volta para importado perde o retrato (o registro da rodada fica)');
+
+-- Variação no mês: contra o mês imediatamente anterior ao do retrato mais recente, e não contra o penúltimo retrato.
+update public.household_months set status = 'conferido' where household_id = :'H' and ref_date = '2026-10-31';
+update public.household_months set status = 'rodado' where household_id = :'H' and ref_date = '2026-10-31';
+insert into public.monthly_snapshots (household_id, ref_date, probability, wealth, cma_version_id, plan_version_id, run_id)
+select household_id, '2026-10-31', 0.7, 1, cma_version_id, plan_version_id, run_id from public.monthly_snapshots where household_id = :'H' and ref_date = '2026-09-30';
+insert into public.monthly_snapshots (household_id, ref_date, probability, wealth, cma_version_id, plan_version_id, run_id)
+select household_id, '2026-07-31', 0.95, 1, cma_version_id, plan_version_id, run_id from public.monthly_snapshots where household_id = :'H' and ref_date = '2026-09-30';
+set local role authenticated;
+select pg_temp.entrar(:'G');
+select is((select f ->> 'previous_probability' from jsonb_array_elements(public.families_overview()) f where f ->> 'code' = 'T-RA'), '0.812300',
+  'variação no mês: outubro contra setembro');
+reset role;
+delete from public.monthly_snapshots where household_id = :'H' and ref_date = '2026-10-31';
+set local role authenticated;
+select pg_temp.entrar(:'G');
+select is((select f -> 'previous_probability' from jsonb_array_elements(public.families_overview()) f where f ->> 'code' = 'T-RA'), 'null'::jsonb,
+  'sem retrato de agosto, setembro fica sem variação (julho não conta)');
+reset role;
+
+-- Conferência: sem patrimônio médio positivo no mês, a rentabilidade não sai e a rodada não roda; a família fica bloqueada.
+update public.household_months set status = 'importado' where household_id = :'H' and ref_date = '2026-10-31';
+insert into public.import_batches (id, ref_date, kind, file_name, row_count, status) values ('ca000000-0000-4000-8000-000000000002', '2026-10-31', 'movimentos', 'm.csv', 1, 'confirmada');
+insert into public.flows (household_id, batch_id, ref_date, custodian, flow_date, kind, amount, currency, fx_rate, amount_brl)
+values (:'H', 'ca000000-0000-4000-8000-000000000002', '2026-10-31', 'C1', '2026-10-01', 'resgate', 2000000, 'BRL', 1, 2000000);
+select is((select i ->> 'level' from jsonb_array_elements(app.check_household_month(:'H', '2026-10-31') #> '{checks,items}') i where i ->> 'code' = 'sem_base'),
+  'bloqueio', 'patrimônio médio do mês não positivo bloqueia a família');
+
+-- Partes da rodada: acesso por linha ligado e nenhum acesso pela API.
+select ok((select relrowsecurity from pg_class where oid = 'app.run_parts'::regclass), 'partes da rodada com acesso por linha ligado');
+select ok(not has_table_privilege('authenticated', 'app.run_parts', 'SELECT'), 'usuário logado não lê as partes');
+select ok(not has_table_privilege('anon', 'app.run_parts', 'SELECT'), 'anônimo não lê as partes');
+
+-- Cenário apagado pelo cliente: o registro da rodada fica, sem o cenário; nenhuma outra mudança passa.
+insert into public.scenarios (id, household_id, owner_id, name, params) values
+  ('da000000-0000-4000-8000-000000000001', :'HK', :'K', 'E se teste', '{}'), ('da000000-0000-4000-8000-000000000002', :'HK', :'K', 'E se teste 2', '{}');
+insert into public.simulation_runs (id, household_id, scenario_id, inputs_hash, inputs, cma_version_id, seed, engine_version, paths, summary) values
+  ('db000000-0000-4000-8000-000000000001', :'HK', 'da000000-0000-4000-8000-000000000001', 'h', '{}', :'V', 8, 'x', 10000, '{}'),
+  ('db000000-0000-4000-8000-000000000002', :'HK', 'da000000-0000-4000-8000-000000000002', 'h', '{}', :'V', 8, 'x', 10000, '{}');
+select lives_ok($$ delete from public.scenarios where id = 'da000000-0000-4000-8000-000000000001' $$, 'o cenário apagado não trava no registro da rodada');
+select is((select scenario_id from public.simulation_runs where id = 'db000000-0000-4000-8000-000000000001'), null, 'a rodada fica, sem o cenário');
+select throws_ok($$ update public.simulation_runs set scenario_id = null, paths = 1000 where id = 'db000000-0000-4000-8000-000000000002' $$, 'P0001', null,
+  'tirar o cenário junto com outra mudança não passa');
+
+-- Cliente AI: retrato e rodada oficial só de mês fechado.
+insert into public.plan_versions (household_id, version, snapshot, base_month) values (:'HK', 1, '{"people": []}', '2026-09-01');
+insert into public.simulation_runs (id, household_id, inputs_hash, inputs, cma_version_id, seed, engine_version, paths, summary) values
+  ('db000000-0000-4000-8000-000000000003', :'HK', 'h', '{}', :'V', 8, 'x', 10000, '{}');
+insert into public.household_months (household_id, ref_date, official_pl, status) values (:'HK', '2026-09-30', 500000, 'importado');
+update public.household_months set status = 'conferido' where household_id = :'HK';
+update public.household_months set status = 'rodado' where household_id = :'HK';
+insert into public.monthly_snapshots (household_id, ref_date, probability, wealth, cma_version_id, plan_version_id, run_id)
+select :'HK', '2026-09-30', 0.9, 500000, :'V', id, 'db000000-0000-4000-8000-000000000003' from public.plan_versions where household_id = :'HK';
+set local role authenticated;
+select pg_temp.entrar(:'K');
+select is((select count(*)::integer from public.monthly_snapshots where household_id = :'HK'), 0, 'cliente AI não lê o retrato de mês só rodado');
+select is((select count(*)::integer from public.simulation_runs where household_id = :'HK'), 0, 'nem as rodadas (as dos cenários ganham regra na Fase 3)');
+select is(public.household_detail(:'HK') -> 'snapshot', 'null'::jsonb, 'nem pelo detalhe da família');
+reset role;
+update public.household_months set status = 'fechado' where household_id = :'HK';
+set local role authenticated;
+select pg_temp.entrar(:'K');
+select is((select count(*)::integer from public.monthly_snapshots where household_id = :'HK'), 1, 'mês fechado: o cliente AI lê o retrato');
+select is((select id from public.simulation_runs where household_id = :'HK'), 'db000000-0000-4000-8000-000000000003'::uuid, 'e só a rodada publicada');
+select is((public.household_detail(:'HK') -> 'snapshot' ->> 'probability'), '0.900000', 'e o detalhe da família traz o retrato');
+reset role;
 
 select * from finish();
 rollback;
