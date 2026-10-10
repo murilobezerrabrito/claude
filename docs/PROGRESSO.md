@@ -5,9 +5,9 @@
 - **Rota 2 adotada** em 02/10/2026 (D-024): app para os clientes AI; relatório mensal da gestão para os clientes CADM. A documentação foi atualizada para a nova rota; o `docs/SPEC.md` é a fonte única, e `docs/ROTA-2.md` fica como registro da mudança.
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
 - **Fase 1 (relatório de exemplo, sem servidor):** iniciada em 04/10/2026 e **concluída** em 05/10/2026: Murilo aprovou o PDF de out/2026, com as cores da AWARE (azul-escuro e branco), e confirmou em 06/10/2026 a aprovação do Alex.
-- **Fase 2 (ciclo mensal interno, com dados reais): em andamento** desde 05/10/2026. Etapa 1 (Supabase local, acesso por linha, segundo fator e pgTAP) concluída. Etapa 2 (importação, conferência, mapeamento de ativos e fechamento do mês) concluída em 06/10/2026, menos a leitura de XLSX, que espera a rede (D-056). Etapa 3 em andamento: parte 3a (console com login, Mês e Mapeamento) pronta em 09/10/2026, no ponto de parada A.
+- **Fase 2 (ciclo mensal interno, com dados reais): em andamento** desde 05/10/2026. Etapa 1 (Supabase local, acesso por linha, segundo fator e pgTAP) concluída. Etapa 2 (importação, conferência, mapeamento de ativos e fechamento do mês) concluída em 06/10/2026, menos a leitura de XLSX, que espera a rede (D-056). Etapa 3 em andamento: parte 3a (console com login, Mês e Mapeamento) aprovada por Murilo no ponto de parada A; parte 3b (rodada oficial em lote numa Edge Function e famílias com a chance) pronta em 10/10/2026, abaixo do limite do ponto de parada B (1,5 s por chamada) no servidor local.
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026, D-028 e D-045). Não há pull request aberto.
-- **Próximo passo:** Murilo aprova o visual do console (ponto de parada A); depois, parte 3b (rodada oficial em lote numa Edge Function, com o tempo de CPU medido, e a tela de famílias com a chance). XLSX e a chamada real ao Banco Central esperam a rede (D-044, D-056).
+- **Próximo passo:** parte 3c (cadastro da família e editor do plano, com versões); depois, 3d (séries do Banco Central). XLSX e a chamada real ao Banco Central esperam a rede (D-044, D-056). O tempo por chamada da rodada só se confirma no Supabase hospedado, na etapa da nuvem.
 
 ### Comandos de teste
 
@@ -15,7 +15,7 @@
 npm install
 npm run typecheck     # tsc -b: motor (só ES2023), interface, testes e scripts
 npm run lint          # ESLint; barra imports externos e imports sem .ts no motor
-npm test              # Vitest: 207 testes, incluindo T01 a T20, textos, números congelados, o PDF do relatório, o seed e a importação (~26 s)
+npm test              # Vitest: 225 testes, incluindo T01 a T20, textos, números congelados, o PDF do relatório, o seed, a importação, a rodada por partes e o console (~30 s)
 npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 npm run report:snapshot  # regrava src/data/relatorios/andrade-2026-10.json (relatório de exemplo, ~11 s)
@@ -24,11 +24,13 @@ npm run dev           # página local com a prévia do relatório, "Baixar PDF" 
 
 # Banco local (Fase 2; precisa do Docker ligado)
 npm run db:start      # Supabase local com as migrações e o seed fictício (nesta sessão na nuvem: SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io, D-044)
-npm run db:test       # testes pgTAP (273)
-npm run db:import -- exemplo   # importação de exemplo de ponta a ponta, com login e segundo fator (setembro e outubro das 3 famílias fictícias)
-npm run db:import             # lista os comandos: previa, pl, conferir, fila, mapear, situacao
+npm run db:test       # testes pgTAP (318)
+npx supabase functions serve   # funções do servidor (official-run), num terminal à parte, quando o db:start exclui o edge-runtime
+npm run db:import -- exemplo   # importação de exemplo de ponta a ponta, com login e segundo fator: setembro rodado e fechado, outubro rodado, a Andrade conferida contra src/report
+npm run db:import             # lista os comandos: previa, pl, conferir, fila, mapear, situacao, rodar, fechar
+npm run sync:engine   # copia o motor e src/report para supabase/functions/_shared/aware (--check só confere)
 npm run env:local     # grava .env.local com o Supabase local, para o console (npm run dev)
-npm run test:e2e      # console no navegador (Playwright): login com segundo fator, importação, conferência e mapeamento
+npm run test:e2e      # console no navegador (Playwright): login com segundo fator, importação, conferência, mapeamento, rodada em lote e famílias com a chance (famílias e mês próprios, D-064)
 npm run db:reset      # refaz o banco local (migrações e seed)
 npm run db:seed       # regrava supabase/seed.sql a partir de src/data
 npm run db:stop
@@ -40,7 +42,7 @@ npm run db:stop
 |---|---|---|---|---|
 | 0 | Fundação e motor, sem servidor | `fase-0-motor` | Testes 1 a 14 passando, `npm run reference` dentro das tolerâncias e `revisor-motor` sem divergências abertas | **Cumprido** (02/10/2026) |
 | 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` | Testes do motor e `npm run reference` com os resultados novos; testes da ponte (hashes dos extremos e soma em trajetórias); `revisor-motor` sem divergências; PDF de out/2026 da Andrade aprovado por Murilo e Alex | **Cumprido** (05/10/2026); aprovação do Alex confirmada por Murilo em 06/10/2026 |
-| 2 | Ciclo mensal interno, com dados reais | `fase-2-ciclo-mensal` | pgTAP passando; família CADM real anonimizada importada, conferida e com relatório aprovado; textos do relatório aprovados por compliance; rodada de todas as famílias CADM em menos de 20 minutos | Em andamento (etapas 1 e 2 de 4 concluídas; falta o XLSX da etapa 2) |
+| 2 | Ciclo mensal interno, com dados reais | `fase-2-ciclo-mensal` | pgTAP passando; família CADM real anonimizada importada, conferida e com relatório aprovado; textos do relatório aprovados por compliance; rodada de todas as famílias CADM em menos de 20 minutos | Em andamento (etapas 1 e 2 de 4 concluídas; falta o XLSX da etapa 2; etapa 3 com 3a e 3b prontas) |
 | 3 | App dos clientes AI | `fase-3-app-ai` | Tela inicial em 375 px e tema escuro; "E se?" em menos de 1 s num celular intermediário; vazamento do papel cliente_ai bloqueado; uso de ponta a ponta com contas fictícias | Pendente |
 | 4 | Piloto e operação | `fase-4-piloto` | Dois fechamentos sem erro de conferência e retorno da gestão e dos clientes do piloto | Pendente |
 
@@ -52,7 +54,7 @@ Plano da etapa 1 aprovado por Murilo em 05/10/2026, com a opção (a) para o reg
 |---|---|---|
 | 1 | Supabase local: migrações, acesso por linha, segundo fator e pgTAP | Concluída |
 | 2 | Importação de posições e de aportes e resgates, conferência, mapeamento de ativos e fechamento do mês | Concluída, menos a leitura de XLSX (espera a rede, D-056) |
-| 3 | Console, rodada oficial em lote numa Edge Function (tempo de CPU medido) e séries do Banco Central | Em andamento: 3a pronta (ponto de parada A); faltam 3b (rodada oficial), 3c (cadastro e plano) e 3d (séries) |
+| 3 | Console, rodada oficial em lote numa Edge Function (tempo de CPU medido) e séries do Banco Central | Em andamento: 3a (aprovada no ponto de parada A) e 3b prontas; faltam 3c (cadastro e plano) e 3d (séries) |
 | 4 | Relatórios no banco: rascunho, revisão, quatro olhos, PDF no Storage, apresentação e auditoria | Pendente |
 | — | Nuvem (região São Paulo), só com autorização de Murilo | Pendente |
 
@@ -60,7 +62,18 @@ Plano da etapa 1 aprovado por Murilo em 05/10/2026, com a opção (a) para o reg
 
 Plano aprovado por Murilo em 09/10/2026 ("aprovado"), em quatro partes: 3a console (login, Mês, Mapeamento), 3b rodada oficial em lote, 3c cadastro e editor do plano, 3d séries do Banco Central. Medição prévia no Node: uma simulação de 10.000 trajetórias da Andrade custa 1,3 s de CPU a frio e 0,7 s a quente; por isso, uma simulação por chamada ao servidor.
 
-**3a, console (pronta em 09/10/2026; ponto de parada A):**
+**3b, rodada oficial em lote (pronta em 10/10/2026; ponto de parada B não acionado):**
+- Rodada por partes em `src/report` (`runTasks.ts`): a rodada principal, a com gasto flexível (só com as regras ligadas) e os cinco estados da ponte, cada parte com o hash das suas entradas, conferido na montagem (`assembleRun`). Os números são os mesmos de `officialRun` e `monthAttribution` (testes `rodada-por-partes` e `rodada-servidor`).
+- `npm run sync:engine` copia o motor, `src/report` e `src/lib/format.ts` para `supabase/functions/_shared/aware`; o teste `sincronia` falha se a cópia ficar velha.
+- Edge Function `official-run`: ações `partes`, `parte` (uma simulação por chamada) e `concluir`; quem pede precisa ser da gestão, com segundo fator; entradas, partes e gravação com a chave do servidor (D-061).
+- Banco (`20261010000100_rodada.sql`, 45 testes pgTAP em `10_rodada`): entradas da rodada, partes, gravação (`simulation_runs` só inserção, `monthly_snapshots`, família "rodado"), mês anterior fechado obrigatório, IPCA oficial do mês obrigatório, retrato apagado quando a família volta para "importado", retrato do mês fechado travado, auditoria em nome de quem pediu; `families_overview` e a chance em `month_overview`; o cliente AI só lê retrato e rodada de mês fechado (D-065).
+- Console: botão "Rodar o mês" com o andamento por família e a coluna Chance (D-062); tela Famílias com chance, variação no mês, folga, selo da faixa, data das posições e status do mês, ordenável, com o filtro "precisam de atenção" (D-063).
+- `npm run db:import -- exemplo` roda e fecha setembro, roda outubro e confere a Andrade contra `src/report`: chance de 61,95%, variação de −2.456 trajetórias e rentabilidade real de −2,4925%, iguais.
+- **Tempo por chamada (ponto de parada B, limite de 1,5 s):** no servidor local de funções, contando a montagem das entradas e a simulação de 10.000 trajetórias, uma chamada de cada vez: de 0,34 s (Costa) a 1,20 s (Barbosa, 52 passos); com quatro chamadas em paralelo na mesma máquina, até 1,40 s. Abaixo do limite, mas perto: famílias mais jovens têm mais passos e podem passar. A confirmação vale só no Supabase hospedado (etapa da nuvem); se passar, a alternativa do SPEC entra antes do piloto.
+- Integração contínua: o `supabase start` passa a subir as funções; o teste do navegador tem famílias e mês próprios (D-064).
+- `/code-review` da 3b: 15 achados; 14 corrigidos (D-065 e ajustes na D-061 a D-063) e um mantido de propósito (a leitura das entradas registrada a cada chamada, D-041).
+
+**3a, console (pronta em 09/10/2026; aprovada por Murilo no ponto de parada A):**
 - `index.html` é o console (D-057): Tailwind, componentes no padrão shadcn/ui em `src/console/ui`, temas claro, escuro e do sistema, menu por papel.
 - Login com senha e segundo fator; cadastro do app autenticador no primeiro acesso (D-058).
 - Telas: Mês (importação com prévia, PL oficial, conferência por família, confirmação da rentabilidade, apagar importação, fechar o mês), Mapeamento de ativos (fila do comitê) e Famílias (cadastro; a chance chega na 3b). O relatório de exemplo da Fase 1 é um item do menu.
@@ -364,6 +377,8 @@ Na Fase 1, o Web Worker pode aquecer o cache ao abrir o app.
 - **Rede do ambiente (D-044):** Murilo liberou `cdn.sheetjs.com` (etapa 2, leitura de XLSX) e `api.bcb.gov.br` (etapa 3, IPCA, CDI e dólar) em 06/10/2026. A sessão em que a liberação foi feita continuou recebendo 403 nos dois endereços até o fim da etapa 2; conferir de novo no início da próxima sessão e, se responder, ligar o XLSX (D-056).
 - **Dólar do custodiante (etapa 2, risco):** se o custodiante converter o dólar por uma cotação diferente da do Banco Central, a tolerância de 0,01% pode bloquear famílias com muito dinheiro fora do país (ex.: US$ 1 milhão com 0,1% de diferença na cotação ≈ 0,045% de um PL de R$ 12 milhões). Segue o SPEC; se acontecer com dados reais, decidir com Murilo antes de qualquer ajuste.
 - **App da Fase 3:** em `household_months`, o cliente AI só pode selecionar `household_id`, `ref_date`, `official_pl` e `status` pelo nome (`select *` é recusado, D-054).
+- **App da Fase 3, mês aberto:** o cliente AI já só lê retrato e rodada de mês fechado (D-065), mas ainda lê as posições e os movimentos do mês aberto (políticas da etapa 1, com teste). Decidir no plano da Fase 3 se o app fecha também essas leituras.
+- **Tempo da rodada no servidor hospedado (ponto de parada B, D-061):** medido só no servidor local de funções (até 1,20 s por chamada em sequência e 1,40 s com quatro em paralelo, limite de 1,5 s). Medir de novo no Supabase hospedado, com a família mais jovem da carteira, antes do piloto; se passar do limite, trazer a alternativa do SPEC.
 - **Nuvem (D-042):** pela documentação do Supabase (consultada em 06/10/2026), o limite de sessão (`timebox`) exige o plano Pro ou superior, e os ganchos de tentativa de senha e de segundo fator, que fazem o bloqueio após 5 erros, só existem nos planos Team e Enterprise. Antes de criar o projeto em São Paulo, Murilo decide o plano e, se não for o Team, como fazer o bloqueio (decisão a registrar).
 - **Eventos do "E se?" sem mês (para a etapa 4 e o console):** o motor trata aportes e resgates do "E se?" como os eventos do plano. Sem mês, um aporte "em 2026" com julho já passado fica fora do cálculo, e o aviso fala em conferência. O controle do "E se?" deve sempre informar o mês.
 - **Virada do ano (D-031, item 3), para o Murilo decidir se quer:** no fechamento de 31/12, a saída sem mês do ano que acabou sai do cálculo sem aviso. Um último aviso nesse fechamento ajudaria a conferência a registrar a saída; não muda nenhum número.
