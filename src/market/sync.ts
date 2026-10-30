@@ -1,8 +1,8 @@
-// Busca das séries do Banco Central (SPEC, "Dados de mercado", rotinas): para cada série, do último dado gravado até
-// hoje, em janelas de até 3 anos; lê e confere cada resposta e grava tudo ou nada (se uma janela falha, a série não
-// grava nada e a próxima busca tenta de novo desde o mesmo ponto, sem deixar buraco). Uma série com erro não para as
-// outras. A rede e a gravação vêm de fora (`deps`): a função do servidor usa o SGS e o banco; os testes usam respostas
-// gravadas.
+// Busca das séries do Banco Central (SPEC, "Dados de mercado", rotinas): para cada série, do último dado do Banco
+// Central gravado até hoje, em janelas de até 3 anos; lê e confere cada resposta e grava tudo ou nada (se uma janela
+// falha, a série não grava nada e a próxima busca tenta de novo desde o mesmo ponto, sem deixar buraco). As séries
+// correm ao mesmo tempo, e uma série com erro não para as outras. A rede e a gravação vêm de fora (`deps`): a função
+// do servidor usa o SGS e o banco; os testes usam respostas gravadas.
 
 import { SERIES, SGS_BASE, INITIAL_START, SgsError, parseSgs, sgsUrl, sgsWindows, type SeriesCode, type SeriesRow, type Window } from './sgs.ts'
 import { seriesLag, type SeriesLag } from './staleness.ts'
@@ -49,7 +49,7 @@ export interface SeriesSyncResult {
   lag: SeriesLag
 }
 
-/** Primeira data da busca: o último dado já gravado (que existe no SGS) ou a data inicial fixa. */
+/** Primeira data da busca: o último dado do Banco Central já gravado (que existe no SGS) ou a data inicial fixa. */
 export function syncStart(lastDate: string | null): string {
   return lastDate ?? INITIAL_START
 }
@@ -83,8 +83,9 @@ async function fetchWindow(code: SeriesCode, w: Window, deps: SyncDeps, base: st
 }
 
 /**
- * Busca uma série do último dado gravado até hoje e grava. Nunca lança: o erro volta no resultado. Com o último dado
- * depois de hoje (só com dados de teste, ou relógio adiantado), não há o que buscar nem registrar.
+ * Busca uma série do último dado gravado até hoje e grava. Nunca lança: o erro volta no resultado. Se o banco recusar
+ * as linhas, a busca fica registrada com o erro (sem linhas). Com o último dado depois de hoje (relógio com diferença),
+ * não há o que buscar nem registrar.
  */
 export async function syncSeries(code: SeriesCode, lastDate: string | null, today: string, deps: SyncDeps, base = SGS_BASE): Promise<SeriesSyncResult> {
   const from = syncStart(lastDate)
@@ -106,6 +107,13 @@ export async function syncSeries(code: SeriesCode, lastDate: string | null, toda
     stored = await deps.record({ code, from: requested, to: today, rows, error })
   } catch (e) {
     error = `${error ? `${error} ` : ''}Não foi possível gravar a busca: ${messageOf(e)}`
+    if (rows.length > 0) {
+      try {
+        stored = await deps.record({ code, from: requested, to: today, rows: [], error })
+      } catch {
+        // Banco fora do ar: o erro fica só na resposta.
+      }
+    }
   }
   return {
     code,
@@ -121,7 +129,10 @@ export async function syncSeries(code: SeriesCode, lastDate: string | null, toda
   }
 }
 
-/** Busca as séries pedidas, uma de cada vez. */
+/**
+ * Busca as séries pedidas ao mesmo tempo (as janelas de cada série, uma depois da outra), para a espera ser a da série
+ * mais lenta, e não a soma. O resultado vem na ordem pedida, sem série repetida.
+ */
 export async function syncAll(
   codes: readonly SeriesCode[],
   lastDates: Partial<Record<SeriesCode, string | null>>,
@@ -129,7 +140,5 @@ export async function syncAll(
   deps: SyncDeps,
   base = SGS_BASE,
 ): Promise<SeriesSyncResult[]> {
-  const out: SeriesSyncResult[] = []
-  for (const code of codes) out.push(await syncSeries(code, lastDates[code] ?? null, today, deps, base))
-  return out
+  return Promise.all([...new Set(codes)].map((code) => syncSeries(code, lastDates[code] ?? null, today, deps, base)))
 }

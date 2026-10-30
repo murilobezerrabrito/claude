@@ -2,7 +2,7 @@
 -- fator); só a função do servidor grava, de forma idempotente, conferindo as linhas; cada busca fica registrada; a
 -- situação das séries é para a equipe interna.
 begin;
-select plan(30);
+select plan(31);
 
 \set G 'ae000000-0000-4000-8000-000000000001'
 \set C 'ae000000-0000-4000-8000-000000000002'
@@ -78,6 +78,9 @@ select throws_ok($$ select public.record_market_sync('cdi', '2026-10-01', '2026-
 select throws_ok($$ select public.record_market_sync('cdi', '2026-10-01', '2026-10-30',
   '[{"date": "2026-10-01", "value": 0.05}, {"date": "2026-10-01", "value": 0.05}]', null, null) $$, '22023', null, 'data repetida');
 reset role;
+-- Um dado fictício (ou de teste) pode não existir no SGS: não conta como início da busca.
+insert into public.market_series (series_code, date, value, source) values ('ipca', '2026-10-01', 0.4, 'ficticio');
+select is(public.market_last_dates() ->> 'ipca', null::text, 'dado fictício não conta como início da busca');
 select is((select count(*)::integer from public.market_syncs where series_code in ('dolar', 'ipca')), 4, 'cada busca fica registrada');
 select is((select requested_by from public.market_syncs where series_code = 'dolar' order by created_at limit 1), :'G'::uuid,
   'com quem pediu (nulo no agendamento)');

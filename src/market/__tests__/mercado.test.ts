@@ -164,7 +164,7 @@ describe('atraso das séries', () => {
 })
 
 /** Rede e gravação falsas: as respostas por série e o que foi gravado. */
-function fakeDeps(responses: Partial<Record<string, FetchResult | Error>>, opts: { failRecord?: boolean } = {}) {
+function fakeDeps(responses: Partial<Record<string, FetchResult | Error>>, opts: { failRecord?: boolean; rejectRows?: boolean } = {}) {
   const urls: string[] = []
   const recorded: RecordInput[] = []
   const deps: SyncDeps = {
@@ -177,6 +177,7 @@ function fakeDeps(responses: Partial<Record<string, FetchResult | Error>>, opts:
     },
     record: async (input) => {
       if (opts.failRecord) throw new Error('banco fora do ar')
+      if (opts.rejectRows && input.rows.length > 0) throw new Error('Valor fora da faixa esperada na série.')
       recorded.push(input)
       return { inserted: input.rows.length, updated: 0, lastDate: input.rows.at(-1)?.date ?? null }
     },
@@ -234,7 +235,15 @@ describe('busca das séries', () => {
     expect(r.lastDate).toBe('2026-10-20')
   })
 
-  it('último dado depois de hoje (dado de teste): nada a buscar nem a registrar', async () => {
+  it('linhas recusadas pelo banco: a busca fica registrada com o erro, sem linhas', async () => {
+    const { deps, recorded } = fakeDeps({ '12': { status: 200, text: CDI } }, { rejectRows: true })
+    const r = await syncSeries('cdi', '2026-10-20', '2026-10-30', deps)
+    expect(r.error).toBe('Não foi possível gravar a busca: Valor fora da faixa esperada na série.')
+    expect(recorded).toEqual([{ code: 'cdi', from: '2026-09-30', to: '2026-10-30', rows: [], error: r.error }])
+    expect(r).toMatchObject({ inserted: 0, updated: 0 })
+  })
+
+  it('último dado depois de hoje (relógio com diferença): nada a buscar nem a registrar', async () => {
     const { deps, urls, recorded } = fakeDeps({})
     const r = await syncSeries('dolar', '2026-10-30', '2026-10-29', deps)
     expect(r).toMatchObject({ windows: 0, received: 0, lastDate: '2026-10-30', error: null })
@@ -251,14 +260,25 @@ describe('busca das séries', () => {
     expect(r.error!.length).toBeLessThan(220)
   })
 
-  it('uma série com erro não para as outras; uma de cada vez, na ordem pedida', async () => {
-    const { deps, urls } = fakeDeps({ '12': { status: 200, text: CDI }, '433': { status: 404, text: ERRO_JSON }, '1': { status: 200, text: DOLAR } })
-    const results = await syncAll(['cdi', 'ipca', 'dolar'], { cdi: '2026-10-20', ipca: '2026-08-01', dolar: '2026-10-20' }, '2026-10-30', deps)
+  it('uma série com erro não para as outras; as séries correm ao mesmo tempo, e o resultado vem na ordem pedida', async () => {
+    const { deps } = fakeDeps({ '12': { status: 200, text: CDI }, '433': { status: 404, text: ERRO_JSON }, '1': { status: 200, text: DOLAR } })
+    let inFlight = 0
+    let most = 0
+    const slow: SyncDeps = {
+      ...deps,
+      fetchText: async (url) => {
+        most = Math.max(most, ++inFlight)
+        await new Promise((resolve) => setTimeout(resolve, 5))
+        inFlight--
+        return deps.fetchText(url)
+      },
+    }
+    const results = await syncAll(['dolar', 'cdi', 'ipca', 'cdi'], { cdi: '2026-10-20', ipca: '2026-08-01', dolar: '2026-10-20' }, '2026-10-30', slow)
     expect(results.map((r) => [r.code, r.error === null])).toEqual([
+      ['dolar', true],
       ['cdi', true],
       ['ipca', false],
-      ['dolar', true],
     ])
-    expect(urls.map((u) => /sgs\.(\d+)/.exec(u)?.[1])).toEqual(['12', '433', '1'])
+    expect(most).toBe(3)
   })
 })

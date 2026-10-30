@@ -54,13 +54,14 @@ begin
 end
 $$;
 
--- Último dado de cada série: de onde a próxima busca começa.
+-- Último dado do Banco Central de cada série: de onde a próxima busca começa. Só contam as linhas que vieram do SGS:
+-- uma data fictícia ou de teste pode não existir lá, e a janela da busca começa sempre num dado que existe.
 create function public.market_last_dates()
 returns jsonb
 language sql stable security definer
 set search_path = ''
 as $$
-  select jsonb_object_agg(c.code, (select max(s.date) from public.market_series s where s.series_code = c.code))
+  select jsonb_object_agg(c.code, (select max(s.date) from public.market_series s where s.series_code = c.code and s.source = 'bcb_sgs'))
     from unnest(array['cdi', 'ipca', 'dolar']) c(code)
 $$;
 
