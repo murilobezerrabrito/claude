@@ -2,6 +2,7 @@
 // série pelo atalho /ultimos/3 (SPEC, "Referências": "Exemplo de chamada ao SGS: IPCA, últimos 3 meses") e confere a
 // resposta com a mesma leitura da função do servidor. Termina com erro se alguma série falhar.
 
+import { formatDate } from '../src/lib/format.ts'
 import { brazilToday, parseSgs, SERIES, SERIES_CODES, sgsLastUrl, snippet } from '../src/market/index.ts'
 
 async function main() {
@@ -15,7 +16,7 @@ async function main() {
       const text = await res.text()
       if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${snippet(text)}`)
       const rows = parseSgs(JSON.parse(text), code, today)
-      console.log(`✔ ${info.name} (SGS ${info.sgs}): ${rows.map((r) => `${r.date.split('-').reverse().join('/')} = ${r.value}`).join('; ')} (${info.unit})`)
+      console.log(`✔ ${info.name} (SGS ${info.sgs}): ${rows.map((r) => `${formatDate(r.date)} = ${r.value}`).join('; ')} (${info.unit})`)
     } catch (e) {
       failed = true
       const cause = e instanceof Error && e.cause instanceof Error ? ` (${e.cause.message})` : ''

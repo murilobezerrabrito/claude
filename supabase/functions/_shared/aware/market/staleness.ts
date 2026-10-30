@@ -5,6 +5,7 @@
 // esperado até o dia 15 do mês seguinte (o IBGE publica perto do dia 10), e o atraso conta os dias úteis depois disso
 // (D-069). Datas em AAAA-MM-DD; "hoje" vem de fora (horário de Brasília).
 
+import { formatDate, monthYearName } from '../lib/format.ts'
 import { addDays, businessDaysBetween, isoDate } from './calendar.ts'
 import { SERIES, type SeriesCode } from './sgs.ts'
 
@@ -20,10 +21,6 @@ export interface SeriesLag {
   /** Mensagem em português para o aviso do console. */
   message: string
 }
-
-const br = (date: string) => date.split('-').reverse().join('/')
-const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
-const monthLabel = (month: string) => `${MONTHS[Number(month.slice(5, 7)) - 1]} de ${month.slice(0, 4)}`
 
 /** "AAAA-MM" do mês seguinte. */
 function nextMonth(month: string): string {
@@ -56,20 +53,20 @@ export function seriesLag(code: SeriesCode, lastDate: string | null, today: stri
       stale,
       businessDays: days,
       message: stale
-        ? `${info.name}: o último dado é de ${br(lastDate)}, há ${days} dias úteis sem dado novo.`
-        : `${info.name}: em dia (último dado de ${br(lastDate)}).`,
+        ? `${info.name}: o último dado é de ${formatDate(lastDate)}, há ${days} dias úteis sem dado novo.`
+        : `${info.name}: em dia (último dado de ${formatDate(lastDate)}).`,
     }
   }
   const overdue = latestOverdueIpcaMonth(today)
   const lastMonth = lastDate.slice(0, 7)
   if (lastMonth >= overdue) {
-    return { stale: false, businessDays: 0, message: `${info.name}: em dia (último mês: ${monthLabel(lastMonth)}).` }
+    return { stale: false, businessDays: 0, message: `${info.name}: em dia (último mês: ${monthYearName(lastMonth)}).` }
   }
   const missing = nextMonth(lastMonth)
   const days = businessDaysBetween(ipcaDueDate(missing), today)
   return {
     stale: true,
     businessDays: days,
-    message: `${info.name}: falta o de ${monthLabel(missing)}, esperado até ${br(ipcaDueDate(missing))}; ${days} dias úteis de atraso.`,
+    message: `${info.name}: falta o de ${monthYearName(missing)}, esperado até ${formatDate(ipcaDueDate(missing))}; ${days} dias úteis de atraso.`,
   }
 }

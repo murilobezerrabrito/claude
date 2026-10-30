@@ -118,6 +118,12 @@ export function monthName(month: string): string {
   return MONTHS[monthParts(month)[1] - 1]
 }
 
+/** "outubro de 2026", de "2026-10" ou "2026-10-01". */
+export function monthYearName(month: string): string {
+  const [y, m] = monthParts(month)
+  return `${MONTHS[m - 1]} de ${y}`
+}
+
 /** "30/09/2026", de "2026-09-30". */
 export function formatDate(date: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)

@@ -2,7 +2,7 @@
 // (o mesmo cálculo de src/market, com "hoje" no horário de Brasília). Funções puras, testadas em __tests__/market.test.ts.
 
 import type { MarketStatusRow } from '../lib/apiTypes.ts'
-import { monthName } from '../lib/format.ts'
+import { monthYearName } from '../lib/format.ts'
 import { SERIES, seriesLag, type SeriesLag } from '../market/index.ts'
 
 const number = (v: number, min: number, max: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: min, maximumFractionDigits: max })
@@ -10,7 +10,7 @@ const number = (v: number, min: number, max: number) => v.toLocaleString('pt-BR'
 /** "0,055131% ao dia", "0,48% (setembro de 2026)", "R$ 5,0400". */
 export function seriesValueText(code: MarketStatusRow['code'], value: number, date: string): string {
   if (code === 'cdi') return `${number(value, 2, 6)}% ao dia`
-  if (code === 'ipca') return `${number(value, 2, 2)}% (${monthName(date.slice(0, 7))} de ${date.slice(0, 4)})`
+  if (code === 'ipca') return `${number(value, 2, 2)}% (${monthYearName(date)})`
   return `R$ ${number(value, 4, 4)}`
 }
 
