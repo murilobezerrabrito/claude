@@ -188,11 +188,11 @@ describe('busca das séries', () => {
   it('do último dado gravado até hoje, com dataFinal, e grava o que veio', async () => {
     const { deps, urls, recorded } = fakeDeps({ '1': { status: 200, text: DOLAR } })
     const r = await syncSeries('dolar', '2026-10-20', '2026-10-30', deps)
-    // A janela começa no último dado gravado e, curta, recua até ter 31 dias.
+    // A janela começa no último dado gravado e, curta, recua até ter 31 dias; o registro leva o período de fato pedido.
     expect(urls).toEqual(['https://api.bcb.gov.br/dados/serie/bcdata.sgs.1/dados?formato=json&dataInicial=30/09/2026&dataFinal=30/10/2026'])
-    expect(r).toMatchObject({ code: 'dolar', from: '2026-10-20', to: '2026-10-30', windows: 1, received: 21, inserted: 21, lastDate: '2026-10-30', error: null })
+    expect(r).toMatchObject({ code: 'dolar', from: '2026-09-30', to: '2026-10-30', windows: 1, received: 21, inserted: 21, lastDate: '2026-10-30', error: null })
     expect(r.lag.stale).toBe(false)
-    expect(recorded[0]).toMatchObject({ code: 'dolar', from: '2026-10-20', to: '2026-10-30', error: null })
+    expect(recorded[0]).toMatchObject({ code: 'dolar', from: '2026-09-30', to: '2026-10-30', error: null })
   })
 
   it('série sem nenhum dado: busca desde 01/01/2024, numa janela de até 3 anos', async () => {

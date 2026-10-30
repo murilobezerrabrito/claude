@@ -38,6 +38,7 @@ export interface SyncDeps {
 
 export interface SeriesSyncResult {
   code: SeriesCode
+  /** Período de fato pedido ao SGS: do início da janela mais antiga (que pode recuar até ter 31 dias) até hoje. */
   from: string
   to: string
   windows: number
@@ -92,6 +93,7 @@ export async function syncSeries(code: SeriesCode, lastDate: string | null, toda
     return { code, from, to: today, windows: 0, received: 0, inserted: 0, updated: 0, lastDate, error: null, lag: seriesLag(code, lastDate, today) }
   }
   const windows = sgsWindows(from, today)
+  const requested = windows.at(-1)?.from ?? from
   let rows: SeriesRow[] = []
   let error: string | null = null
   try {
@@ -102,13 +104,13 @@ export async function syncSeries(code: SeriesCode, lastDate: string | null, toda
   }
   let stored: RecordResult = { inserted: 0, updated: 0, lastDate }
   try {
-    stored = await deps.record({ code, from, to: today, rows, error })
+    stored = await deps.record({ code, from: requested, to: today, rows, error })
   } catch (e) {
     error = `${error ? `${error} ` : ''}Não foi possível gravar a busca: ${messageOf(e)}`
   }
   return {
     code,
-    from,
+    from: requested,
     to: today,
     windows: windows.length,
     received: rows.length,
