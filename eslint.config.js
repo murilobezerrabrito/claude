@@ -16,14 +16,15 @@ export default defineConfig([
   {
     // Interface (React, navegador)
     files: ['src/**/*.{ts,tsx}'],
-    ignores: ['src/engine/**', 'src/report/**', 'src/import/**', 'src/lib/format.ts'],
+    ignores: ['src/engine/**', 'src/report/**', 'src/import/**', 'src/market/**', 'src/lib/format.ts'],
     extends: [reactHooks.configs.flat.recommended, reactRefresh.configs.vite],
     languageOptions: { globals: globals.browser },
   },
   {
-    // Motor, src/report, src/import e a formatação: TypeScript puro, sem dependências, imports relativos terminados em .ts
-    files: ['src/engine/**/*.ts', 'src/report/**/*.ts', 'src/import/**/*.ts', 'src/lib/format.ts'],
-    ignores: ['src/engine/__tests__/**', 'src/report/__tests__/**', 'src/import/__tests__/**'],
+    // Motor, src/report, src/import, src/market e a formatação: TypeScript puro, sem dependências, imports relativos
+    // terminados em .ts
+    files: ['src/engine/**/*.ts', 'src/report/**/*.ts', 'src/import/**/*.ts', 'src/market/**/*.ts', 'src/lib/format.ts'],
+    ignores: ['src/engine/__tests__/**', 'src/report/__tests__/**', 'src/import/__tests__/**', 'src/market/__tests__/**'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -31,11 +32,11 @@ export default defineConfig([
           patterns: [
             {
               regex: '^(?!\\.\\.?/)',
-              message: 'O motor, src/report e src/import não têm dependências externas: use só imports relativos.',
+              message: 'O motor, src/report, src/import e src/market não têm dependências externas: use só imports relativos.',
             },
             {
               regex: '^\\.\\.?/.*(?<!\\.ts)$',
-              message: 'Imports do motor, de src/report e de src/import terminam em .ts (o Deno exige).',
+              message: 'Imports do motor, de src/report, de src/import e de src/market terminam em .ts (o Deno exige).',
             },
           ],
         },

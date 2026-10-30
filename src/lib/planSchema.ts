@@ -5,6 +5,7 @@
 
 import { z } from 'zod'
 import { MAX_MONEY } from '../import/values.ts'
+import { brazilToday } from '../market/calendar.ts'
 import type { PlanSnapshot } from '../report/types.ts'
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -19,9 +20,7 @@ export function isValidIsoDate(s: string): boolean {
 }
 
 /** Hoje no horário de Brasília (AAAA-MM-DD), como o banco confere (America/Sao_Paulo). */
-export function brazilToday(now = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
-}
+export { brazilToday }
 
 const YEARS = { min: 1900, max: 2200 }
 /** Nascimento a partir de 1900, como o banco confere. */
