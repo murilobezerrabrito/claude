@@ -1,6 +1,7 @@
-// npm run sync:engine: copia o motor (src/engine), a montagem do mês (src/report) e a formatação (src/lib/format.ts)
-// para supabase/functions/_shared/aware, a cópia que as funções do servidor usam (SPEC, "Stack técnica"). Com
-// --check, só confere se a cópia está igual à fonte e termina com erro se não estiver (integração contínua e teste).
+// npm run sync:engine: copia o motor (src/engine), a montagem do mês (src/report), as séries do Banco Central
+// (src/market) e a formatação (src/lib/format.ts) para supabase/functions/_shared/aware, a cópia que as funções do
+// servidor usam (SPEC, "Stack técnica"). Com --check, só confere se a cópia está igual à fonte e termina com erro se
+// não estiver (integração contínua e teste).
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
@@ -13,7 +14,7 @@ const HEADER = '// Cópia gerada por `npm run sync:engine` a partir de src/. Nã
 /** Arquivos da fonte (sem testes) e o caminho de cada um dentro da cópia. */
 export function sourceFiles(): { from: string; to: string }[] {
   const files: { from: string; to: string }[] = []
-  for (const dir of ['src/engine', 'src/report']) {
+  for (const dir of ['src/engine', 'src/report', 'src/market']) {
     for (const name of readdirSync(join(root, dir))) {
       if (!name.endsWith('.ts')) continue
       files.push({ from: join(root, dir, name), to: join(target, dir.replace('src/', ''), name) })

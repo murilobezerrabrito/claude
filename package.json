@@ -26,7 +26,9 @@
     "env:local": "node scripts/envLocal.ts",
     "test:e2e": "playwright test",
     "sync:engine": "node scripts/syncEngine.ts",
-    "db:plan-cases": "node scripts/planCases.ts"
+    "db:plan-cases": "node scripts/planCases.ts",
+    "market:sync": "node scripts/marketSync.ts",
+    "market:check": "node scripts/marketCheck.ts"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.3.0",

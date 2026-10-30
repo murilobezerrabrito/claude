@@ -234,6 +234,23 @@ describe('busca das séries', () => {
     expect(r.lastDate).toBe('2026-10-20')
   })
 
+  it('último dado depois de hoje (dado de teste): nada a buscar nem a registrar', async () => {
+    const { deps, urls, recorded } = fakeDeps({})
+    const r = await syncSeries('dolar', '2026-10-30', '2026-10-29', deps)
+    expect(r).toMatchObject({ windows: 0, received: 0, lastDate: '2026-10-30', error: null })
+    expect(urls).toEqual([])
+    expect(recorded).toEqual([])
+  })
+
+  it('mensagem de erro da rede sem a URL e resumida (no máximo 160 caracteres)', async () => {
+    const url = 'https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=01/01/2024&dataFinal=29/10/2026'
+    const { deps } = fakeDeps({ '12': new Error(`error sending request for url (${url}): client error (Connect): dns error: ${'falhou '.repeat(40)}`) })
+    const r = await syncSeries('cdi', '2026-10-20', '2026-10-30', deps)
+    expect(r.error?.startsWith('Não foi possível falar com o SGS (CDI): error sending request for url: client error (Connect): dns error: falhou')).toBe(true)
+    expect(r.error?.endsWith('...')).toBe(true)
+    expect(r.error!.length).toBeLessThan(220)
+  })
+
   it('uma série com erro não para as outras; uma de cada vez, na ordem pedida', async () => {
     const { deps, urls } = fakeDeps({ '12': { status: 200, text: CDI }, '433': { status: 404, text: ERRO_JSON }, '1': { status: 200, text: DOLAR } })
     const results = await syncAll(['cdi', 'ipca', 'dolar'], { cdi: '2026-10-20', ipca: '2026-08-01', dolar: '2026-10-20' }, '2026-10-30', deps)

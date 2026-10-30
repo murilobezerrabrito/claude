@@ -67,7 +67,9 @@ async function fetchWindow(code: SeriesCode, w: Window, deps: SyncDeps, base: st
   try {
     res = await deps.fetchText(sgsUrl(code, w.from, w.to, base))
   } catch (e) {
-    throw new SgsError('rede', `Não foi possível falar com o SGS (${name}): ${messageOf(e)}`)
+    // Sem a URL (a série e a janela já ficam no registro): sobra a causa, como o erro de DNS.
+    const cause = messageOf(e).replace(/\s*\(https?:\/\/[^)\s]*\)/g, '')
+    throw new SgsError('rede', `Não foi possível falar com o SGS (${name}): ${snippet(cause)}`)
   }
   if (res.status !== 200) throw new SgsError('http', `O SGS respondeu ${res.status} para ${name}: ${snippet(res.text)}`, res.status)
   let body: unknown
@@ -79,9 +81,15 @@ async function fetchWindow(code: SeriesCode, w: Window, deps: SyncDeps, base: st
   return parseSgs(body, code, w.to)
 }
 
-/** Busca uma série do último dado gravado até hoje e grava. Nunca lança: o erro volta no resultado. */
+/**
+ * Busca uma série do último dado gravado até hoje e grava. Nunca lança: o erro volta no resultado. Com o último dado
+ * depois de hoje (só com dados de teste, ou relógio adiantado), não há o que buscar nem registrar.
+ */
 export async function syncSeries(code: SeriesCode, lastDate: string | null, today: string, deps: SyncDeps, base = SGS_BASE): Promise<SeriesSyncResult> {
   const from = syncStart(lastDate)
+  if (from > today) {
+    return { code, from, to: today, windows: 0, received: 0, inserted: 0, updated: 0, lastDate, error: null, lag: seriesLag(code, lastDate, today) }
+  }
   const windows = sgsWindows(from, today)
   let rows: SeriesRow[] = []
   let error: string | null = null
