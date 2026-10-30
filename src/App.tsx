@@ -7,6 +7,7 @@ import { useConsoleAuth } from './console/auth/useConsoleAuth.ts'
 import { FamiliesPage } from './console/pages/FamiliesPage.tsx'
 import { HouseholdPage } from './console/pages/HouseholdPage.tsx'
 import { MappingPage } from './console/pages/MappingPage.tsx'
+import { MarketPage } from './console/pages/MarketPage.tsx'
 import { MonthPage } from './console/pages/MonthPage.tsx'
 import { ReportPreview } from './console/report/ReportPreview.tsx'
 import { makeSession, SessionContext } from './console/session.tsx'
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="/familias/:id" element={<HouseholdPage />} />
             <Route path="/mes" element={<MonthPage />} />
             <Route path="/mapeamento" element={<MappingPage />} />
+            <Route path="/mercado" element={<MarketPage />} />
             <Route path="/relatorio-exemplo" element={<ReportPreview />} />
             <Route path="*" element={<Navigate to={session.has('gestao') ? '/mes' : '/familias'} replace />} />
           </Routes>

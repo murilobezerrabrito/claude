@@ -1,9 +1,10 @@
 // Moldura do console: menu lateral azul-escuro (as cores da AWARE), itens conforme o papel, tema e saída.
 
-import { FileText, LayoutList, ListChecks, LogOut, Tags } from 'lucide-react'
+import { FileText, LayoutList, LineChart, ListChecks, LogOut, Tags } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router'
 import { cn } from '../lib/utils.ts'
+import { MarketAlert } from './MarketAlert.tsx'
 import { ROLE_LABELS, useSession } from './session.tsx'
 import { useTheme, type ThemeChoice } from './theme.ts'
 import { Select } from './ui/input.tsx'
@@ -22,6 +23,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
     { to: '/familias', label: 'Famílias', icon: <LayoutList />, visible: true },
     { to: '/mes', label: 'Mês', icon: <ListChecks />, visible: session.has('gestao', 'comite', 'compliance', 'banker', 'responsavel') },
     { to: '/mapeamento', label: 'Mapeamento de ativos', icon: <Tags />, visible: session.has('gestao', 'comite', 'compliance') },
+    { to: '/mercado', label: 'Mercado', icon: <LineChart />, visible: session.has('gestao', 'comite', 'compliance') },
     { to: '/relatorio-exemplo', label: 'Relatório de exemplo', icon: <FileText />, visible: true },
   ]
   return (
@@ -83,7 +85,10 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
             Sair
           </button>
         </div>
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:px-8">{children}</main>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:px-8">
+          {session.has('gestao', 'comite') ? <MarketAlert /> : null}
+          {children}
+        </main>
       </div>
     </div>
   )

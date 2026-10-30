@@ -231,3 +231,21 @@ export interface SavedPlanVersion {
   base_month: string
   months_reset: number
 }
+
+/** Linha de `market_status`: o último dado e a última busca de cada série do Banco Central. */
+export interface MarketStatusRow {
+  code: 'cdi' | 'ipca' | 'dolar'
+  last: { date: string; value: number; source: string } | null
+  last_sync: {
+    at: string
+    from: string
+    to: string
+    received: number
+    inserted: number
+    updated: number
+    error: string | null
+    /** Nulo: o agendamento. */
+    requested_by_email: string | null
+  } | null
+  last_success_at: string | null
+}
