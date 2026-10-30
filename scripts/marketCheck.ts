@@ -25,6 +25,10 @@ async function main() {
   }
   if (failed) {
     console.log('A rede não alcançou o SGS: confira se api.bcb.gov.br está liberado no ambiente.')
+    // O fetch do Node só passa pelo proxy do ambiente (HTTPS_PROXY) com NODE_USE_ENV_PROXY=1 (Node 22.21 ou mais novo).
+    if ((process.env.HTTPS_PROXY || process.env.https_proxy) && process.env.NODE_USE_ENV_PROXY !== '1') {
+      console.log('Este ambiente usa proxy: rode de novo com NODE_USE_ENV_PROXY=1 npm run market:check.')
+    }
     process.exitCode = 1
   }
 }
