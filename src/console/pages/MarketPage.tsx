@@ -86,8 +86,8 @@ export function MarketPage() {
             <CardTitle>Situação das séries</CardTitle>
             <CardDescription>
               CDI, IPCA e dólar de venda no SGS, gravados como o Banco Central publica. Atraso: CDI e dólar com mais de 3 dias úteis sem dado novo; IPCA
-              do mês que não chegou até 3 dias úteis depois do dia 15 do mês seguinte. O agendamento diário entra na etapa da nuvem; até lá, a busca é
-              pelo botão.
+              do mês que não chegou até 3 dias úteis depois do dia 15 do mês seguinte. O agendamento diário entra na etapa da nuvem; até lá, a gestão e
+              o comitê buscam pelo botão "Buscar agora".
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -104,7 +104,7 @@ export function MarketPage() {
               <TableBody>
                 {views.map(({ row, name, lag }) => (
                   <TableRow key={row.code}>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <span className="font-medium">{name}</span>
                       <p className="text-xs text-muted-foreground">
                         SGS {SERIES[row.code].sgs} · {SERIES[row.code].unit}
