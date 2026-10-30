@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { NavLink } from 'react-router'
 import { cn } from '../lib/utils.ts'
 import { MarketAlert } from './MarketAlert.tsx'
+import { MarketStatusContext, useMarketStatusSource } from './marketStatus.ts'
 import { ROLE_LABELS, useSession } from './session.tsx'
 import { useTheme, type ThemeChoice } from './theme.ts'
 import { Select } from './ui/input.tsx'
@@ -19,6 +20,8 @@ interface NavItem {
 export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut: () => void }) {
   const session = useSession()
   const [theme, setTheme] = useTheme()
+  const marketAlert = session.has('gestao', 'comite')
+  const market = useMarketStatusSource(marketAlert)
   const items: NavItem[] = [
     { to: '/familias', label: 'Famílias', icon: <LayoutList />, visible: true },
     { to: '/mes', label: 'Mês', icon: <ListChecks />, visible: session.has('gestao', 'comite', 'compliance', 'banker', 'responsavel') },
@@ -86,8 +89,10 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
           </button>
         </div>
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:px-8">
-          {session.has('gestao', 'comite') ? <MarketAlert /> : null}
-          {children}
+          <MarketStatusContext.Provider value={market}>
+            {marketAlert ? <MarketAlert /> : null}
+            {children}
+          </MarketStatusContext.Provider>
         </main>
       </div>
     </div>

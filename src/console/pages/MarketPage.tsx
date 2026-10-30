@@ -1,14 +1,15 @@
 // Séries do Banco Central (SPEC, "Dados de mercado"): o último dado, a origem, a última busca e o atraso de cada série,
 // e a busca na hora (gestão e comitê), pela função do servidor `market-sync`. O agendamento diário entra na etapa da
-// nuvem. O atraso é calculado aqui, com o calendário de dias úteis: o aviso aparece mesmo se o agendamento parar.
+// nuvem. O atraso é calculado aqui, com o calendário de dias úteis: o aviso aparece mesmo se o agendamento parar. A
+// situação vem da moldura (marketStatus.ts), a mesma do aviso do topo; depois da busca, os dois se atualizam juntos.
 
 import { RefreshCw } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import type { MarketStatusRow } from '../../lib/apiTypes.ts'
+import { useState } from 'react'
 import { formatDate } from '../../lib/format.ts'
 import { brazilToday, SERIES, type SeriesSyncResult } from '../../market/index.ts'
-import { callFunction, errorText, rpc } from '../api.ts'
+import { callFunction, errorText } from '../api.ts'
 import { seriesValueText, seriesViews, SOURCE_LABELS } from '../market.ts'
+import { useMarketStatus } from '../marketStatus.ts'
 import { useSession } from '../session.tsx'
 import { PageTitle } from '../Shell.tsx'
 import { Alert } from '../ui/alert.tsx'
@@ -22,34 +23,23 @@ const when = (iso: string) => new Date(iso).toLocaleString('pt-BR', { timeZone: 
 export function MarketPage() {
   const session = useSession()
   const canSync = session.has('gestao', 'comite')
-  const [rows, setRows] = useState<MarketStatusRow[] | null>(null)
-  const [failure, setFailure] = useState<string | null>(null)
+  const { rows, failure, refresh } = useMarketStatus()
+  const [syncFailure, setSyncFailure] = useState<string | null>(null)
   const [results, setResults] = useState<SeriesSyncResult[] | null>(null)
   const [busy, setBusy] = useState(false)
-  const [version, setVersion] = useState(0)
-
-  useEffect(() => {
-    let cancelled = false
-    rpc<MarketStatusRow[]>('market_status')
-      .then((r) => !cancelled && setRows(r))
-      .catch((e: unknown) => !cancelled && setFailure(errorText(e)))
-    return () => {
-      cancelled = true
-    }
-  }, [version])
 
   const sync = async () => {
     setBusy(true)
-    setFailure(null)
+    setSyncFailure(null)
     setResults(null)
     try {
       const r = await callFunction<{ series: SeriesSyncResult[] }>('market-sync', {})
       setResults(r.series)
     } catch (e) {
-      setFailure(errorText(e))
+      setSyncFailure(errorText(e))
     } finally {
       setBusy(false)
-      setVersion((v) => v + 1)
+      refresh()
     }
   }
 
@@ -67,7 +57,15 @@ export function MarketPage() {
         ) : null}
       </PageTitle>
       <div className="flex flex-col gap-6">
-        {failure ? <Alert tone="error">{failure}</Alert> : null}
+        {failure ? (
+          <Alert tone="error" className="flex flex-wrap items-center justify-between gap-3">
+            {failure}
+            <Button variant="outline" size="sm" onClick={refresh}>
+              Tentar de novo
+            </Button>
+          </Alert>
+        ) : null}
+        {syncFailure ? <Alert tone="error">{syncFailure}</Alert> : null}
         {results ? (
           <Alert tone={failed.length > 0 ? 'warning' : 'success'}>
             {failed.length > 0 ? 'Busca concluída com erro em parte das séries:' : 'Busca concluída.'}

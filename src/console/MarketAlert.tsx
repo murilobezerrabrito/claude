@@ -1,28 +1,18 @@
-// Aviso do console para o comitê e a gestão (SPEC, "Dados de mercado"): série do Banco Central atrasada. Confere a
-// situação a cada troca de página; o atraso é calculado aqui, então o aviso aparece mesmo se o agendamento parar.
+// Aviso do console para o comitê e a gestão (SPEC, "Dados de mercado"): série do Banco Central atrasada. Lê a situação
+// das séries da moldura (marketStatus.ts), conferida a cada troca de página e depois de cada busca; o atraso é
+// calculado aqui, então o aviso aparece mesmo se o agendamento parar.
 
 import { TriangleAlert } from 'lucide-react'
-import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router'
-import type { MarketStatusRow } from '../lib/apiTypes.ts'
 import { brazilToday } from '../market/index.ts'
-import { rpc } from './api.ts'
 import { staleSeries } from './market.ts'
+import { useMarketStatus } from './marketStatus.ts'
 
 export function MarketAlert() {
   const { pathname } = useLocation()
-  const [messages, setMessages] = useState<string[]>([])
-
-  useEffect(() => {
-    let cancelled = false
-    rpc<MarketStatusRow[]>('market_status')
-      .then((rows) => !cancelled && setMessages(staleSeries(rows, brazilToday()).map((v) => v.lag.message)))
-      // Sem a situação (sessão ou rede), sem aviso: a página das séries mostra o erro.
-      .catch(() => !cancelled && setMessages([]))
-    return () => {
-      cancelled = true
-    }
-  }, [pathname])
+  const { rows } = useMarketStatus()
+  // Antes da primeira resposta, sem aviso; se uma consulta falha, fica o que a anterior mostrou (a página mostra o erro).
+  const messages = rows ? staleSeries(rows, brazilToday()).map((v) => v.lag.message) : []
 
   if (messages.length === 0) return null
   return (

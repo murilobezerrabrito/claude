@@ -6,6 +6,8 @@
 
 import { expect, test } from '@playwright/test'
 import { localStack, signIn } from '../scripts/localSupabase.ts'
+import type { MarketStatusRow } from '../src/lib/apiTypes.ts'
+import { brazilToday } from '../src/market/calendar.ts'
 import { signInWithEnrollment, testUser } from './helpers.ts'
 
 const CORS = {
@@ -61,13 +63,25 @@ test('gestão vê o aviso de série atrasada, a situação das séries e o resul
   await expect(row('Dólar de venda')).toContainText('R$ 5,0400')
   await expect(row('Dólar de venda')).toContainText('30/10/2026')
 
-  // A busca na hora: o que entrou e o erro de cada série.
+  // A busca na hora: o que entrou e o erro de cada série. Depois dela, a situação volta com as três séries em dia
+  // (também simulada, com a data de hoje): o aviso do topo some na hora, sem trocar de página.
+  const today = brazilToday()
+  const fresh = { cdi: today, ipca: `${today.slice(0, 7)}-01`, dolar: today }
+  await page.route('**/rest/v1/rpc/market_status', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue()
+    const response = await route.fetch()
+    const rows = (await response.json()) as MarketStatusRow[]
+    await route.fulfill({ response, json: rows.map((r) => ({ ...r, last: { date: fresh[r.code], value: r.code === 'dolar' ? 5.05 : 0.05, source: 'bcb_sgs' } })) })
+  })
   await page.getByRole('button', { name: 'Buscar agora' }).click()
   const result = page.getByRole('status').filter({ hasText: 'Busca concluída com erro em parte das séries:' })
   await expect(result).toContainText('CDI: Não foi possível falar com o SGS (CDI): dns error')
   await expect(result).toContainText('IPCA: 1 recebidos, 0 novos, 1 atualizados.')
   await expect(result).toContainText('Dólar de venda: nada novo a buscar.')
   expect(requested).toEqual({})
+  await expect(row('CDI')).toContainText('Em dia')
+  await expect(row('Dólar de venda')).toContainText('R$ 5,0500')
+  await expect(page.getByText('Séries do Banco Central com atraso')).toHaveCount(0)
 })
 
 test('a compliance vê as séries, sem buscar nem receber o aviso; o banker não vê a página', async ({ browser }) => {
