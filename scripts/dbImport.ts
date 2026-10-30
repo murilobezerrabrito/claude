@@ -33,7 +33,7 @@ import type { CheckResult, ImportConfirmResult, ImportPreviewResult, MappingQueu
 import { formatMoneyExact, formatSignedPercent } from '../src/lib/format.ts'
 import { readSheetFile } from '../src/lib/planilhas.ts'
 import { runMonthBatch, type FamilyRunState, type RunAction, type RunCall } from '../src/console/monthRun.ts'
-import { call, ensureUser, localStack, newPassword, totp, type Local } from './localSupabase.ts'
+import { LocalApi, localStack } from './localSupabase.ts'
 import type { Cma, Profile } from '../src/engine/types.ts'
 import { monthAttribution, type Bridge } from '../src/report/attribution.ts'
 import { planVersionFor } from '../src/report/monthInputs.ts'
@@ -50,60 +50,7 @@ const USERS = {
 } as const
 type UserKind = keyof typeof USERS
 
-/** Entra como o usuário fictício, com senha e segundo fator (aal2). Devolve o token de acesso. */
-async function login(local: Local, kind: UserKind): Promise<string> {
-  const { email, role } = USERS[kind]
-  const password = newPassword()
-  await ensureUser(local, email, role, password)
-  const session = (await call(local, '/auth/v1/token?grant_type=password', { body: { email, password } })) as { access_token: string }
-  const factor = (await call(local, '/auth/v1/factors', { token: session.access_token, body: { factor_type: 'totp', friendly_name: 'db:import' } })) as {
-    id: string
-    totp: { secret: string }
-  }
-  const challenge = (await call(local, `/auth/v1/factors/${factor.id}/challenge`, { token: session.access_token, body: {} })) as { id: string }
-  const verified = (await call(local, `/auth/v1/factors/${factor.id}/verify`, {
-    token: session.access_token,
-    body: { challenge_id: challenge.id, code: totp(factor.totp.secret) },
-  })) as { access_token: string }
-  return verified.access_token
-}
-
-class Api {
-  private tokens = new Map<UserKind, string>()
-  private local: Local
-
-  constructor(local: Local) {
-    this.local = local
-  }
-
-  /** Token de quem pede; entra (senha e segundo fator) na primeira vez. */
-  private async token(as: UserKind): Promise<string> {
-    let token = this.tokens.get(as)
-    if (!token) {
-      token = await login(this.local, as)
-      this.tokens.set(as, token)
-      console.log(`  (entrou como ${USERS[as].email}, com segundo fator)`)
-    }
-    return token
-  }
-
-  async rpc<T>(as: UserKind, fn: string, args: Record<string, unknown> = {}): Promise<T> {
-    return (await call(this.local, `/rest/v1/rpc/${fn}`, { token: await this.token(as), body: args })) as T
-  }
-
-  /** Edge Function, com o token de quem está logado. O erro leva o status HTTP (para a nova tentativa da rodada). */
-  async fn<T>(as: UserKind, name: string, body: unknown): Promise<T> {
-    const res = await fetch(`${this.local.url}/functions/v1/${name}`, {
-      method: 'POST',
-      headers: { apikey: this.local.publishable, Authorization: `Bearer ${await this.token(as)}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    const text = await res.text()
-    const json = (text === '' ? {} : JSON.parse(text)) as T & { erro?: string }
-    if (!res.ok) throw Object.assign(new Error(`${name}: ${json.erro ?? res.status}`), { status: res.status })
-    return json
-  }
-}
+type Api = LocalApi<UserKind>
 
 // Saída -----------------------------------------------------------------------------------------------------------
 
@@ -312,7 +259,7 @@ async function example(api: Api) {
 
 async function main() {
   const [cmd, ...args] = process.argv.slice(2)
-  const api = new Api(localStack())
+  const api: Api = new LocalApi(localStack(), USERS, 'db:import')
   switch (cmd) {
     case 'previa':
       if (args[0] !== 'posicoes' && args[0] !== 'movimentos') throw new Error('Use: previa <posicoes|movimentos> <arquivo> [--confirmar]')

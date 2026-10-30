@@ -5,53 +5,11 @@
 //   { acao: 'concluir' }   monta a rodada, a ponte e a rentabilidade a partir das partes e grava (família rodada).
 // Quem pede precisa ser da gestão, com segundo fator (o banco confere com o token de quem pede). Entradas, partes e
 // gravação usam a chave do servidor, que nunca vai ao navegador.
-// Respostas de erro: 403 sem permissão; 422 recusa por regra (não adianta repetir); 503 falha do banco ou da rede
-// (o console tenta de novo uma vez). O tempo de cálculo gravado cobre a montagem das entradas e a simulação.
+// Respostas de erro como em _shared/server.ts. O tempo de cálculo gravado cobre a montagem das entradas e a simulação.
 
 import { ReportInputError } from '../_shared/aware/report/errors.ts'
+import { bearer, CORS, HttpError, reply, rpc } from '../_shared/server.ts'
 import { assembleRun, runPart, runTasks, type PartOutcome, type RunInputs, type RunPart } from '../_shared/aware/report/runTasks.ts'
-
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
-const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
-
-class HttpError extends Error {
-  readonly status: number
-  constructor(status: number, message: string) {
-    super(message)
-    this.status = status
-  }
-}
-
-const reply = (status: number, body: unknown) => Response.json(body, { status, headers: CORS })
-
-/** Função do banco: com o token de quem pede (`user`) ou com a chave do servidor. */
-async function rpc<T>(fn: string, args: Record<string, unknown>, as: { user: string } | 'servidor'): Promise<T> {
-  const headers =
-    as === 'servidor'
-      ? { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' }
-      : { apikey: ANON_KEY, Authorization: as.user, 'Content-Type': 'application/json' }
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, { method: 'POST', headers, body: JSON.stringify(args) })
-  const text = await res.text()
-  let body: { message?: string; code?: string } | null = null
-  try {
-    body = text === '' ? null : (JSON.parse(text) as { message?: string; code?: string } | null)
-  } catch {
-    // Resposta sem JSON (gateway): fica o status.
-  }
-  if (!res.ok) {
-    if (res.status >= 500) throw new HttpError(503, 'O banco não respondeu agora. Tente de novo em instantes.')
-    const denied = res.status === 401 || res.status === 403 || body?.code === '42501'
-    throw new HttpError(denied ? 403 : 422, body?.message ?? `Erro ${res.status} em ${fn}.`)
-  }
-  return body as T
-}
 
 interface Request_ {
   acao: 'partes' | 'parte' | 'concluir'
@@ -64,9 +22,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
   if (req.method !== 'POST') return reply(405, { erro: 'Use POST.' })
   try {
-    const authorization = req.headers.get('Authorization') ?? ''
-    if (!authorization.startsWith('Bearer ')) throw new HttpError(401, 'Entre no console para rodar o mês.')
-    const actor = await rpc<string>('run_permission', {}, { user: authorization })
+    const actor = await rpc<string>('run_permission', {}, { user: bearer(req, 'Entre no console para rodar o mês.') })
     const body = (await req.json()) as Request_
     const where = { p_household: body.household_id, p_ref_date: body.ref_date }
     const loaded = await rpc<{ inputs: RunInputs; cma_version_id: string; plan_version_id: string }>('run_inputs', { ...where, p_actor: actor }, 'servidor')

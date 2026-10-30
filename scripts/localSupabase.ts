@@ -85,3 +85,69 @@ export async function ensureUser(local: Local, email: string, role: string, pass
   for (const f of factors) await call(local, `/auth/v1/admin/users/${user.id}/factors/${f.id}`, { method: 'DELETE', admin: true })
   return user.id
 }
+
+/**
+ * Entra como o usuário fictício (criado com o papel e uma senha nova), com senha e segundo fator novo (aal2).
+ * Devolve o token de acesso.
+ */
+export async function signIn(local: Local, email: string, role: string, label: string): Promise<string> {
+  const password = newPassword()
+  await ensureUser(local, email, role, password)
+  const session = (await call(local, '/auth/v1/token?grant_type=password', { body: { email, password } })) as { access_token: string }
+  const factor = (await call(local, '/auth/v1/factors', { token: session.access_token, body: { factor_type: 'totp', friendly_name: label } })) as {
+    id: string
+    totp: { secret: string }
+  }
+  const challenge = (await call(local, `/auth/v1/factors/${factor.id}/challenge`, { token: session.access_token, body: {} })) as { id: string }
+  const verified = (await call(local, `/auth/v1/factors/${factor.id}/verify`, {
+    token: session.access_token,
+    body: { challenge_id: challenge.id, code: totp(factor.totp.secret) },
+  })) as { access_token: string }
+  return verified.access_token
+}
+
+/**
+ * A API do Supabase local em nome de usuários fictícios (os comandos `db:import` e `market:sync`): funções do banco e
+ * funções do servidor; cada usuário entra uma vez, com segundo fator.
+ */
+export class LocalApi<K extends string> {
+  private tokens = new Map<K, string>()
+  private local: Local
+  private users: Record<K, { email: string; role: string }>
+  private label: string
+
+  constructor(local: Local, users: Record<K, { email: string; role: string }>, label: string) {
+    this.local = local
+    this.users = users
+    this.label = label
+  }
+
+  /** Token de quem pede; entra (senha e segundo fator) na primeira vez. */
+  private async token(as: K): Promise<string> {
+    let token = this.tokens.get(as)
+    if (!token) {
+      const user = this.users[as]
+      token = await signIn(this.local, user.email, user.role, this.label)
+      this.tokens.set(as, token)
+      console.log(`  (entrou como ${user.email}, com segundo fator)`)
+    }
+    return token
+  }
+
+  async rpc<T>(as: K, fn: string, args: Record<string, unknown> = {}): Promise<T> {
+    return (await call(this.local, `/rest/v1/rpc/${fn}`, { token: await this.token(as), body: args })) as T
+  }
+
+  /** Função do servidor, com o token de quem está logado. O erro leva o status HTTP (para a nova tentativa da rodada). */
+  async fn<T>(as: K, name: string, body: unknown): Promise<T> {
+    const res = await fetch(`${this.local.url}/functions/v1/${name}`, {
+      method: 'POST',
+      headers: { apikey: this.local.publishable, Authorization: `Bearer ${await this.token(as)}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const text = await res.text()
+    const json = (text === '' ? {} : JSON.parse(text)) as T & { erro?: string }
+    if (!res.ok) throw Object.assign(new Error(`${name}: ${json.erro ?? res.status}`), { status: res.status })
+    return json
+  }
+}
