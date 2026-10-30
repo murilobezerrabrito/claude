@@ -56,7 +56,8 @@ insert into public.households (id, code, name, channel, profile_id, weights_sour
 insert into public.user_roles (user_id, household_id, role) values (:'G1', null, 'gestao'), (:'G2', null, 'gestao'), (:'C', null, 'comite');
 insert into public.plan_versions (household_id, version, snapshot, base_month, created_at) values
   (:'HA', 1, '{}', '2026-09-01', now()),
-  (:'HB', 1, '{}', '2026-09-01', now() - interval '13 months');
+  -- Revisão mais de 12 meses antes do mês de referência (30/09/2026), numa data fixa: o teste não envelhece.
+  (:'HB', 1, '{}', '2026-09-01', '2025-08-15 12:00:00+00');
 
 -- Premissas vigentes de teste com três classes (a vigente do seed sai de vigor dentro do teste).
 update public.cma_versions set status = 'arquivada' where status = 'vigente';
