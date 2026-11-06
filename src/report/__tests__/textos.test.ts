@@ -3,11 +3,9 @@ import type { ProbabilityBand } from '../../engine/metrics.ts'
 import type { Bridge, BridgeStepId } from '../attribution.ts'
 import { BAND_COLORS, benchmarkSentence, bridgeSentence, factorPhrase, medianSentence, methodologyParagraphs, readingSentence, reportFooter, slackSentence, stepDescription } from '../texts.ts'
 import type { ExternalFlow } from '../types.ts'
+import { RECOMMENDATION } from './helpers.ts'
 
 const plain = (s: string) => s.replace(/\u00a0/g, ' ')
-
-/** Palavras de recomendação de produto, ativo ou alocação, que o texto automático nunca usa. */
-const RECOMMENDATION = /\b(recomend\w*|sugir\w*|sugest\w*|sugerimos|aconselh\w*|dever(ia|iam|ão)|compre\w*|comprar|vend(a|am|er)\b|invist\w*|investir|apliqu\w*|aplicar|realoc\w*|aloqu\w*|alocar|troqu\w*|trocar|migr\w*|rebalanc\w*|reduz\w*|aument\w*)/i
 
 const BANDS: ProbabilityBand[] = ['folga_grande', 'no_caminho', 'atencao', 'em_risco']
 const STEPS: BridgeStepId[] = ['atualizacao_do_metodo', 'passagem_do_tempo', 'mercado', 'aportes_e_resgates', 'carteira', 'plano', 'premissas']

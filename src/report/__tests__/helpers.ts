@@ -5,6 +5,10 @@ import cmaData from '../../data/premissas-ilustrativas-2026-10.json'
 import type { Cma, HouseholdData, Profile } from '../../engine/types.ts'
 import type { HouseholdRecord, MonthClosing, PlanVersion } from '../types.ts'
 
+/** Palavras de recomendação de produto, ativo ou alocação, que o texto automático nunca usa. */
+export const RECOMMENDATION =
+  /\b(recomend\w*|sugir\w*|sugest\w*|sugerimos|aconselh\w*|dever(ia|iam|ão)|compre\w*|comprar|vend(a|am|er)\b|invist\w*|investir|apliqu\w*|aplicar|realoc\w*|aloqu\w*|alocar|troqu\w*|trocar|migr\w*|rebalanc\w*|reduz\w*|aument\w*)/i
+
 export const andrade = andradeData as unknown as HouseholdData
 export const cma = cmaData as unknown as Cma & { profiles: Profile[] }
 export const profiles: Profile[] = cma.profiles
