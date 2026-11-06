@@ -1,32 +1,43 @@
 // Cópia gerada por `npm run sync:engine` a partir de src/. Não edite aqui: edite a fonte e rode o comando de novo.
-// Números congelados do relatório de um mês (SPEC, "Conteúdo do relatório"): tudo o que as sete páginas mostram,
-// calculado uma vez a partir dos fechamentos da família. O PDF só lê este objeto; nada é recalculado na página.
+// Números congelados do relatório de um mês (SPEC, "Conteúdo do relatório"): tudo o que as sete páginas mostram. A
+// montagem (assembleReportSnapshot) não simula: parte das rodadas oficiais publicadas de cada mês, como estão gravadas
+// no banco. No relatório de exemplo da Fase 1, buildReportSnapshot calcula as rodadas e usa a mesma montagem. O PDF só
+// lê este objeto; nada é recalculado na página.
 
 import { probabilityBand, type ProbabilityBand } from '../engine/metrics.ts'
 import { buildPlan, DEFAULT_EVENT_MONTH } from '../engine/plan.ts'
-import { simulate } from '../engine/simulate.ts'
 import type { Cma, Percentiles, Person, PlanEvent, Profile, RequiredReturnStatus, Scenario } from '../engine/types.ts'
 import { monthAttribution, type MonthAttribution } from './attribution.ts'
 import { ReportInputError } from './errors.ts'
-import { ipcaFactor } from './inflation.ts'
+import { ipcaFactor, parseMonth, type IpcaSeries } from './inflation.ts'
 import { buildMonthInputs, planVersionFor } from './monthInputs.ts'
-import { mainInput, officialRun, OFFICIAL_PATHS, type MonthPackage, type OfficialRun } from './officialRun.ts'
-import { monthReturn, performanceSummary, type MonthReturn, type PerformanceMonth, type PerformanceSummary } from './performance.ts'
+import { officialRun, OFFICIAL_PATHS, type MonthPackage, type OfficialRun } from './officialRun.ts'
+import {
+  cdiMonthReal,
+  monthReturn,
+  performanceSummary,
+  type CdiSeries,
+  type MonthReturn,
+  type PerformanceMonth,
+  type PerformanceSummary,
+} from './performance.ts'
+import { runScenario, scenarioContext, type ScenarioContext } from './scenarios.ts'
 import {
   benchmarkSentence,
-  BRIDGE_NOTE,
   bridgeSentence,
-  FIRST_REPORT_NOTE,
-  FULL_DISCLAIMER,
   medianSentence,
   readingSentence,
+  REPORT_LEGAL_KEYS,
   reportFooter,
   slackSentence,
+  SPEC_LEGAL_TEXTS,
+  type ReportLegalKey,
+  type ReportLegalTexts,
 } from './texts.ts'
 import type { HouseholdMonths } from './types.ts'
 
-/** Versão do formato do snapshot. */
-export const SNAPSHOT_SCHEMA = 1
+/** Versão do formato do snapshot: a 2 traz o CDI na rentabilidade, as versões dos textos legais e o contexto dos cenários. */
+export const SNAPSHOT_SCHEMA = 2
 
 /** Cenário "E se?" escolhido pela gestão para a conversa do mês (página 6). */
 export interface ConversationScenario {
@@ -110,6 +121,8 @@ export interface ReportSnapshot {
     markers: { age: number; label: string }[]
   }
   scenarios: ScenarioResult[]
+  /** O que o plano tem no mês, para os controles dos cenários (o console monta o formulário com isto). */
+  scenarioContext: ScenarioContext
   comment: { text: string; example: boolean }
   /** Premissas vigentes (página 7). */
   assumptions: { version: string; label: string | null; nu: number; classes: { code: string; name: string; mu: number; vol: number }[] }
@@ -122,7 +135,32 @@ export interface ReportSnapshot {
     bridgeNote: string
     footer: string
     disclaimer: string
+    /** Versão de cada texto legal usado (`legal_texts`). */
+    legal: Record<ReportLegalKey, number>
   }
+}
+
+/** Um mês acompanhado: o pacote do mês e a rodada oficial publicada (congelada). */
+export interface ReportMonthRun {
+  pkg: MonthPackage
+  run: OfficialRun
+}
+
+/** Tudo o que a montagem do relatório usa; nada aqui é simulado de novo. */
+export interface ReportAssembly {
+  /** Meses acompanhados, em sequência, do primeiro até o mês do relatório (o último). */
+  months: ReportMonthRun[]
+  /** Ponte do mês do relatório, como gravada com a rodada (primeiro mês: sem ponte). */
+  bridge: MonthAttribution
+  ipca: IpcaSeries
+  /** CDI diário do Banco Central; sem a série, a referência secundária fica de fora. */
+  cdi: CdiSeries | null
+  scenarios: ScenarioResult[]
+  comment: { text: string; example: boolean }
+  /** Gestor responsável, na capa. */
+  manager: string
+  /** Textos legais na versão usada (no banco, a aprovada pela compliance). */
+  legalTexts: ReportLegalTexts
 }
 
 /** Idade em anos, com fração de meses, no fim do mês (ano, mês 1 a 12) de quem nasceu em `birthDate` (AAAA-MM-DD). */
@@ -152,6 +190,7 @@ export function trajectoryMarkers(o: {
   return markers.sort((a, b) => a.age - b.age)
 }
 
+/** Relatório de exemplo (Fase 1): calcula as rodadas e a ponte e monta com assembleReportSnapshot. */
 export function buildReportSnapshot(args: ReportSnapshotArgs): ReportSnapshot {
   const { data, refMonth } = args
   const paths = args.paths ?? OFFICIAL_PATHS
@@ -166,25 +205,87 @@ export function buildReportSnapshot(args: ReportSnapshotArgs): ReportSnapshot {
   const runs = pkgs.map((p) => officialRun(p, data.ipca, { paths }))
   // O número publicado em cada mês anterior; sem registro, o mês refeito com o motor atual.
   const publishedRuns = runs.map((r, i) => (i < runs.length - 1 ? (args.published?.[r.refMonth] ?? r) : r))
-  const run = runs[runs.length - 1]
   const prevRun = runs.length > 1 ? publishedRuns[runs.length - 2] : null
   const pkg = pkgs[pkgs.length - 1]
+  const bridge = monthAttribution({ previous: prevRun ? { pkg: pkgs[pkgs.length - 2], published: prevRun } : null, current: pkg, ipca: data.ipca, paths })
+  // Cenários da conversa do mês, com os mesmos sorteios da rodada oficial.
+  const scenarios: ScenarioResult[] = args.scenarios.map((s) => {
+    const r = runScenario(pkg, data.ipca, s.scenario, paths)
+    return { id: s.id, name: s.name, probability: r.probability, requiredReturn: r.requiredReturn, requiredReturnStatus: r.requiredReturnStatus }
+  })
+  return assembleReportSnapshot({
+    months: pkgs.map((p, i) => ({ pkg: p, run: publishedRuns[i] })),
+    bridge,
+    ipca: data.ipca,
+    cdi: null,
+    scenarios,
+    comment: args.comment,
+    manager: args.manager,
+    legalTexts: SPEC_LEGAL_TEXTS,
+  })
+}
+
+/** Confere que os meses estão em sequência e que cada rodada é do seu mês. */
+function checkMonths(months: ReportMonthRun[]): void {
+  if (months.length === 0) throw new ReportInputError('sem_fechamento', 'O relatório precisa de ao menos um mês acompanhado.')
+  months.forEach((m, i) => {
+    const month = m.pkg.closing.refDate.slice(0, 7)
+    if (m.run.refMonth !== month) throw new ReportInputError('rodada_de_outro_mes', `A rodada de ${m.run.refMonth} está no lugar de ${month}.`)
+    if (i > 0 && parseMonth(month, 'mês acompanhado') !== parseMonth(months[i - 1].run.refMonth, 'mês acompanhado') + 1) {
+      throw new ReportInputError('historico_com_falha', `Os meses acompanhados não estão em sequência antes de ${month}.`)
+    }
+  })
+}
+
+function checkLegalTexts(texts: ReportLegalTexts): void {
+  for (const key of REPORT_LEGAL_KEYS) {
+    const t = texts[key] as { version: number; body: string } | undefined
+    if (!t || !Number.isInteger(t.version) || t.version < 1 || typeof t.body !== 'string' || t.body.trim() === '') {
+      throw new ReportInputError('texto_legal_ausente', `Falta o texto legal "${key}" aprovado.`)
+    }
+  }
+}
+
+/**
+ * Monta o relatório do último mês de `months` a partir das rodadas publicadas, sem simular: rentabilidade (cada mês
+ * contra o anterior, com o r* publicado nele, e o CDI quando a série cobre o mês), carteira contra o perfil, trajetória
+ * realizada e projetada, ponte, cenários e textos.
+ */
+export function assembleReportSnapshot(a: ReportAssembly): ReportSnapshot {
+  checkMonths(a.months)
+  checkLegalTexts(a.legalTexts)
+  const last = a.months[a.months.length - 1]
+  const { pkg, run } = last
+  const current = pkg.closing
+  const refMonth = run.refMonth
+  const household = pkg.household
+  const prevRun = a.months.length > 1 ? a.months[a.months.length - 2].run : null
+  const bridge = a.bridge
+  if ((bridge.kind === 'ponte') !== (prevRun !== null)) {
+    throw new ReportInputError('ponte_incoerente', prevRun ? `Falta a ponte de ${refMonth}.` : `Primeiro mês acompanhado (${refMonth}) não tem ponte.`)
+  }
 
   // Rentabilidade: cada mês contra o fechamento anterior, com o r* publicado nele.
   const history: PerformanceMonth[] = []
   let lastReturn: MonthReturn | null = null
-  for (let i = 1; i < closings.length; i++) {
-    lastReturn = monthReturn({ refDate: closings[i].refDate, startValue: closings[i - 1].officialPl, endValue: closings[i].officialPl, flows: closings[i].flows, ipca: data.ipca })
-    history.push({ month: lastReturn.month, real: lastReturn.real, benchmarkAnnual: publishedRuns[i - 1].requiredReturn, approximateDates: lastReturn.approximateDates })
+  for (let i = 1; i < a.months.length; i++) {
+    const prev = a.months[i - 1].pkg.closing
+    const cur = a.months[i].pkg.closing
+    lastReturn = monthReturn({ refDate: cur.refDate, startValue: prev.officialPl, endValue: cur.officialPl, flows: cur.flows, ipca: a.ipca })
+    history.push({
+      month: lastReturn.month,
+      real: lastReturn.real,
+      benchmarkAnnual: a.months[i - 1].run.requiredReturn,
+      approximateDates: lastReturn.approximateDates,
+      cdiReal: a.cdi ? cdiMonthReal(a.cdi, lastReturn.month, a.ipca) : null,
+    })
   }
 
-  const bridge = monthAttribution({ previous: prevRun ? { pkg: pkgs[pkgs.length - 2], published: prevRun } : null, current: pkg, ipca: data.ipca, paths })
-
   // Carteira por classe contra o perfil (CADM); na AI, sem alocação-alvo.
-  const month = buildMonthInputs({ ...pkg, ipca: data.ipca })
+  const month = buildMonthInputs({ ...pkg, ipca: a.ipca })
   const plan = buildPlan(month.input)
   const cma = pkg.cma
-  const profile = data.household.weightsSource === 'perfil' ? pkg.profiles.find((p) => p.id === data.household.profileId) ?? null : null
+  const profile = household.weightsSource === 'perfil' ? pkg.profiles.find((p) => p.id === household.profileId) ?? null : null
   // Alvo do perfil com os pesos que o motor usa hoje: os de depois da aposentadoria, se o titular já se aposentou.
   const targets = profile ? (plan.retiredFrom === 0 && profile.weightsPost ? profile.weightsPost : profile.weightsPre) : null
   const total = Object.values(current.positionsByClass).reduce((a, b) => a + b, 0)
@@ -198,9 +299,9 @@ export function buildReportSnapshot(args: ReportSnapshotArgs): ReportSnapshot {
   // Trajetória: patrimônio realizado (em reais da data de referência) e o leque projetado, por idade do mais jovem.
   const people = month.input.household.people.filter((p) => p.role === 'titular' || p.role === 'conjuge')
   const youngest = people.reduce((a, b) => (b.birthDate > a.birthDate ? b : a))
-  const realized = pkgs.map((p, i) => {
-    const m = p.closing.refDate.slice(0, 7)
-    return { month: m, age: ageAt(youngest.birthDate, Number(m.slice(0, 4)), Number(m.slice(5, 7))), wealth: runs[i].wealth * ipcaFactor(data.ipca, m, refMonth) }
+  const realized = a.months.map((m) => {
+    const mm = m.run.refMonth
+    return { month: mm, age: ageAt(youngest.birthDate, Number(mm.slice(0, 4)), Number(mm.slice(5, 7))), wealth: m.run.wealth * ipcaFactor(a.ipca, mm, refMonth) }
   })
   const refAge = ageAt(youngest.birthDate, Number(refMonth.slice(0, 4)), Number(refMonth.slice(5, 7)))
   const pointAges = [refAge]
@@ -213,21 +314,15 @@ export function buildReportSnapshot(args: ReportSnapshotArgs): ReportSnapshot {
     toAge: pointAges[pointAges.length - 1],
   })
 
-  // Cenários da conversa do mês, com os mesmos sorteios da rodada oficial.
-  const scenarios: ScenarioResult[] = args.scenarios.map((s) => {
-    const m = buildMonthInputs({ ...pkg, ipca: data.ipca, scenario: s.scenario })
-    const res = simulate(mainInput(m.input), { paths, seed: m.seed })
-    return { id: s.id, name: s.name, probability: res.successProbability, requiredReturn: res.requiredReturn.rate, requiredReturnStatus: res.requiredReturn.status }
-  })
-
   const band = probabilityBand(run.probability)
   const previousBand = prevRun ? probabilityBand(prevRun.probability) : null
   const medianFinal = run.percentiles.p50[run.percentiles.p50.length - 1]
-  const horizonAge = data.household.horizonAge
+  const horizonAge = household.horizonAge
+  const legal = a.legalTexts
 
   return {
     schema: SNAPSHOT_SCHEMA,
-    family: { id: data.household.id, name: data.household.name, channel: data.household.channel, manager: args.manager },
+    family: { id: household.id, name: household.name, channel: household.channel, manager: a.manager },
     refMonth,
     refDate: current.refDate,
     run: { engineVersion: run.engineVersion, cmaVersion: run.cmaVersion, planVersionId: run.planVersionId, seed: run.seed, paths: run.paths, inputsHash: run.inputsHash },
@@ -248,8 +343,8 @@ export function buildReportSnapshot(args: ReportSnapshotArgs): ReportSnapshot {
       horizonAge,
       depletionAge: run.depletionAge,
       medianFinal,
-      feeRate: data.household.feeRate,
-      ipcaMonth: data.ipca[refMonth] ?? null,
+      feeRate: household.feeRate,
+      ipcaMonth: a.ipca[refMonth] ?? null,
     },
     bridge,
     performance: { month: lastReturn, summary: history.length > 0 ? performanceSummary(history, refMonth) : null },
@@ -260,18 +355,20 @@ export function buildReportSnapshot(args: ReportSnapshotArgs): ReportSnapshot {
       otherAssets: month.input.household.otherAssets.map((a) => ({ name: a.name, value: a.value, inSimulation: a.inSimulation === true })),
     },
     trajectory: { realized, pointAges, years: run.years, percentiles: run.percentiles, markers },
-    scenarios,
-    comment: args.comment,
+    scenarios: a.scenarios,
+    scenarioContext: scenarioContext(pkg, a.ipca),
+    comment: a.comment,
     assumptions: { version: cma.version, label: cma.label ?? null, nu: cma.nu, classes: cma.classes.map((c) => ({ code: c.code, name: c.name, mu: c.mu, vol: c.vol })) },
     texts: {
       reading: readingSentence({ probability: run.probability, horizonAge, depletionAge: run.depletionAge, band, channel: 'relatorio' }),
       median: medianSentence({ horizonAge, medianFinal }),
       slack: slackSentence({ expectedReturn: run.expectedCompositeReturn, requiredReturn: run.requiredReturn, status: run.requiredReturnStatus }),
-      bridge: bridge.kind === 'ponte' && previousBand ? bridgeSentence(bridge, { from: previousBand, to: band }) : FIRST_REPORT_NOTE,
+      bridge: bridge.kind === 'ponte' && previousBand ? bridgeSentence(bridge, { from: previousBand, to: band }) : legal.primeiro_relatorio.body,
       benchmark: bridge.kind === 'ponte' ? benchmarkSentence(bridge, run.requiredReturn) : null,
-      bridgeNote: BRIDGE_NOTE,
-      footer: reportFooter(refMonth, cma.version),
-      disclaimer: FULL_DISCLAIMER,
+      bridgeNote: legal.nota_ponte.body,
+      footer: reportFooter(refMonth, cma.version, legal.rodape_relatorio.body),
+      disclaimer: legal.aviso_completo.body,
+      legal: Object.fromEntries(REPORT_LEGAL_KEYS.map((k) => [k, legal[k].version])) as Record<ReportLegalKey, number>,
     },
   }
 }

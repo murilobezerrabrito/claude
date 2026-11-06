@@ -1,5 +1,5 @@
 {
-  "schema": 1,
+  "schema": 2,
   "family": {
     "id": "andrade",
     "name": "Família Andrade (fictícia)",
@@ -186,6 +186,7 @@
       "month": {
         "real": -0.024924810588799584,
         "benchmark": 0.002663940137526355,
+        "cdi": null,
         "months": 1,
         "approximateDates": false
       },
@@ -194,6 +195,7 @@
       "sinceStart": {
         "real": -0.024924810588799584,
         "benchmark": 0.002663940137526355,
+        "cdi": null,
         "months": 1,
         "approximateDates": false
       }
@@ -673,6 +675,36 @@
       "requiredReturnStatus": "ok"
     }
   ],
+  "scenarioContext": {
+    "refMonth": "2026-10",
+    "titularAge": 52,
+    "planRetirementAge": 62,
+    "essentialMonthly": 55220,
+    "lifestyleMonthly": 35000,
+    "incomes": [
+      {
+        "name": "Pró-labore do Ricardo",
+        "monthly": 100400
+      }
+    ],
+    "wealth": 13258161.29,
+    "properties": [
+      {
+        "id": "casa-praia",
+        "name": "Casa de praia",
+        "firstYear": 2027,
+        "lastYear": 2071
+      },
+      {
+        "id": "sala",
+        "name": "Sala comercial",
+        "firstYear": 2027,
+        "lastYear": 2071
+      }
+    ],
+    "horizonAge": 95,
+    "rulesEnabled": true
+  },
   "comment": {
     "text": "Comentário de exemplo. Aqui a gestão resume a conversa do mês: o que mudou na vida da família e no plano, e o que confirmar na próxima reunião.",
     "example": true
@@ -740,6 +772,12 @@
     "benchmark": "O retorno que o plano precisa foi de IPCA + 3,2% a.a. para IPCA + 3,8% a.a., principalmente pela mudança no plano (+0,38 p.p.).",
     "bridgeNote": "A variação foi separada trocando um fator de cada vez. A ordem dos fatores muda a divisão entre eles, não o total.",
     "footer": "Relatório de acompanhamento do plano, preparado pela gestão da Aware Investments com as posições de out/2026 e as premissas ilustrativa-2026-10. Simulação ilustrativa; não é promessa de rentabilidade nem recomendação de investimento.",
-    "disclaimer": "As projeções deste relatório e deste aplicativo são simulações estatísticas. Elas usam premissas de retorno, risco e correlação definidas pelo comitê de investimentos da Aware Investments e as informações do seu plano. Não garantem resultados futuros, não constituem recomendação de investimento e não substituem a análise da gestão ou do seu assessor. Rentabilidade obtida no passado não representa garantia de rentabilidade futura. Os valores estão em reais de hoje, corrigidos pela inflação. Quando as premissas ou o seu plano mudam, os resultados mudam junto."
+    "disclaimer": "As projeções deste relatório e deste aplicativo são simulações estatísticas. Elas usam premissas de retorno, risco e correlação definidas pelo comitê de investimentos da Aware Investments e as informações do seu plano. Não garantem resultados futuros, não constituem recomendação de investimento e não substituem a análise da gestão ou do seu assessor. Rentabilidade obtida no passado não representa garantia de rentabilidade futura. Os valores estão em reais de hoje, corrigidos pela inflação. Quando as premissas ou o seu plano mudam, os resultados mudam junto.",
+    "legal": {
+      "rodape_relatorio": 1,
+      "nota_ponte": 1,
+      "primeiro_relatorio": 1,
+      "aviso_completo": 1
+    }
   }
 }

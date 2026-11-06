@@ -6,9 +6,11 @@ export type * from './types.ts'
 export { correctPlan, formatMonth, ipcaFactor, parseMonth, toCents, type IpcaSeries } from './inflation.ts'
 export { buildMonthInputs, checkClosing, currentWeights, planVersionFor, PL_TOLERANCE, type MonthInputs, type MonthInputsArgs } from './monthInputs.ts'
 export {
+  cdiMonthReal,
   monthReturn,
   performanceSummary,
   PLAUSIBLE_REAL_RANGE,
+  type CdiSeries,
   type MonthReturn,
   type MonthReturnInput,
   type PerformanceMonth,
@@ -45,3 +47,26 @@ export {
   type MonthAttribution,
 } from './attribution.ts'
 export { assembleRun, partInput, runPart, runTasks, type AssembledRun, type PartOutcome, type RunInputs, type RunPart, type RunTasks } from './runTasks.ts'
+export {
+  MAX_REPORT_SCENARIOS,
+  MAX_SCENARIO_CHANGES,
+  runScenario,
+  scenarioContext,
+  scenarioIssues,
+  scenarioName,
+  SHOCK_PRESETS,
+  toEngineScenario,
+  type ReportScenarioParams,
+  type ScenarioContext,
+  type ScenarioIssue,
+  type ScenarioRun,
+} from './scenarios.ts'
+export {
+  assembleReportSnapshot,
+  SNAPSHOT_SCHEMA,
+  type ReportAssembly,
+  type ReportMonthRun,
+  type ReportSnapshot,
+  type ScenarioResult,
+} from './snapshot.ts'
+export { REPORT_LEGAL_KEYS, SPEC_LEGAL_TEXTS, type ReportLegalKey, type ReportLegalTexts } from './texts.ts'

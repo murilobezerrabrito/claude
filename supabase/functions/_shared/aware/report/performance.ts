@@ -1,8 +1,9 @@
 // Cópia gerada por `npm run sync:engine` a partir de src/. Não edite aqui: edite a fonte e rode o comando de novo.
 // Rentabilidade realizada da carteira (SPEC, "Termômetro mensal" e "Aportes e resgates"): retorno do mês por Dietz
 // modificado com os aportes e resgates, deflacionado pelo IPCA e encadeado no tempo, contra o benchmark pessoal
-// acumulado no mesmo período.
+// acumulado no mesmo período e, como referência secundária, o CDI do Banco Central descontada a inflação.
 
+import { isBusinessDay } from '../market/calendar.ts'
 import { ReportInputError } from './errors.ts'
 import { formatMonth, lastDayOfMonth, parseMonth, type IpcaSeries } from './inflation.ts'
 import type { ExternalFlow } from './types.ts'
@@ -86,6 +87,29 @@ export function monthReturn(input: MonthReturnInput): MonthReturn {
   return { month, nominal, real, approximateDates, implausible: real < PLAUSIBLE_REAL_RANGE.min || real > PLAUSIBLE_REAL_RANGE.max }
 }
 
+/** CDI diário do Banco Central (série 12), em % ao dia por data (AAAA-MM-DD), como em `market_series`. */
+export type CdiSeries = Record<string, number>
+
+/**
+ * CDI do mês descontada a inflação (D-070): o acumulado de todos os dias úteis do mês, Π(1 + taxa ÷ 100) − 1,
+ * deflacionado pelo IPCA do mês. Null quando falta algum dia útil do mês na série (feriados nacionais da ANBIMA) ou o
+ * IPCA do mês: a referência secundária só aparece completa.
+ */
+export function cdiMonthReal(cdi: CdiSeries, month: string, ipca: IpcaSeries): number | null {
+  const idx = parseMonth(month, 'mês do CDI')
+  const days = daysInMonth(idx)
+  let factor = 1
+  for (let day = 1; day <= days; day++) {
+    const date = `${month}-${String(day).padStart(2, '0')}`
+    if (!isBusinessDay(date)) continue
+    const rate = cdi[date]
+    if (rate === undefined) return null
+    factor *= 1 + rate / 100
+  }
+  const inflation = ipca[month]
+  return inflation === undefined ? null : factor / (1 + inflation) - 1
+}
+
 /** Um mês do histórico: a rentabilidade real e o benchmark pessoal publicado no fechamento anterior (início do mês). */
 export interface PerformanceMonth {
   /** Mês (AAAA-MM). */
@@ -95,6 +119,8 @@ export interface PerformanceMonth {
   benchmarkAnnual: number | null
   /** Algum movimento do mês entrou sem data (meio do mês). */
   approximateDates?: boolean
+  /** CDI do mês descontada a inflação; null (ou ausente) quando a série não cobre o mês. */
+  cdiReal?: number | null
 }
 
 export interface PeriodReturn {
@@ -102,6 +128,8 @@ export interface PeriodReturn {
   real: number
   /** Benchmark pessoal acumulado no mesmo período; null se faltou o r* em algum mês. */
   benchmark: number | null
+  /** CDI acumulado no mesmo período, descontada a inflação; null se a série não cobre algum mês do período. */
+  cdi: number | null
   months: number
   /** Algum mês do período usou datas aproximadas: a marca acompanha o número. */
   approximateDates: boolean
@@ -121,13 +149,15 @@ export interface PerformanceSummary {
 function accumulate(months: PerformanceMonth[]): PeriodReturn {
   let real = 1
   let bench: number | null = 1
+  let cdi: number | null = 1
   let approximateDates = false
   for (const m of months) {
     real *= 1 + m.real
     bench = bench === null || m.benchmarkAnnual === null ? null : bench * (1 + m.benchmarkAnnual) ** (1 / 12)
+    cdi = cdi === null || m.cdiReal === undefined || m.cdiReal === null ? null : cdi * (1 + m.cdiReal)
     if (m.approximateDates) approximateDates = true
   }
-  return { real: real - 1, benchmark: bench === null ? null : bench - 1, months: months.length, approximateDates }
+  return { real: real - 1, benchmark: bench === null ? null : bench - 1, cdi: cdi === null ? null : cdi - 1, months: months.length, approximateDates }
 }
 
 /**

@@ -264,6 +264,7 @@ function PerformanceRow(props: { label: string; period: PeriodReturn | null; sin
       <Text style={{ ...s.td, width: 110, textAlign: 'right' }}>{p ? formatSignedPercent(p.real) : '—'}</Text>
       <Text style={{ ...s.td, width: 130, textAlign: 'right' }}>{p && p.benchmark !== null ? formatSignedPercent(p.benchmark) : '—'}</Text>
       <Text style={{ ...s.td, width: 90, textAlign: 'right' }}>{diff === null ? '—' : formatPp(diff)}</Text>
+      <Text style={{ ...s.td, width: 80, textAlign: 'right' }}>{p && typeof p.cdi === 'number' ? formatSignedPercent(p.cdi) : '—'}</Text>
       <Text style={{ ...s.td, flex: 1, paddingLeft: 12, color: COLORS.muted, fontSize: 8 }}>{p ? '' : `acompanhamento desde ${props.since}`}</Text>
     </View>
   )
@@ -289,6 +290,7 @@ function Portfolio({ snap }: { snap: ReportSnapshot }) {
             <Text style={{ ...s.th, width: 110, textAlign: 'right' }}>Carteira</Text>
             <Text style={{ ...s.th, width: 130, textAlign: 'right' }}>Retorno que o plano precisa</Text>
             <Text style={{ ...s.th, width: 90, textAlign: 'right' }}>Diferença</Text>
+            <Text style={{ ...s.th, width: 80, textAlign: 'right' }}>CDI</Text>
             <Text style={{ ...s.th, flex: 1 }} />
           </View>
           <PerformanceRow label={`No mês (${formatMonthLabel(snap.refMonth)})`} period={perf ? perf.month : null} since={since} />
@@ -297,8 +299,8 @@ function Portfolio({ snap }: { snap: ReportSnapshot }) {
           <PerformanceRow label="Desde o início" period={perf ? perf.sinceStart : null} since={since} />
           <Text style={{ ...s.small, marginTop: 8 }}>
             Rentabilidade da carteira pelo método de Dietz modificado, com os aportes e resgates do mês, descontada a inflação (IPCA).
-            {anyApproximate(perf) ? ' * Datas aproximadas: algum movimento do período entrou sem data e foi contado no meio do mês.' : ''} O CDI, como
-            referência secundária, entra com a série do Banco Central na próxima fase.
+            {anyApproximate(perf) ? ' * Datas aproximadas: algum movimento do período entrou sem data e foi contado no meio do mês.' : ''} O CDI do
+            Banco Central, referência secundária, também vem descontada a inflação; um traço indica que a série não cobre todo o período.
           </Text>
         </View>
       </View>

@@ -178,14 +178,14 @@ export function methodologyParagraphs(o: { paths: number; feeRate: number; horiz
 
 // Avisos (rascunhos do SPEC para compliance aprovar), sem mudança de texto.
 
-/** Rodapé de toda página do relatório. */
 /** Rodapé do relatório como está no SPEC, com os campos [mês] e [versão]; é o texto guardado em `legal_texts`. */
 export const REPORT_FOOTER_TEMPLATE =
   'Relatório de acompanhamento do plano, preparado pela gestão da Aware Investments com as posições de [mês] ' +
   'e as premissas [versão]. Simulação ilustrativa; não é promessa de rentabilidade nem recomendação de investimento.'
 
-export function reportFooter(refMonth: string, cmaVersion: string): string {
-  return REPORT_FOOTER_TEMPLATE.replace('[mês]', formatMonthLabel(refMonth)).replace('[versão]', cmaVersion)
+/** Rodapé de toda página do relatório: o texto aprovado com o mês das posições e a versão das premissas. */
+export function reportFooter(refMonth: string, cmaVersion: string, template = REPORT_FOOTER_TEMPLATE): string {
+  return template.replace('[mês]', formatMonthLabel(refMonth)).replace('[versão]', cmaVersion)
 }
 
 export const BRIDGE_NOTE = 'A variação foi separada trocando um fator de cada vez. A ordem dos fatores muda a divisão entre eles, não o total.'
@@ -202,3 +202,17 @@ export const FULL_DISCLAIMER =
 export const APP_FOOTER = 'Simulação com base na sua carteira atual. Não é recomendação de investimento; para decisões, fale com seu assessor.'
 
 export const SUITABILITY_NOTICE = 'Este perfil está acima do perfil de investidor do cliente. Use apenas como ilustração.'
+
+/** Textos legais do relatório, pela chave de `legal_texts`. */
+export const REPORT_LEGAL_KEYS = ['rodape_relatorio', 'nota_ponte', 'primeiro_relatorio', 'aviso_completo'] as const
+export type ReportLegalKey = (typeof REPORT_LEGAL_KEYS)[number]
+/** Texto legal na versão usada (no relatório do banco, a aprovada pela compliance). */
+export type ReportLegalTexts = Record<ReportLegalKey, { version: number; body: string }>
+
+/** Os textos do SPEC, versão 1 (a do seed): o relatório de exemplo da Fase 1 usa estes. */
+export const SPEC_LEGAL_TEXTS: ReportLegalTexts = {
+  rodape_relatorio: { version: 1, body: REPORT_FOOTER_TEMPLATE },
+  nota_ponte: { version: 1, body: BRIDGE_NOTE },
+  primeiro_relatorio: { version: 1, body: FIRST_REPORT_NOTE },
+  aviso_completo: { version: 1, body: FULL_DISCLAIMER },
+}
