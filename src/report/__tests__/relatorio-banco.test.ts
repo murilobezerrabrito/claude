@@ -10,7 +10,7 @@ import { monthAttribution } from '../attribution.ts'
 import { planVersionFor } from '../monthInputs.ts'
 import { officialRun, type MonthPackage } from '../officialRun.ts'
 import { cdiMonthReal, type CdiSeries } from '../performance.ts'
-import { assembleReportSnapshot, buildReportSnapshot, type ReportAssembly } from '../snapshot.ts'
+import { assembleReportSnapshot, buildReportSnapshot, inDisplayOrder, type ReportAssembly } from '../snapshot.ts'
 import { SPEC_LEGAL_TEXTS } from '../texts.ts'
 
 const PATHS = 1_000
@@ -89,5 +89,22 @@ describe('relatório a partir das rodadas publicadas', () => {
     expect(code({ ...base, bridge: { kind: 'primeiro_mes' } })).toBe('ponte_incoerente')
     expect(code({ ...base, months: [] })).toBe('sem_fechamento')
     expect(code({ ...base, months: [{ pkg: sep, run: runs[0] }], bridge: { kind: 'primeiro_mes' } })).toBe('sem erro')
+  })
+
+  it('classes na ordem da tabela do SPEC, mesmo com as premissas em ordem de código (como vêm do banco)', () => {
+    // As premissas do banco (app.cma_json) vêm em ordem de código, com a matriz de correlação na mesma ordem.
+    const byCode = (pkg: MonthPackage): MonthPackage => {
+      const idx = pkg.cma.classes.map((_, i) => i).sort((i, j) => (pkg.cma.classes[i].code < pkg.cma.classes[j].code ? -1 : 1))
+      const cma = { ...pkg.cma, classes: idx.map((i) => pkg.cma.classes[i]), correlation: idx.map((i) => idx.map((j) => pkg.cma.correlation[i][j])) }
+      return { ...pkg, cma }
+    }
+    const months = base.months.map((m) => ({ ...m, pkg: byCode(m.pkg) }))
+    expect(months[1].pkg.cma.classes.map((c) => c.code)).toEqual(['ACOES', 'CRED', 'FII', 'INF', 'INTL', 'MM', 'POS', 'PRE'])
+    const fromDb = assembleReportSnapshot({ ...base, months })
+    expect(fromDb.assumptions.classes.map((c) => c.code)).toEqual(['POS', 'INF', 'PRE', 'CRED', 'MM', 'ACOES', 'FII', 'INTL'])
+    expect(fromDb).toEqual(assembleReportSnapshot(base))
+    // Uma classe que a tabela não tem vai para o fim, em ordem de código.
+    const codes = inDisplayOrder([{ code: 'OURO' }, { code: 'INTL' }, { code: 'CRIPTO' }, { code: 'POS' }]).map((c) => c.code)
+    expect(codes).toEqual(['POS', 'INTL', 'CRIPTO', 'OURO'])
   })
 })

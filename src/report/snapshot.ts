@@ -38,6 +38,18 @@ import type { HouseholdMonths } from './types.ts'
 /** Versão do formato do snapshot: a 2 traz o CDI na rentabilidade, as versões dos textos legais e o contexto dos cenários. */
 export const SNAPSHOT_SCHEMA = 2
 
+/** Ordem das classes nas páginas do relatório: a da tabela de premissas do SPEC. Uma classe fora dela vai para o fim. */
+export const CLASS_DISPLAY_ORDER: readonly string[] = ['POS', 'INF', 'PRE', 'CRED', 'MM', 'ACOES', 'FII', 'INTL']
+
+/** Classes na ordem do relatório; as premissas gravadas no banco vêm em ordem de código, a mesma do motor. */
+export function inDisplayOrder<T extends { code: string }>(classes: readonly T[]): T[] {
+  const rank = (code: string) => {
+    const i = CLASS_DISPLAY_ORDER.indexOf(code)
+    return i === -1 ? CLASS_DISPLAY_ORDER.length : i
+  }
+  return [...classes].sort((a, b) => rank(a.code) - rank(b.code) || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0))
+}
+
 /** Cenário "E se?" escolhido pela gestão para a conversa do mês (página 6). */
 export interface ConversationScenario {
   id: string
@@ -284,11 +296,12 @@ export function assembleReportSnapshot(a: ReportAssembly): ReportSnapshot {
   const month = buildMonthInputs({ ...pkg, ipca: a.ipca })
   const plan = buildPlan(month.input)
   const cma = pkg.cma
+  const displayClasses = inDisplayOrder(cma.classes)
   const profile = household.weightsSource === 'perfil' ? pkg.profiles.find((p) => p.id === household.profileId) ?? null : null
   // Alvo do perfil com os pesos que o motor usa hoje: os de depois da aposentadoria, se o titular já se aposentou.
   const targets = profile ? (plan.retiredFrom === 0 && profile.weightsPost ? profile.weightsPost : profile.weightsPre) : null
   const total = Object.values(current.positionsByClass).reduce((a, b) => a + b, 0)
-  const classes = cma.classes
+  const classes = displayClasses
     .filter((c) => (current.positionsByClass[c.code] ?? 0) > 0 || (targets?.[c.code] ?? 0) > 0)
     .map((c) => {
       const value = current.positionsByClass[c.code] ?? 0
@@ -357,7 +370,7 @@ export function assembleReportSnapshot(a: ReportAssembly): ReportSnapshot {
     scenarios: a.scenarios,
     scenarioContext: scenarioContext(pkg, a.ipca),
     comment: a.comment,
-    assumptions: { version: cma.version, label: cma.label ?? null, nu: cma.nu, classes: cma.classes.map((c) => ({ code: c.code, name: c.name, mu: c.mu, vol: c.vol })) },
+    assumptions: { version: cma.version, label: cma.label ?? null, nu: cma.nu, classes: displayClasses.map((c) => ({ code: c.code, name: c.name, mu: c.mu, vol: c.vol })) },
     texts: {
       reading: readingSentence({ probability: run.probability, horizonAge, depletionAge: run.depletionAge, band, channel: 'relatorio' }),
       median: medianSentence({ horizonAge, medianFinal }),
