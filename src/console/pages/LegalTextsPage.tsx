@@ -18,6 +18,15 @@ import { Textarea } from '../ui/input.tsx'
 const TEXT_MIN = 10
 const TEXT_MAX = 3000
 
+/** Os textos do relatório primeiro; dentro de cada grupo, pelo nome. */
+function byReportFirst(a: LegalTextRow, b: LegalTextRow): number {
+  if (a.in_report !== b.in_report) return a.in_report ? -1 : 1
+  return (LEGAL_TEXT_LABELS[a.key] ?? a.key).localeCompare(LEGAL_TEXT_LABELS[b.key] ?? b.key, 'pt-BR')
+}
+
+/** Quem e quando, sem inventar autor: os textos do seed não têm quem escreveu. */
+const byWhom = (email: string | null, at: string) => `${email ? `por ${email} ` : ''}em ${dateTimeInBrazil(at)}`
+
 export function LegalTextsPage() {
   const session = useSession()
   const canEdit = session.has('compliance')
@@ -65,7 +74,7 @@ export function LegalTextsPage() {
       </div>
       {!texts && !failure ? <p className="text-muted-foreground">Carregando…</p> : null}
       <div className="flex flex-col gap-6">
-        {(texts ?? []).map((t) => (
+        {[...(texts ?? [])].sort(byReportFirst).map((t) => (
           <LegalTextCard key={`${t.key}-${t.draft?.id ?? ''}-${t.approved?.id ?? ''}`} text={t} canEdit={canEdit} busy={busy} act={act} />
         ))}
       </div>
@@ -77,6 +86,7 @@ function LegalTextCard(props: { text: LegalTextRow; canEdit: boolean; busy: bool
   const { text: t, canEdit, busy, act } = props
   const label = LEGAL_TEXT_LABELS[t.key] ?? t.key
   const [body, setBody] = useState(t.draft?.body ?? t.approved?.body ?? '')
+  const [editing, setEditing] = useState(Boolean(t.draft) || !t.approved)
   const current = t.draft?.body ?? t.approved?.body ?? ''
   const length = body.trim().length
   const footerFields = t.key === 'rodape_relatorio'
@@ -94,7 +104,7 @@ function LegalTextCard(props: { text: LegalTextRow; canEdit: boolean; busy: bool
         </CardTitle>
         <CardDescription>
           {t.approved
-            ? `Versão ${t.approved.version} aprovada por ${t.approved.approved_by_email ?? 'usuário removido'} em ${dateTimeInBrazil(t.approved.approved_at)}.`
+            ? `Versão ${t.approved.version} aprovada ${byWhom(t.approved.approved_by_email, t.approved.approved_at)}.`
             : 'Ainda sem versão aprovada.'}
           {footerFields ? ' Os campos [mês] e [versão] são trocados pelo mês das posições e pela versão das premissas.' : ''}
         </CardDescription>
@@ -109,16 +119,23 @@ function LegalTextCard(props: { text: LegalTextRow; canEdit: boolean; busy: bool
         {t.draft && !canEdit ? (
           <div>
             <p className="mb-1 text-xs text-muted-foreground">
-              Rascunho da versão {t.draft.version}, de {t.draft.created_by_email ?? 'usuário removido'} em {dateTimeInBrazil(t.draft.created_at)}
+              Rascunho da versão {t.draft.version}, escrito {byWhom(t.draft.created_by_email, t.draft.created_at)}
             </p>
             <p className="rounded-md border border-dashed p-3 text-sm whitespace-pre-wrap">{t.draft.body}</p>
           </div>
         ) : null}
-        {canEdit ? (
+        {canEdit && !editing ? (
+          <div>
+            <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+              Escrever versão nova
+            </Button>
+          </div>
+        ) : null}
+        {canEdit && editing ? (
           <div className="flex flex-col gap-2">
             <p className="text-xs text-muted-foreground">
               {t.draft
-                ? `Rascunho da versão ${t.draft.version}, de ${t.draft.created_by_email ?? 'usuário removido'} em ${dateTimeInBrazil(t.draft.created_at)}`
+                ? `Rascunho da versão ${t.draft.version}, escrito ${byWhom(t.draft.created_by_email, t.draft.created_at)}`
                 : 'Versão nova (comece pelo texto aprovado)'}
             </p>
             <Textarea aria-label={`Texto: ${label}`} value={body} rows={5} maxLength={TEXT_MAX} onChange={(e) => setBody(e.target.value)} />
