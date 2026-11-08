@@ -3,7 +3,7 @@
 -- família fechada e os textos legais do rascunho em vigor; PDF uma vez; apresentação; leitura por papel; descarte; nova
 -- versão; textos legais da compliance; trilha de auditoria; gestor responsável no cadastro.
 begin;
-select plan(88);
+select plan(89);
 
 \set G1 'ac000000-0000-4000-8000-000000000001'
 \set G2 'ac000000-0000-4000-8000-000000000002'
@@ -39,7 +39,7 @@ create function pg_temp.snap(p_household uuid, p_month text, p_hash text) return
 $$;
 -- Cenário rodado pela função do servidor (resultado fictício).
 create function pg_temp.cenario(p_id uuid) returns jsonb language sql as $$
-  select jsonb_build_object('id', p_id, 'name', 'Cenário ' || left(p_id::text, 8), 'params', '{"spendingMultiplier": 1.1}'::jsonb,
+  select jsonb_build_object('id', p_id, 'name', 'Cenário ' || p_id::text, 'params', '{"spendingMultiplier": 1.1}'::jsonb,
     'probability', 0.7, 'requiredReturn', 0.035, 'requiredReturnStatus', 'ok', 'inputsHash', 'hash-cenario', 'seed', 11, 'paths', 10000,
     'computeMs', 900)
 $$;
@@ -172,6 +172,9 @@ select ok(public.report_scenario_inputs(:'r1', :'G1') ? 'pkg', 'as entradas do c
 select lives_ok(format($$ select public.record_report_scenario(%L, %L, %L) $$, :'r1', :'G1', pg_temp.cenario(:'S1')), 'grava um cenário');
 select throws_ok(format($$ select public.record_report_scenario(%L, %L, %L) $$, :'r1', :'G1', pg_temp.cenario(:'S2') || '{"seed": 99}'::jsonb),
   '22023', null, 'cenário com outra semente é recusado');
+select throws_ok(format($$ select public.record_report_scenario(%L, %L, %L) $$, :'r1', :'G1',
+  pg_temp.cenario(:'S2') || jsonb_build_object('name', pg_temp.cenario(:'S1') ->> 'name')), 'P0001',
+  'Esse cenário já está no relatório.', 'o mesmo cenário não entra duas vezes');
 select public.record_report_scenario(:'r1', :'G1', pg_temp.cenario(:'S2'));
 select public.record_report_scenario(:'r1', :'G1', pg_temp.cenario(:'S3'));
 select throws_ok(format($$ select public.record_report_scenario(%L, %L, %L) $$, :'r1', :'G1', pg_temp.cenario(:'S4')), 'P0001',
@@ -232,7 +235,7 @@ select pg_temp.entrar(:'G1');
 select is(public.approve_report(:'r2') ->> 'status', 'aprovado', 'outra pessoa da gestão aprova, com a família fechada');
 reset role;
 select is((select snapshot #>> '{comment,text}' from public.reports where id = :'r2'), 'Comentário da versão 2.', 'o comentário entra no snapshot');
-select is((select snapshot #>> '{scenarios,0,name}' from public.reports where id = :'r2'), 'Cenário cc000000', 'e os cenários também');
+select is((select snapshot #>> '{scenarios,0,name}' from public.reports where id = :'r2'), 'Cenário ' || :'S1', 'e os cenários também');
 select is((select snapshot #>> '{scenarios,0,probability}' from public.reports where id = :'r2'), '0.7', 'com o resultado de cada um');
 select is((select approved_by from public.reports where id = :'r2'), :'G1'::uuid, 'com quem aprovou');
 select ok(exists (select 1 from public.audit_log where action = 'aprovar_relatorio' and actor_id = :'G1' and household_id = :'H'),

@@ -805,6 +805,10 @@ begin
      or coalesce((p_scenario ->> 'paths')::integer, 0) < 1000 then
     raise exception 'Cenário inválido.' using errcode = '22023', hint = 'cenario_invalido';
   end if;
+  -- O nome sai das hipóteses: mesmo nome é o mesmo cenário.
+  if exists (select 1 from jsonb_array_elements(coalesce(r.scenarios, '[]'::jsonb)) s where s ->> 'name' = p_scenario ->> 'name') then
+    raise exception 'Esse cenário já está no relatório.' using errcode = 'P0001', hint = 'cenario_repetido';
+  end if;
   update public.reports set scenarios = coalesce(scenarios, '[]'::jsonb) || jsonb_build_array(p_scenario) where id = r.id;
   return jsonb_build_object('id', r.id, 'scenario', p_scenario ->> 'id');
 end
