@@ -4,8 +4,10 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { LoginScreen } from './console/auth/LoginScreen.tsx'
 import { useConsoleAuth } from './console/auth/useConsoleAuth.ts'
+import { AuditPage } from './console/pages/AuditPage.tsx'
 import { FamiliesPage } from './console/pages/FamiliesPage.tsx'
 import { HouseholdPage } from './console/pages/HouseholdPage.tsx'
+import { LegalTextsPage } from './console/pages/LegalTextsPage.tsx'
 import { MappingPage } from './console/pages/MappingPage.tsx'
 import { MarketPage } from './console/pages/MarketPage.tsx'
 import { MonthPage } from './console/pages/MonthPage.tsx'
@@ -44,6 +46,8 @@ export default function App() {
             <Route path="/mercado" element={<MarketPage />} />
             <Route path="/relatorios" element={<ReportsPage />} />
             <Route path="/relatorios/:id" element={<ReportPage />} />
+            <Route path="/textos-legais" element={<LegalTextsPage />} />
+            <Route path="/auditoria" element={<AuditPage />} />
             <Route path="/relatorio-exemplo" element={<ReportPreview />} />
             <Route path="*" element={<Navigate to={session.has('gestao') ? '/mes' : '/familias'} replace />} />
           </Routes>

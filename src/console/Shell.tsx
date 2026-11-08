@@ -1,6 +1,6 @@
 // Moldura do console: menu lateral azul-escuro (as cores da AWARE), itens conforme o papel, tema e saída.
 
-import { Files, FileText, LayoutList, LineChart, ListChecks, LogOut, Tags } from 'lucide-react'
+import { Files, FileText, History, LayoutList, LineChart, ListChecks, LogOut, Scale, Tags } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router'
 import { cn } from '../lib/utils.ts'
@@ -28,6 +28,8 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
     { to: '/relatorios', label: 'Relatórios', icon: <Files />, visible: session.has('gestao', 'comite', 'compliance', 'banker') },
     { to: '/mapeamento', label: 'Mapeamento de ativos', icon: <Tags />, visible: session.has('gestao', 'comite', 'compliance') },
     { to: '/mercado', label: 'Mercado', icon: <LineChart />, visible: session.has('gestao', 'comite', 'compliance') },
+    { to: '/textos-legais', label: 'Textos legais', icon: <Scale />, visible: session.has('gestao', 'comite', 'compliance') },
+    { to: '/auditoria', label: 'Auditoria', icon: <History />, visible: session.has('compliance', 'comite') },
     { to: '/relatorio-exemplo', label: 'Relatório de exemplo', icon: <FileText />, visible: true },
   ]
   return (
