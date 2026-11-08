@@ -45,6 +45,38 @@ export async function rpc<T>(fn: string, args: Record<string, unknown>, as: { us
   return body as T
 }
 
+/** Envia um arquivo para uma pasta privada do Storage, com a chave do servidor (substitui um arquivo ainda não anexado). */
+export async function storageUpload(bucket: string, path: string, bytes: Uint8Array<ArrayBuffer>, contentType: string): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
+    method: 'POST',
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': contentType, 'x-upsert': 'true' },
+    body: bytes,
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    if (res.status >= 500) throw new HttpError(503, 'O Storage não respondeu agora. Tente de novo em instantes.')
+    throw new HttpError(422, `O Storage recusou o arquivo (${res.status}): ${text.slice(0, 200)}`)
+  }
+}
+
+/**
+ * Link assinado de curta duração para baixar um arquivo de uma pasta privada. Devolve o caminho a partir de
+ * /storage/v1: o console junta o endereço do Supabase que ele conhece (o da função, dentro do servidor, é outro).
+ */
+export async function storageSignedPath(bucket: string, path: string, expiresIn: number, downloadName: string): Promise<string> {
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/sign/${bucket}/${path}`, {
+    method: 'POST',
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expiresIn }),
+  })
+  const body = (await res.json().catch(() => ({}))) as { signedURL?: string }
+  if (!res.ok || !body.signedURL) {
+    if (res.status >= 500) throw new HttpError(503, 'O Storage não respondeu agora. Tente de novo em instantes.')
+    throw new HttpError(422, 'Não foi possível gerar o link do arquivo.')
+  }
+  return `/storage/v1${body.signedURL}&download=${encodeURIComponent(downloadName)}`
+}
+
 /** O token de quem pede, do cabeçalho Authorization; sem ele, a função recusa. */
 export function bearer(req: Request, refusal: string): string {
   const authorization = req.headers.get('Authorization') ?? ''
