@@ -41,6 +41,50 @@ export function ConfirmDialog(props: {
   )
 }
 
+/**
+ * Ação que pede dados antes (um motivo, uma observação, a data da apresentação): os campos vêm em `children`, e o botão
+ * de confirmar só vale com `canConfirm`. Fechar o diálogo não muda nada.
+ */
+export function FormDialog(props: {
+  trigger: ReactNode
+  title: string
+  description?: ReactNode
+  confirmLabel: string
+  destructive?: boolean
+  canConfirm: boolean
+  onConfirm: () => void
+  onOpenChange?: (open: boolean) => void
+  children: ReactNode
+}) {
+  return (
+    <DialogPrimitive.Root onOpenChange={props.onOpenChange}>
+      <DialogPrimitive.Trigger asChild>{props.trigger}</DialogPrimitive.Trigger>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-black/50" />
+        <DialogContent>
+          <DialogPrimitive.Title className="font-serif text-lg font-semibold">{props.title}</DialogPrimitive.Title>
+          {props.description ? (
+            <DialogPrimitive.Description className="mt-2 text-sm text-muted-foreground">{props.description}</DialogPrimitive.Description>
+          ) : (
+            <DialogPrimitive.Description className="sr-only">{props.title}</DialogPrimitive.Description>
+          )}
+          <div className="mt-4 flex flex-col gap-3">{props.children}</div>
+          <div className="mt-5 flex justify-end gap-2">
+            <DialogPrimitive.Close asChild>
+              <Button variant="outline">Cancelar</Button>
+            </DialogPrimitive.Close>
+            <DialogPrimitive.Close asChild>
+              <Button variant={props.destructive ? 'destructive' : 'default'} disabled={!props.canConfirm} onClick={props.onConfirm}>
+                {props.confirmLabel}
+              </Button>
+            </DialogPrimitive.Close>
+          </div>
+        </DialogContent>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  )
+}
+
 function DialogContent({ className, ...props }: ComponentProps<typeof DialogPrimitive.Content>) {
   return (
     <DialogPrimitive.Content

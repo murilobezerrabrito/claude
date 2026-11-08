@@ -39,8 +39,11 @@ export async function callFunction<T>(name: string, body: unknown): Promise<T> {
     if (response instanceof Response) {
       let message = `O servidor recusou o pedido (erro ${response.status}).`
       try {
-        const parsed = (await response.json()) as { erro?: string }
+        const parsed = (await response.json()) as { erro?: string; problemas?: { message?: string }[] }
         if (parsed.erro) message = parsed.erro
+        // A conferência do cenário volta com os problemas, um por campo.
+        const problems = Array.isArray(parsed.problemas) ? parsed.problemas.map((p) => p.message).filter(Boolean) : []
+        if (problems.length > 0) message = `${message} ${problems.join(' ')}`
       } catch {
         // Resposta sem corpo em JSON: fica a mensagem com o status.
       }

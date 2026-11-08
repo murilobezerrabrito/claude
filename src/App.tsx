@@ -9,6 +9,8 @@ import { HouseholdPage } from './console/pages/HouseholdPage.tsx'
 import { MappingPage } from './console/pages/MappingPage.tsx'
 import { MarketPage } from './console/pages/MarketPage.tsx'
 import { MonthPage } from './console/pages/MonthPage.tsx'
+import { ReportPage } from './console/pages/ReportPage.tsx'
+import { ReportsPage } from './console/pages/ReportsPage.tsx'
 import { ReportPreview } from './console/report/ReportPreview.tsx'
 import { makeSession, SessionContext } from './console/session.tsx'
 import { Shell } from './console/Shell.tsx'
@@ -40,6 +42,8 @@ export default function App() {
             <Route path="/mes" element={<MonthPage />} />
             <Route path="/mapeamento" element={<MappingPage />} />
             <Route path="/mercado" element={<MarketPage />} />
+            <Route path="/relatorios" element={<ReportsPage />} />
+            <Route path="/relatorios/:id" element={<ReportPage />} />
             <Route path="/relatorio-exemplo" element={<ReportPreview />} />
             <Route path="*" element={<Navigate to={session.has('gestao') ? '/mes' : '/familias'} replace />} />
           </Routes>

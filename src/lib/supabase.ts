@@ -9,6 +9,9 @@ const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 /** O console sabe onde está o Supabase (variáveis de .env.local). */
 export const supabaseConfigured = Boolean(url && key)
 
-export const supabase = createClient(url ?? 'http://127.0.0.1:54321', key ?? 'sem-chave', {
+/** Endereço do Supabase que o console conhece (os links assinados do Storage vêm sem ele). */
+export const supabaseUrl: string = url ?? 'http://127.0.0.1:54321'
+
+export const supabase = createClient(supabaseUrl, key ?? 'sem-chave', {
   auth: { storage: window.sessionStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
 })

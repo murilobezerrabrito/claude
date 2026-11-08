@@ -110,9 +110,12 @@ function Cover({ snap }: { snap: ReportSnapshot }) {
       <View style={{ height: '100%', paddingVertical: 48, paddingHorizontal: 64, justifyContent: 'space-between' }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Text style={{ color: COLORS.onNavy, fontFamily: FONTS.display, fontSize: 20, fontWeight: 600, letterSpacing: 1.2 }}>AWARE{'\n'}Investments</Text>
-          <View style={{ borderWidth: 0.8, borderColor: '#e9b949', borderRadius: 3, paddingVertical: 3, paddingHorizontal: 7 }}>
-            <Text style={{ color: '#e9b949', fontSize: 8, fontWeight: 600, letterSpacing: 0.6 }}>EXEMPLO COM DADOS FICTÍCIOS</Text>
-          </View>
+          {/* Só o relatório de exemplo da Fase 1 (D-037); o relatório que sai do banco não leva a marca. */}
+          {snap.comment.example ? (
+            <View style={{ borderWidth: 0.8, borderColor: '#e9b949', borderRadius: 3, paddingVertical: 3, paddingHorizontal: 7 }}>
+              <Text style={{ color: '#e9b949', fontSize: 8, fontWeight: 600, letterSpacing: 0.6 }}>EXEMPLO COM DADOS FICTÍCIOS</Text>
+            </View>
+          ) : null}
         </View>
         <View>
           <Text style={{ fontSize: 9, color: COLORS.onNavyMuted, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 10 }}>
