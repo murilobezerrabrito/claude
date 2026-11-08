@@ -203,7 +203,7 @@ function ChangeFields({ change: c, ctx, onChange }: { change: ScenarioChange; ct
       )
     case 'extraFlow':
       return (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2">
           <Select aria-label="Aporte ou resgate" value={c.target} onChange={(e) => onChange({ target: e.target.value })}>
             <option value="aporte">Aporte</option>
             <option value="resgate">Resgate</option>
