@@ -1,8 +1,9 @@
 // Séries do Banco Central no console (SPEC, "Dados de mercado"): a situação das três séries, o aviso de série
-// atrasada para a gestão e o comitê e a busca na hora. Supõe o banco do seed (npx supabase db reset): sem nenhum dado
-// do CDI, com o dólar e o IPCA fictícios. A busca pelo navegador é simulada (page.route): a integração contínua tem
-// rede, e a busca de verdade gravaria os dados do Banco Central por cima das séries fictícias. A função do servidor é
-// chamada de verdade só nos pedidos que ela recusa antes de ir ao SGS (permissão e pedido inválido).
+// atrasada para a gestão e o comitê e a busca na hora. Supõe o banco do seed (npx supabase db reset), com o dólar e o
+// IPCA fictícios; o CDI fictício de set e out/2026 (o do relatório) some da situação simulada, para o teste começar sem
+// nenhum dado do CDI. A busca pelo navegador é simulada (page.route): a integração contínua tem rede, e a busca de
+// verdade gravaria os dados do Banco Central por cima das séries fictícias. A função do servidor é chamada de verdade
+// só nos pedidos que ela recusa antes de ir ao SGS (permissão e pedido inválido).
 
 import { expect, test } from '@playwright/test'
 import { localStack, signIn } from '../scripts/localSupabase.ts'
@@ -45,6 +46,17 @@ test('gestão vê o aviso de série atrasada, a situação das séries e o resul
     requested = route.request().postDataJSON()
     await route.fulfill({ status: 200, headers: CORS, json: SYNC_RESULT })
   })
+  // A situação das séries vem do banco, sem o CDI; depois da busca, com as três séries em dia (`fresh`).
+  let fresh: Record<MarketStatusRow['code'], string> | null = null
+  await page.route('**/rest/v1/rpc/market_status', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue()
+    const response = await route.fetch()
+    const rows = (await response.json()) as MarketStatusRow[]
+    const json = fresh
+      ? rows.map((r) => ({ ...r, last: { date: fresh![r.code], value: r.code === 'dolar' ? 5.05 : 0.05, source: 'bcb_sgs' } }))
+      : rows.map((r) => (r.code === 'cdi' ? { ...r, last: null } : r))
+    await route.fulfill({ response, json })
+  })
 
   // O aviso aparece em qualquer página do console, com o link para as séries.
   await signInWithEnrollment(page, gestao)
@@ -66,13 +78,7 @@ test('gestão vê o aviso de série atrasada, a situação das séries e o resul
   // A busca na hora: o que entrou e o erro de cada série. Depois dela, a situação volta com as três séries em dia
   // (também simulada, com a data de hoje): o aviso do topo some na hora, sem trocar de página.
   const today = brazilToday()
-  const fresh = { cdi: today, ipca: `${today.slice(0, 7)}-01`, dolar: today }
-  await page.route('**/rest/v1/rpc/market_status', async (route) => {
-    if (route.request().method() !== 'POST') return route.continue()
-    const response = await route.fetch()
-    const rows = (await response.json()) as MarketStatusRow[]
-    await route.fulfill({ response, json: rows.map((r) => ({ ...r, last: { date: fresh[r.code], value: r.code === 'dolar' ? 5.05 : 0.05, source: 'bcb_sgs' } })) })
-  })
+  fresh = { cdi: today, ipca: `${today.slice(0, 7)}-01`, dolar: today }
   await page.getByRole('button', { name: 'Buscar agora' }).click()
   const result = page.getByRole('status').filter({ hasText: 'Busca concluída com erro em parte das séries:' })
   await expect(result).toContainText('CDI: Não foi possível falar com o SGS (CDI): dns error')
