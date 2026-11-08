@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type { Cma, HouseholdData, Profile } from '../src/engine/index.ts'
+import { parseSgs } from '../src/market/sgs.ts'
 import { APP_FOOTER, BRIDGE_NOTE, FIRST_REPORT_NOTE, FULL_DISCLAIMER, REPORT_FOOTER_TEMPLATE, SUITABILITY_NOTICE } from '../src/report/texts.ts'
 import type { HouseholdMonths } from '../src/report/types.ts'
 
@@ -47,6 +48,8 @@ interface SeedFamily {
   seed: number
   banker?: (typeof USERS)[number]['key']
   owner?: (typeof USERS)[number]['key']
+  /** Gestor responsável, na capa do relatório (só CADM). */
+  manager?: string
   data: HouseholdData
   planVersions: { baseMonth: string; snapshot: unknown; note: string }[]
 }
@@ -56,9 +59,9 @@ function familySql(f: SeedFamily): string[] {
   const hid = seedUuid(`household:${f.key}`)
   const lines: string[] = []
   lines.push(
-    `insert into public.households (id, code, name, channel, owner_id, banker_id, profile_id, weights_source, suitability, fee_rate, horizon_age, seed) values (` +
+    `insert into public.households (id, code, name, channel, owner_id, banker_id, manager_name, profile_id, weights_source, suitability, fee_rate, horizon_age, seed) values (` +
       [
-        q(hid), q(f.code), q(h.name), q(f.channel), f.owner ? q(userId(f.owner)) : 'null', f.banker ? q(userId(f.banker)) : 'null',
+        q(hid), q(f.code), q(h.name), q(f.channel), f.owner ? q(userId(f.owner)) : 'null', f.banker ? q(userId(f.banker)) : 'null', q(f.manager),
         q(h.profileId), q(f.channel === 'cadm' ? 'perfil' : 'carteira_atual'), q(h.suitability), n(h.feeRate), n(h.horizonAge), n(f.seed),
       ].join(', ') + ');',
   )
@@ -158,11 +161,21 @@ export function buildSeedSql(): string {
       channel: 'cadm',
       seed: 20261002,
       banker: 'banker-1',
+      manager: 'Gestor do exemplo (fictício)',
       data: andrade,
       planVersions: months.planVersions.map((v) => ({ baseMonth: v.baseMonth, snapshot: v.snapshot, note: v.note ?? '' })),
     },
     { key: 'barbosa', code: 'BAR001', channel: 'ai', seed: 81340217, owner: 'responsavel-1', data: barbosa, planVersions: [{ baseMonth: '2026-09', snapshot: snapshotOf(barbosa), note: 'Plano inicial.' }] },
-    { key: 'costa', code: 'COS001', channel: 'cadm', seed: 55219034, banker: 'banker-2', data: costa, planVersions: [{ baseMonth: '2026-09', snapshot: snapshotOf(costa), note: 'Plano inicial.' }] },
+    {
+      key: 'costa',
+      code: 'COS001',
+      channel: 'cadm',
+      seed: 55219034,
+      banker: 'banker-2',
+      manager: 'Gestor do exemplo (fictício)',
+      data: costa,
+      planVersions: [{ baseMonth: '2026-09', snapshot: snapshotOf(costa), note: 'Plano inicial.' }],
+    },
   ]
 
   const out: string[] = [
@@ -239,6 +252,9 @@ export function buildSeedSql(): string {
   for (const [month, value] of Object.entries({ ...example.ipca, ...months.ipca }).sort()) {
     out.push(`insert into public.market_series (series_code, date, value, source) values ('ipca', ${q(`${month}-01`)}, ${n(Math.round(value * 1e6) / 1e4)}, 'ficticio');`)
   }
+  // CDI de set e out/2026 em % ao dia (série 12), o mesmo das respostas gravadas do SGS: a referência secundária do relatório.
+  const cdi = parseSgs(readJson<unknown>('src/data/sgs/serie-12-cdi-2026-09-a-10.json'), 'cdi', '2026-10-31')
+  for (const r of cdi) out.push(`insert into public.market_series (series_code, date, value, source) values ('cdi', ${q(r.date)}, ${n(r.value)}, 'ficticio');`)
   return `${out.join('\n')}\n`
 }
 
