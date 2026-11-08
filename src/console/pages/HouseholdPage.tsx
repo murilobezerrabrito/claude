@@ -27,6 +27,8 @@ interface RegistrationForm {
   channel: 'cadm' | 'ai'
   banker_id: string
   owner_id: string
+  /** Gestor responsável (capa do relatório), só na CADM. */
+  manager_name: string
   intermediary: string
   profile_id: string
   suitability: string
@@ -65,6 +67,7 @@ function Registration(props: { data: HouseholdEditorData | null; options: PlanOp
           channel: h.channel,
           banker_id: h.banker_id ?? '',
           owner_id: h.owner_id ?? '',
+          manager_name: h.manager_name ?? '',
           intermediary: h.intermediary ?? '',
           profile_id: h.profile_id,
           suitability: h.suitability ?? '',
@@ -73,7 +76,21 @@ function Registration(props: { data: HouseholdEditorData | null; options: PlanOp
           seed: String(h.seed),
           status: h.status,
         }
-      : { code: '', name: '', channel: 'cadm', banker_id: '', owner_id: '', intermediary: '', profile_id: 'moderado', suitability: '', fee_pct: '0,8', horizon_age: '95', seed: '', status: 'ativa' },
+      : {
+          code: '',
+          name: '',
+          channel: 'cadm',
+          banker_id: '',
+          owner_id: '',
+          manager_name: '',
+          intermediary: '',
+          profile_id: 'moderado',
+          suitability: '',
+          fee_pct: '0,8',
+          horizon_age: '95',
+          seed: '',
+          status: 'ativa',
+        },
   })
   const [failure, setFailure] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -101,6 +118,7 @@ function Registration(props: { data: HouseholdEditorData | null; options: PlanOp
         channel: ch,
         banker_id: ch === 'cadm' ? v.banker_id : '',
         owner_id: ch === 'ai' ? v.owner_id : '',
+        manager_name: ch === 'cadm' ? v.manager_name : '',
         intermediary: v.intermediary,
         profile_id: v.profile_id,
         suitability: v.suitability,
@@ -164,6 +182,11 @@ function Registration(props: { data: HouseholdEditorData | null; options: PlanOp
             </Select>
           </F>
         )}
+        {channel === 'cadm' ? (
+          <F label="Gestor responsável" error={err('manager_name')} hint="O nome que vai na capa do relatório.">
+            <Input aria-label="Gestor responsável" {...register('manager_name')} />
+          </F>
+        ) : null}
         <F label="Intermediário" error={err('intermediary')}>
           <Input aria-label="Intermediário" {...register('intermediary')} />
         </F>
@@ -291,7 +314,7 @@ export function HouseholdPage() {
         <Card>
           <CardHeader>
             <CardTitle>Cadastro</CardTitle>
-            <CardDescription>Canal, responsável ou banker, intermediário, origem dos pesos, suitability, custo e semente.</CardDescription>
+            <CardDescription>Canal, responsável ou banker, gestor responsável (CADM), intermediário, origem dos pesos, suitability, custo e semente.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             {registrationSaved ? <Alert tone="success">{registrationSaved}</Alert> : null}

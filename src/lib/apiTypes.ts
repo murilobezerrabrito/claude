@@ -1,6 +1,9 @@
 // Respostas das funções do banco usadas pelo console e por `npm run db:import` (supabase/migrations). Só tipos.
 // Campos com valores em reais podem faltar: somem para quem não pode ver valores (D-042).
 
+import type { RequiredReturnStatus } from '../engine/types.ts'
+import type { ReportScenarioParams } from '../report/scenarios.ts'
+import type { ReportSnapshot } from '../report/snapshot.ts'
 import type { PlanSnapshot } from '../report/types.ts'
 
 export type Channel = 'cadm' | 'ai'
@@ -210,6 +213,8 @@ export interface HouseholdRecordRow {
   horizon_age: number
   seed: number
   status: 'ativa' | 'encerrada'
+  /** Gestor responsável (capa do relatório), só na CADM. */
+  manager_name: string | null
   banker_email: string | null
   owner_email: string | null
 }
@@ -248,4 +253,118 @@ export interface MarketStatusRow {
     requested_by_email: string | null
   } | null
   last_success_at: string | null
+}
+
+export type ReportStatus = 'rascunho' | 'em_revisao' | 'aprovado' | 'apresentado' | 'substituido' | 'descartado'
+
+/** Resumo de uma versão do relatório (situação, pessoas, datas e motivos), sem os números. */
+export interface ReportSummary {
+  id: string
+  household_id: string
+  ref_date: string
+  version: number
+  status: ReportStatus
+  prepared_by: string
+  prepared_by_email: string | null
+  approved_by_email: string | null
+  approved_at: string | null
+  presented_at: string | null
+  presented_how: 'reuniao' | 'pdf' | null
+  has_pdf: boolean
+  /** Motivo da nova versão (vazio na primeira). */
+  reason: string | null
+  discard_reason: string | null
+  created_at: string
+}
+
+/** Resposta de `report_months`: as famílias CADM do mês, com a última versão que quem pede pode ver. */
+export interface ReportMonths {
+  ref_date: string
+  /** Todos os textos legais do relatório têm versão aprovada (sem eles, não sai rascunho). */
+  texts_ready: boolean
+  families: {
+    household_id: string
+    code: string
+    name: string
+    status: 'ativa' | 'encerrada'
+    manager_name: string | null
+    month_status: MonthStatus | null
+    latest: ReportSummary | null
+  }[]
+}
+
+/** Cenário da conversa do mês gravado no rascunho (a função `report` roda e grava). */
+export interface StoredReportScenario {
+  id: string
+  name: string
+  params: ReportScenarioParams
+  probability: number
+  requiredReturn: number | null
+  requiredReturnStatus: RequiredReturnStatus
+  inputsHash: string
+  seed: number
+  paths: number
+  computeMs: number
+}
+
+/** Resposta de `report_detail`. Sem permissão para valores, vêm só a situação e as versões. */
+export interface ReportDetail extends ReportSummary {
+  household: { id: string; code: string; name: string; manager_name: string | null }
+  month_status: MonthStatus | null
+  amounts_visible: boolean
+  comment: string | null
+  scenarios: StoredReportScenario[] | null
+  /** Observação de quem devolveu para ajuste. */
+  review_note: string | null
+  snapshot: ReportSnapshot | null
+  /** O rascunho usa as versões aprovadas hoje dos textos legais. */
+  texts_current: boolean
+  /** A rodada do rascunho ainda é a publicada do mês. */
+  run_current: boolean
+  versions: ReportSummary[]
+}
+
+/** Respostas da função `report`, uma por ação. */
+export interface ReportDraftResult {
+  id: string
+  version: number
+}
+export interface ReportScenarioResult {
+  cenario: StoredReportScenario
+}
+export interface ReportPdfResult {
+  caminho: string
+  sha256: string
+  bytes: number
+}
+export interface ReportDownload {
+  /** Caminho a partir de /storage/v1, com o token do link assinado. */
+  caminho: string
+  arquivo: string
+  validade_s: number
+}
+
+/** Linha de `legal_texts_overview`: a versão aprovada e o rascunho de cada texto legal. */
+export interface LegalTextRow {
+  key: string
+  in_report: boolean
+  approved: { id: string; version: number; body: string; approved_at: string; approved_by_email: string | null } | null
+  draft: { id: string; version: number; body: string; created_at: string; created_by_email: string | null } | null
+}
+
+/** Resposta de `audit_trail`. */
+export interface AuditTrail {
+  rows: {
+    id: number
+    at: string
+    actor_email: string | null
+    action: string
+    target_table: string | null
+    target_id: string | null
+    household_code: string | null
+    household_name: string | null
+    details: Record<string, unknown> | null
+  }[]
+  /** Ações registradas no período, para o filtro. */
+  actions: string[]
 }
