@@ -1,4 +1,4 @@
-/* Console do AWARE Objective: Tailwind com os tokens da identidade (SPEC, "Design e linguagem"; D-040): azul-escuro e
+/* Console e app do AWARE Objective: Tailwind com os tokens da identidade (SPEC, "Design e linguagem"; D-040): azul-escuro e
    branco, cor de estado só nas faixas, temas claro e escuro. Fraunces nos títulos e números, IBM Plex Sans no texto. */
 @import 'tailwindcss';
 
