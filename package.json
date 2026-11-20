@@ -17,6 +17,7 @@
     "reference": "node scripts/reference.ts",
     "report:snapshot": "node scripts/reportSnapshot.ts",
     "report:pdf": "node scripts/reportPdf.ts",
+    "app:example": "node scripts/appExample.ts",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",

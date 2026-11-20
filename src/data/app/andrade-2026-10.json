@@ -1,0 +1,1246 @@
+{
+  "schema": 1,
+  "example": true,
+  "snapshot": {
+    "schema": 2,
+    "family": {
+      "id": "andrade",
+      "name": "Família Andrade (fictícia)",
+      "channel": "ai",
+      "manager": ""
+    },
+    "refMonth": "2026-10",
+    "refDate": "2026-10-31",
+    "run": {
+      "engineVersion": "0.5.0",
+      "cmaVersion": "ilustrativa-2026-10",
+      "planVersionId": "andrade-v2",
+      "seed": 20261002,
+      "paths": 10000,
+      "inputsHash": "12be951604dabb16fed576413f23"
+    },
+    "planVersion": {
+      "id": "andrade-v2",
+      "baseMonth": "2026-10"
+    },
+    "summary": {
+      "probability": 0.5927,
+      "probabilityWithRules": 0.7241,
+      "band": "em_risco",
+      "previousProbability": 0.87,
+      "previousBand": "no_caminho",
+      "requiredReturn": 0.03806872367858888,
+      "requiredReturnStatus": "ok",
+      "expectedCompositeReturn": 0.038229047169917374,
+      "slack": 0.00016032349132849566,
+      "wealth": 13258161.29,
+      "legacy": 3012000,
+      "legacyProbability": 0.4925,
+      "horizonAge": 95,
+      "depletionAge": 86,
+      "medianFinal": 2762477.9291215464,
+      "feeRate": 0.008,
+      "ipcaMonth": 0.004
+    },
+    "bridge": {
+      "kind": "ponte",
+      "paths": 10000,
+      "fromMonth": "2026-09",
+      "toMonth": "2026-10",
+      "published": {
+        "successCount": 8700,
+        "requiredReturn": 0.032439839839935314,
+        "inputsHash": "1d76f7e3bcedba00e8e5b3ba96e1",
+        "engineVersion": "0.5.0"
+      },
+      "start": {
+        "inputsHash": "1d76f7e3bcedba00e8e5b3ba96e1",
+        "successCount": 8700,
+        "requiredReturn": 0.032439839839935314,
+        "wealth": 13800000
+      },
+      "steps": [
+        {
+          "inputsHash": "1c679b81ea28871d211eab70b691",
+          "successCount": 8663,
+          "requiredReturn": 0.0325178623199463,
+          "wealth": 13917448,
+          "id": "passagem_do_tempo",
+          "label": "Passagem do tempo",
+          "successDelta": -37,
+          "requiredReturnDelta": 0.00007802248001098633
+        },
+        {
+          "inputsHash": "000df5143011731a0ddc23f7a276",
+          "successCount": 8381,
+          "requiredReturn": 0.033319783210754406,
+          "wealth": 13617153.880000003,
+          "id": "mercado",
+          "label": "Mercado",
+          "successDelta": -282,
+          "requiredReturnDelta": 0.0008019208908081055
+        },
+        {
+          "inputsHash": "0007e7deace38e12ea69d185a9ec",
+          "successCount": 7980,
+          "requiredReturn": 0.03430379629135133,
+          "wealth": 13258161.29,
+          "id": "aportes_e_resgates",
+          "label": "Aportes e resgates fora do plano",
+          "successDelta": -401,
+          "requiredReturnDelta": 0.0009840130805969238
+        },
+        {
+          "inputsHash": "0556a3d669e6ef181f721dbbb2f4",
+          "successCount": 8005,
+          "requiredReturn": 0.03430379629135133,
+          "wealth": 13258161.29,
+          "id": "carteira",
+          "label": "Carteira",
+          "successDelta": 25,
+          "requiredReturnDelta": 0
+        },
+        {
+          "inputsHash": "12be951604dabb16fed576413f23",
+          "successCount": 5927,
+          "requiredReturn": 0.03806872367858888,
+          "wealth": 13258161.29,
+          "id": "plano",
+          "label": "Plano",
+          "successDelta": -2078,
+          "requiredReturnDelta": 0.003764927387237549
+        },
+        {
+          "inputsHash": "12be951604dabb16fed576413f23",
+          "successCount": 5927,
+          "requiredReturn": 0.03806872367858888,
+          "wealth": 13258161.29,
+          "id": "premissas",
+          "label": "Premissas",
+          "successDelta": 0,
+          "requiredReturnDelta": 0
+        }
+      ],
+      "totalSuccessDelta": -2773,
+      "totalRequiredReturnDelta": 0.0056288838386535645,
+      "display": {
+        "startTenths": 870,
+        "endTenths": 593,
+        "bars": [
+          {
+            "id": "passagem_do_tempo",
+            "label": "Passagem do tempo",
+            "tenths": -4,
+            "noEffect": false
+          },
+          {
+            "id": "mercado",
+            "label": "Mercado",
+            "tenths": -28,
+            "noEffect": false
+          },
+          {
+            "id": "aportes_e_resgates",
+            "label": "Aportes e resgates fora do plano",
+            "tenths": -40,
+            "noEffect": false
+          },
+          {
+            "id": "carteira",
+            "label": "Carteira",
+            "tenths": 3,
+            "noEffect": false
+          },
+          {
+            "id": "plano",
+            "label": "Plano",
+            "tenths": -208,
+            "noEffect": false
+          },
+          {
+            "id": "premissas",
+            "label": "Premissas",
+            "tenths": 0,
+            "noEffect": true
+          }
+        ]
+      },
+      "plannedFlow": 62248,
+      "monthNominalReturn": -0.02102450983115476,
+      "externalFlows": [
+        {
+          "date": "2026-10-15",
+          "kind": "resgate",
+          "amount": 300000,
+          "description": "Resgate para reforma"
+        }
+      ]
+    },
+    "performance": {
+      "month": {
+        "month": "2026-10",
+        "nominal": -0.02102450983115476,
+        "real": -0.024924810588799584,
+        "approximateDates": false,
+        "implausible": false
+      },
+      "summary": {
+        "trackingSince": "2026-09",
+        "month": {
+          "real": -0.024924810588799584,
+          "benchmark": 0.002663940137526355,
+          "cdi": null,
+          "months": 1,
+          "approximateDates": false
+        },
+        "yearToDate": null,
+        "twelveMonths": null,
+        "sinceStart": {
+          "real": -0.024924810588799584,
+          "benchmark": 0.002663940137526355,
+          "cdi": null,
+          "months": 1,
+          "approximateDates": false
+        }
+      }
+    },
+    "portfolio": {
+      "total": 11450961.29,
+      "classes": [
+        {
+          "code": "POS",
+          "name": "Pós-fixado",
+          "value": 2722761.29,
+          "share": 0.23777578327661958,
+          "target": null
+        },
+        {
+          "code": "INF",
+          "name": "Inflação",
+          "value": 2910000,
+          "share": 0.25412713625547506,
+          "target": null
+        },
+        {
+          "code": "PRE",
+          "name": "Prefixado",
+          "value": 585000,
+          "share": 0.051087413989502714,
+          "target": null
+        },
+        {
+          "code": "CRED",
+          "name": "Crédito privado",
+          "value": 1810800,
+          "share": 0.15813519530289147,
+          "target": null
+        },
+        {
+          "code": "MM",
+          "name": "Multimercado",
+          "value": 1176000,
+          "share": 0.10269880145582085,
+          "target": null
+        },
+        {
+          "code": "ACOES",
+          "name": "Ações Brasil",
+          "value": 883200,
+          "share": 0.07712889578722872,
+          "target": null
+        },
+        {
+          "code": "FII",
+          "name": "Imobiliário listado",
+          "value": 456000,
+          "share": 0.03982198423797135,
+          "target": null
+        },
+        {
+          "code": "INTL",
+          "name": "Internacional, em reais",
+          "value": 907200,
+          "share": 0.07922478969449036,
+          "target": null
+        }
+      ],
+      "profileName": null,
+      "otherAssets": [
+        {
+          "name": "VGBL",
+          "value": 1807200,
+          "inSimulation": true
+        },
+        {
+          "name": "Apartamento (residência)",
+          "value": 4518000,
+          "inSimulation": false
+        },
+        {
+          "name": "Casa de praia",
+          "value": 3514000,
+          "inSimulation": false
+        },
+        {
+          "name": "Sala comercial",
+          "value": 1204800,
+          "inSimulation": false
+        },
+        {
+          "name": "Participação na empresa da família",
+          "value": 6024000,
+          "inSimulation": false
+        }
+      ]
+    },
+    "trajectory": {
+      "realized": [
+        {
+          "month": "2026-09",
+          "age": 50.083333333333336,
+          "wealth": 13855200
+        },
+        {
+          "month": "2026-10",
+          "age": 50.166666666666664,
+          "wealth": 13258161.29
+        }
+      ],
+      "pointAges": [
+        50.166666666666664,
+        51.166666666666664,
+        52.166666666666664,
+        53.166666666666664,
+        54.166666666666664,
+        55.166666666666664,
+        56.166666666666664,
+        57.166666666666664,
+        58.166666666666664,
+        59.166666666666664,
+        60.166666666666664,
+        61.166666666666664,
+        62.166666666666664,
+        63.166666666666664,
+        64.16666666666666,
+        65.16666666666666,
+        66.16666666666666,
+        67.16666666666666,
+        68.16666666666666,
+        69.16666666666666,
+        70.16666666666666,
+        71.16666666666666,
+        72.16666666666666,
+        73.16666666666666,
+        74.16666666666666,
+        75.16666666666666,
+        76.16666666666666,
+        77.16666666666666,
+        78.16666666666666,
+        79.16666666666666,
+        80.16666666666666,
+        81.16666666666666,
+        82.16666666666666,
+        83.16666666666666,
+        84.16666666666666,
+        85.16666666666666,
+        86.16666666666666,
+        87.16666666666666,
+        88.16666666666666,
+        89.16666666666666,
+        90.16666666666666,
+        91.16666666666666,
+        92.16666666666666,
+        93.16666666666666,
+        94.16666666666666,
+        94.99999999999999
+      ],
+      "years": [
+        2026,
+        2027,
+        2028,
+        2029,
+        2030,
+        2031,
+        2032,
+        2033,
+        2034,
+        2035,
+        2036,
+        2037,
+        2038,
+        2039,
+        2040,
+        2041,
+        2042,
+        2043,
+        2044,
+        2045,
+        2046,
+        2047,
+        2048,
+        2049,
+        2050,
+        2051,
+        2052,
+        2053,
+        2054,
+        2055,
+        2056,
+        2057,
+        2058,
+        2059,
+        2060,
+        2061,
+        2062,
+        2063,
+        2064,
+        2065,
+        2066,
+        2067,
+        2068,
+        2069,
+        2070,
+        2071
+      ],
+      "percentiles": {
+        "p10": [
+          13258161.29,
+          13744350.861132938,
+          14100656.92848949,
+          14932474.515392039,
+          15808961.816998072,
+          16577809.511294665,
+          17519562.404781073,
+          18078463.372914363,
+          19111274.157048296,
+          19366268.886659272,
+          19181259.449031174,
+          18773119.446214553,
+          17900696.546578173,
+          17499658.699555602,
+          17012069.65709354,
+          16536784.18729292,
+          16014168.03554779,
+          15111181.764517268,
+          14609318.784877231,
+          14091129.349729527,
+          13545060.737262068,
+          12954576.884192508,
+          11957210.53796015,
+          11299939.352999808,
+          10690531.221798304,
+          10022583.23012736,
+          9347972.022516409,
+          8250527.940935672,
+          7525335.170873968,
+          6739402.359175852,
+          5967260.569770542,
+          5167556.226786666,
+          3911744.066761634,
+          3045556.31687075,
+          2104671.49718638,
+          1158983.326288115,
+          165170.23533133548,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "p25": [
+          13258161.29,
+          14015750.800679227,
+          14487999.023390729,
+          15435909.220556222,
+          16424843.842241634,
+          17308879.691984814,
+          18354620.952906176,
+          19073195.41034518,
+          20176924.068689227,
+          20546394.724783696,
+          20465930.63714453,
+          20126494.566711687,
+          19375292.21856196,
+          19038311.25761924,
+          18661552.474904224,
+          18275445.117202178,
+          17887940.97820081,
+          17063146.971405316,
+          16641565.361190317,
+          16216256.664544217,
+          15748966.277774932,
+          15288506.62062879,
+          14367219.598644689,
+          13848500.229755353,
+          13316804.117343055,
+          12803080.775047598,
+          12222122.132843364,
+          11204524.286793606,
+          10583368.608556256,
+          9933395.685557717,
+          9282781.508743033,
+          8556257.513776593,
+          7439882.375219439,
+          6665096.973615064,
+          5884101.459351005,
+          5066697.424041333,
+          4253888.715403331,
+          3364033.291229595,
+          2438209.1527646296,
+          1480154.8490789486,
+          495042.26163571206,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "p50": [
+          13258161.29,
+          14286011.677432843,
+          14927659.33994766,
+          16009433.909872446,
+          17130703.48122936,
+          18150472.3717833,
+          19312137.38924592,
+          20169344.927190743,
+          21435425.6939622,
+          21936769.87377809,
+          21986299.701246407,
+          21819057.96672514,
+          21166485.764787473,
+          20940840.339388963,
+          20692179.405379094,
+          20442905.45214138,
+          20195095.91952265,
+          19507744.50005804,
+          19192473.84202517,
+          18872297.964547697,
+          18536574.425543927,
+          18198626.272345655,
+          17430589.42674613,
+          17072415.41272351,
+          16666652.804558739,
+          16263874.897542637,
+          15848245.613501396,
+          15029220.706409018,
+          14544883.946795708,
+          14062917.485782307,
+          13597567.87837544,
+          13094938.890287131,
+          12150561.99146971,
+          11523968.635986755,
+          10896588.341974637,
+          10257971.166714918,
+          9642399.691160914,
+          8997147.953823576,
+          8302612.2427783795,
+          7588884.069493886,
+          6813028.717226138,
+          6056112.68317809,
+          5231251.430008022,
+          4409475.93320689,
+          3528593.914572129,
+          2762477.9291215464
+        ],
+        "p75": [
+          13258161.29,
+          14576726.513381058,
+          15391991.802014029,
+          16613475.928446218,
+          17909803.725828696,
+          19051396.85186176,
+          20375306.666010734,
+          21405271.9556387,
+          22810047.60552104,
+          23486543.173581876,
+          23681914.605459817,
+          23654225.00093061,
+          23177766.54484108,
+          23090389.64122904,
+          23011930.46354514,
+          22949503.558372818,
+          22796304.94252954,
+          22266528.556693826,
+          22123283.49926357,
+          21999584.42902396,
+          21817921.26000844,
+          21658208.087052885,
+          21022042.49404555,
+          20859852.30883696,
+          20629192.619380098,
+          20415161.34192884,
+          20226933.28431902,
+          19547068.443648897,
+          19321857.254105262,
+          19058187.871220715,
+          18676838.820221107,
+          18367801.25654817,
+          17592115.511750508,
+          17264367.27617778,
+          16923776.169961914,
+          16477641.515048623,
+          16097352.435969885,
+          15689849.59901653,
+          15231138.791257275,
+          14876134.873835482,
+          14456766.467636872,
+          13964242.827925865,
+          13443970.760433916,
+          12928079.317281798,
+          12387206.537683804,
+          11952523.059367113
+        ],
+        "p90": [
+          13258161.29,
+          14898038.519947985,
+          15912099.553535897,
+          17316073.170499034,
+          18736788.85551516,
+          19999669.27714873,
+          21467939.638729796,
+          22614545.61878912,
+          24245706.700765707,
+          25038843.20700116,
+          25400048.043431416,
+          25482120.917871308,
+          25297187.504514694,
+          25402473.759876158,
+          25471392.72589562,
+          25517999.574117914,
+          25592797.676734265,
+          25211351.59822907,
+          25248729.109368384,
+          25249935.036170855,
+          25314734.658268694,
+          25393557.866619963,
+          25071815.476294424,
+          24969920.33163108,
+          24912589.371348854,
+          24841024.588794522,
+          24849652.82806263,
+          24374979.042702094,
+          24295047.39255951,
+          24267137.476699512,
+          24239242.342714332,
+          24210006.09643187,
+          23640818.13474143,
+          23600077.399565388,
+          23409792.659780912,
+          23399268.368920542,
+          23280108.923362363,
+          23210476.090415824,
+          23033004.226346225,
+          22862965.691756044,
+          22750885.479626037,
+          22758450.658252817,
+          22553904.69897916,
+          22312402.179665152,
+          22101116.91378204,
+          22043550.8503469
+        ]
+      },
+      "markers": [
+        {
+          "age": 58.916666666666664,
+          "label": "Entrada do apartamento do Pedro"
+        },
+        {
+          "age": 59.583333333333336,
+          "label": "Aposentadoria"
+        }
+      ]
+    },
+    "scenarios": [],
+    "scenarioContext": {
+      "refMonth": "2026-10",
+      "titularAge": 52,
+      "planRetirementAge": 62,
+      "essentialMonthly": 55220,
+      "lifestyleMonthly": 35000,
+      "incomes": [
+        {
+          "name": "Pró-labore do Ricardo",
+          "monthly": 100400
+        }
+      ],
+      "wealth": 13258161.29,
+      "properties": [
+        {
+          "id": "casa-praia",
+          "name": "Casa de praia",
+          "firstYear": 2027,
+          "lastYear": 2071
+        },
+        {
+          "id": "sala",
+          "name": "Sala comercial",
+          "firstYear": 2027,
+          "lastYear": 2071
+        }
+      ],
+      "lastMonth": "2071-08",
+      "youngestBirthMonth": "1976-08",
+      "horizonAge": 95,
+      "rulesEnabled": true
+    },
+    "comment": {
+      "text": "",
+      "example": false
+    },
+    "assumptions": {
+      "version": "ilustrativa-2026-10",
+      "label": "Premissas ilustrativas (SPEC de 02/10/2026)",
+      "nu": 5,
+      "classes": [
+        {
+          "code": "POS",
+          "name": "Pós-fixado",
+          "mu": 0.04,
+          "vol": 0.015
+        },
+        {
+          "code": "INF",
+          "name": "Inflação",
+          "mu": 0.05,
+          "vol": 0.08
+        },
+        {
+          "code": "PRE",
+          "name": "Prefixado",
+          "mu": 0.045,
+          "vol": 0.05
+        },
+        {
+          "code": "CRED",
+          "name": "Crédito privado",
+          "mu": 0.048,
+          "vol": 0.03
+        },
+        {
+          "code": "MM",
+          "name": "Multimercado",
+          "mu": 0.048,
+          "vol": 0.06
+        },
+        {
+          "code": "ACOES",
+          "name": "Ações Brasil",
+          "mu": 0.065,
+          "vol": 0.24
+        },
+        {
+          "code": "FII",
+          "name": "Imobiliário listado",
+          "mu": 0.05,
+          "vol": 0.14
+        },
+        {
+          "code": "INTL",
+          "name": "Internacional, em reais",
+          "mu": 0.055,
+          "vol": 0.16
+        }
+      ]
+    },
+    "texts": {
+      "reading": "Em 59 de cada 100 cenários o dinheiro dura até os 95. No cenário ruim, ele acaba aos 86. Vale revisar o plano na conversa do mês.",
+      "median": "No cenário do meio, vocês chegam aos 95 anos com R$ 2,8 mi em valores de hoje.",
+      "slack": "O retorno esperado da carteira (IPCA + 3,8% a.a.) fica no mesmo nível do que o plano precisa (IPCA + 3,8% a.a.).",
+      "bridge": "A chance foi de 87,0% para 59,3% em outubro, principalmente pela mudança no plano (−20,8 p.p.). O plano passou para a faixa vermelha.",
+      "benchmark": "O retorno que o plano precisa foi de IPCA + 3,2% a.a. para IPCA + 3,8% a.a., principalmente pela mudança no plano (+0,38 p.p.).",
+      "bridgeNote": "A variação foi separada trocando um fator de cada vez. A ordem dos fatores muda a divisão entre eles, não o total.",
+      "footer": "Relatório de acompanhamento do plano, preparado pela gestão da Aware Investments com as posições de out/2026 e as premissas ilustrativa-2026-10. Simulação ilustrativa; não é promessa de rentabilidade nem recomendação de investimento.",
+      "disclaimer": "As projeções deste relatório e deste aplicativo são simulações estatísticas. Elas usam premissas de retorno, risco e correlação definidas pelo comitê de investimentos da Aware Investments e as informações do seu plano. Não garantem resultados futuros, não constituem recomendação de investimento e não substituem a análise da gestão ou do seu assessor. Rentabilidade obtida no passado não representa garantia de rentabilidade futura. Os valores estão em reais de hoje, corrigidos pela inflação. Quando as premissas ou o seu plano mudam, os resultados mudam junto.",
+      "legal": {
+        "rodape_relatorio": 1,
+        "nota_ponte": 1,
+        "primeiro_relatorio": 1,
+        "aviso_completo": 1
+      }
+    }
+  },
+  "pkg": {
+    "household": {
+      "id": "andrade",
+      "name": "Família Andrade (fictícia)",
+      "channel": "ai",
+      "bankerId": "alex",
+      "profileId": "moderado",
+      "weightsSource": "carteira_atual",
+      "suitability": "moderado",
+      "feeRate": 0.008,
+      "horizonAge": 95,
+      "seed": 20261002
+    },
+    "planVersion": {
+      "id": "andrade-v2",
+      "baseMonth": "2026-10",
+      "note": "Plano v1 corrigido pelo IPCA de outubro (0,40%), com o estilo de vida de R$ 35 mil por mês.",
+      "snapshot": {
+        "legacyMin": 3012000,
+        "people": [
+          {
+            "id": "ricardo",
+            "name": "Ricardo Andrade",
+            "birthDate": "1974-03-15",
+            "sex": "M",
+            "role": "titular",
+            "retirementAge": 62
+          },
+          {
+            "id": "helena",
+            "name": "Helena Andrade",
+            "birthDate": "1976-08-02",
+            "sex": "F",
+            "role": "conjuge"
+          },
+          {
+            "id": "pedro",
+            "name": "Pedro Andrade",
+            "birthDate": "2009-05-10",
+            "sex": "M",
+            "role": "filho"
+          },
+          {
+            "id": "laura",
+            "name": "Laura Andrade",
+            "birthDate": "2012-11-21",
+            "sex": "F",
+            "role": "filho"
+          }
+        ],
+        "otherAssets": [
+          {
+            "id": "vgbl",
+            "kind": "previdencia",
+            "name": "VGBL",
+            "value": 1807200,
+            "classCode": "POS",
+            "inSimulation": true
+          },
+          {
+            "id": "apto",
+            "kind": "imovel",
+            "name": "Apartamento (residência)",
+            "value": 4518000,
+            "canBeSold": false
+          },
+          {
+            "id": "casa-praia",
+            "kind": "imovel",
+            "name": "Casa de praia",
+            "value": 3514000,
+            "canBeSold": true,
+            "netSaleValue": 3212800
+          },
+          {
+            "id": "sala",
+            "kind": "imovel",
+            "name": "Sala comercial",
+            "value": 1204800,
+            "canBeSold": true,
+            "annualIncome": 84336
+          },
+          {
+            "id": "empresa",
+            "kind": "empresa",
+            "name": "Participação na empresa da família",
+            "value": 6024000,
+            "canBeSold": false
+          }
+        ],
+        "cashFlows": [
+          {
+            "kind": "renda",
+            "name": "Pró-labore do Ricardo",
+            "annualAmountReal": 1204800,
+            "startYear": 2026,
+            "endYear": 2035
+          },
+          {
+            "kind": "dividendos",
+            "name": "Dividendos da empresa",
+            "annualAmountReal": 481920,
+            "startYear": 2026,
+            "endYear": 2035,
+            "otherAssetId": "empresa"
+          },
+          {
+            "kind": "aluguel",
+            "name": "Aluguel da sala",
+            "annualAmountReal": 84336,
+            "startYear": 2026,
+            "endYear": 2071,
+            "otherAssetId": "sala"
+          },
+          {
+            "kind": "gasto_essencial",
+            "name": "Gasto essencial",
+            "annualAmountReal": 662640,
+            "startYear": 2026,
+            "endYear": 2071
+          },
+          {
+            "kind": "gasto_estilo",
+            "name": "Estilo de vida",
+            "annualAmountReal": 420000,
+            "startYear": 2026,
+            "endYear": 2071
+          }
+        ],
+        "events": [
+          {
+            "name": "Faculdade do Pedro",
+            "direction": "saida",
+            "amountReal": 180720,
+            "year": 2027,
+            "recurrence": "anual",
+            "endYear": 2031
+          },
+          {
+            "name": "Faculdade da Laura",
+            "direction": "saida",
+            "amountReal": 180720,
+            "year": 2031,
+            "recurrence": "anual",
+            "endYear": 2035
+          },
+          {
+            "name": "Troca de carros",
+            "direction": "saida",
+            "amountReal": 401600,
+            "year": 2028,
+            "recurrence": "a_cada_n",
+            "everyN": 5,
+            "endYear": 2058
+          },
+          {
+            "name": "Entrada do apartamento do Pedro",
+            "direction": "saida",
+            "amountReal": 803200,
+            "year": 2035,
+            "recurrence": "unica"
+          }
+        ],
+        "goals": [
+          {
+            "kind": "padrao_de_vida",
+            "personId": "helena",
+            "targetAge": 95
+          },
+          {
+            "kind": "legado",
+            "amount": 3012000
+          }
+        ],
+        "rules": {
+          "enabled": true,
+          "mode": "trajetoria_referencia",
+          "lower": 0.8,
+          "upper": 1.2,
+          "cut": 0.1,
+          "raise": 0.1,
+          "floor": 0.5,
+          "cap": 1.3,
+          "noCutLastYears": 15
+        }
+      }
+    },
+    "closing": {
+      "refDate": "2026-10-31",
+      "positionsByClass": {
+        "POS": 2722761.29,
+        "INF": 2910000,
+        "PRE": 585000,
+        "CRED": 1810800,
+        "MM": 1176000,
+        "ACOES": 883200,
+        "FII": 456000,
+        "INTL": 907200
+      },
+      "officialPl": 11450961.29,
+      "flows": [
+        {
+          "date": "2026-10-15",
+          "kind": "resgate",
+          "amount": 300000,
+          "description": "Resgate para reforma"
+        }
+      ]
+    },
+    "cma": {
+      "version": "ilustrativa-2026-10",
+      "label": "Premissas ilustrativas (SPEC de 02/10/2026)",
+      "status": "ilustrativa",
+      "notice": "Números ilustrativos do SPEC, para desenvolvimento e testes. O comitê substitui pelos oficiais antes de qualquer uso com clientes. Premissas reais, líquidas de impostos; o motor desconta só a taxa de gestão.",
+      "nu": 5,
+      "classes": [
+        {
+          "code": "POS",
+          "name": "Pós-fixado",
+          "benchmark": "CDI",
+          "mu": 0.04,
+          "vol": 0.015
+        },
+        {
+          "code": "INF",
+          "name": "Inflação",
+          "benchmark": "IMA-B",
+          "mu": 0.05,
+          "vol": 0.08
+        },
+        {
+          "code": "PRE",
+          "name": "Prefixado",
+          "benchmark": "IRF-M",
+          "mu": 0.045,
+          "vol": 0.05
+        },
+        {
+          "code": "CRED",
+          "name": "Crédito privado",
+          "benchmark": "IDA (ANBIMA)",
+          "mu": 0.048,
+          "vol": 0.03
+        },
+        {
+          "code": "MM",
+          "name": "Multimercado",
+          "benchmark": "IHFA",
+          "mu": 0.048,
+          "vol": 0.06
+        },
+        {
+          "code": "ACOES",
+          "name": "Ações Brasil",
+          "benchmark": "Ibovespa",
+          "mu": 0.065,
+          "vol": 0.24
+        },
+        {
+          "code": "FII",
+          "name": "Imobiliário listado",
+          "benchmark": "IFIX",
+          "mu": 0.05,
+          "vol": 0.14
+        },
+        {
+          "code": "INTL",
+          "name": "Internacional, em reais",
+          "benchmark": "Ações globais em BRL",
+          "mu": 0.055,
+          "vol": 0.16
+        }
+      ],
+      "correlation": [
+        [
+          1,
+          0.1,
+          0.2,
+          0.5,
+          0.3,
+          -0.05,
+          0,
+          -0.1
+        ],
+        [
+          0.1,
+          1,
+          0.7,
+          0.3,
+          0.3,
+          0.45,
+          0.5,
+          -0.2
+        ],
+        [
+          0.2,
+          0.7,
+          1,
+          0.3,
+          0.3,
+          0.4,
+          0.4,
+          -0.25
+        ],
+        [
+          0.5,
+          0.3,
+          0.3,
+          1,
+          0.35,
+          0.3,
+          0.3,
+          -0.1
+        ],
+        [
+          0.3,
+          0.3,
+          0.3,
+          0.35,
+          1,
+          0.45,
+          0.3,
+          0.1
+        ],
+        [
+          -0.05,
+          0.45,
+          0.4,
+          0.3,
+          0.45,
+          1,
+          0.6,
+          -0.1
+        ],
+        [
+          0,
+          0.5,
+          0.4,
+          0.3,
+          0.3,
+          0.6,
+          1,
+          -0.1
+        ],
+        [
+          -0.1,
+          -0.2,
+          -0.25,
+          -0.1,
+          0.1,
+          -0.1,
+          -0.1,
+          1
+        ]
+      ],
+      "profiles": [
+        {
+          "id": "conservador",
+          "name": "Conservador",
+          "weightsPre": {
+            "POS": 0.4,
+            "INF": 0.2,
+            "PRE": 0.05,
+            "CRED": 0.2,
+            "MM": 0.1,
+            "ACOES": 0,
+            "FII": 0,
+            "INTL": 0.05
+          }
+        },
+        {
+          "id": "moderado",
+          "name": "Moderado",
+          "weightsPre": {
+            "POS": 0.25,
+            "INF": 0.25,
+            "PRE": 0.05,
+            "CRED": 0.15,
+            "MM": 0.1,
+            "ACOES": 0.08,
+            "FII": 0.04,
+            "INTL": 0.08
+          }
+        },
+        {
+          "id": "arrojado",
+          "name": "Arrojado",
+          "weightsPre": {
+            "POS": 0.1,
+            "INF": 0.2,
+            "PRE": 0.05,
+            "CRED": 0.1,
+            "MM": 0.1,
+            "ACOES": 0.2,
+            "FII": 0.07,
+            "INTL": 0.18
+          }
+        }
+      ]
+    },
+    "profiles": [
+      {
+        "id": "conservador",
+        "name": "Conservador",
+        "weightsPre": {
+          "POS": 0.4,
+          "INF": 0.2,
+          "PRE": 0.05,
+          "CRED": 0.2,
+          "MM": 0.1,
+          "ACOES": 0,
+          "FII": 0,
+          "INTL": 0.05
+        }
+      },
+      {
+        "id": "moderado",
+        "name": "Moderado",
+        "weightsPre": {
+          "POS": 0.25,
+          "INF": 0.25,
+          "PRE": 0.05,
+          "CRED": 0.15,
+          "MM": 0.1,
+          "ACOES": 0.08,
+          "FII": 0.04,
+          "INTL": 0.08
+        }
+      },
+      {
+        "id": "arrojado",
+        "name": "Arrojado",
+        "weightsPre": {
+          "POS": 0.1,
+          "INF": 0.2,
+          "PRE": 0.05,
+          "CRED": 0.1,
+          "MM": 0.1,
+          "ACOES": 0.2,
+          "FII": 0.07,
+          "INTL": 0.18
+        }
+      }
+    ]
+  },
+  "ipca": {
+    "2026-10": 0.004
+  },
+  "history": [
+    {
+      "month": "2026-09",
+      "probability": 0.87,
+      "requiredReturn": 0.032439839839935314,
+      "requiredReturnStatus": "ok",
+      "realReturn": null,
+      "events": []
+    },
+    {
+      "month": "2026-10",
+      "probability": 0.5927,
+      "requiredReturn": 0.03806872367858888,
+      "requiredReturnStatus": "ok",
+      "realReturn": -0.024924810588799584,
+      "events": [
+        "Mudança no plano"
+      ]
+    }
+  ],
+  "intermediary": "Corretora do exemplo (fictícia)",
+  "legal": {
+    "rodape_app": {
+      "version": 1,
+      "body": "Simulação com base na sua carteira atual. Não é recomendação de investimento; para decisões, fale com seu assessor."
+    },
+    "aviso_completo": {
+      "version": 1,
+      "body": "As projeções deste relatório e deste aplicativo são simulações estatísticas. Elas usam premissas de retorno, risco e correlação definidas pelo comitê de investimentos da Aware Investments e as informações do seu plano. Não garantem resultados futuros, não constituem recomendação de investimento e não substituem a análise da gestão ou do seu assessor. Rentabilidade obtida no passado não representa garantia de rentabilidade futura. Os valores estão em reais de hoje, corrigidos pela inflação. Quando as premissas ou o seu plano mudam, os resultados mudam junto."
+    }
+  }
+}
