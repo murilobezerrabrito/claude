@@ -30,6 +30,10 @@ export interface ClassParams {
 const Q_STREAMS = new Uint32Array(30 * 4)
 for (let j = 0; j < 30; j++) qStreamMix(j, Q_STREAMS, j * 4)
 
+/**
+ * Mercado sorteado. Somente leitura: recortes (`sliceMarket`) e caches do app compartilham os pesos e, com o mesmo
+ * horizonte, o próprio objeto; ninguém escreve nos arrays depois do sorteio.
+ */
 export interface Market {
   paths: number
   T: number
@@ -189,8 +193,8 @@ export function yearDraws(p: ClassParams, seed: number, path: number, year: numb
 }
 
 /**
- * Sorteia o mercado de todas as trajetórias. Os sorteios não dependem do plano da família, dos pesos, das
- * premissas nem do horizonte, então cenários, bisseções e os passos da ponte com a mesma semente usam exatamente
+ * Sorteia o mercado de todas as trajetórias. Os sorteios G e Q não dependem do plano da família, dos pesos, das
+ * premissas nem do horizonte (os retornos montados a partir deles dependem das premissas e dos pesos), então cenários, bisseções e os passos da ponte com a mesma semente usam exatamente
  * os mesmos números (números aleatórios comuns).
  */
 export function generateMarket(
