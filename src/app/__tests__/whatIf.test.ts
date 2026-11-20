@@ -1,5 +1,5 @@
 // "E se?" do app: com o mercado guardado entre um cenário e outro, o resultado é o mesmo do `simulate` do motor, com as
-// mesmas 5.000 trajetórias e a mesma semente; o mercado só é sorteado de novo quando o horizonte muda. Família Andrade,
+// mesmas 5.000 trajetórias e a mesma semente; o mercado é sorteado uma vez (horizonte máximo) e recortado. Família Andrade,
 // out/2026, como cliente AI (o exemplo do app).
 
 import { readFileSync } from 'node:fs'
@@ -22,15 +22,17 @@ function direct(params: ReportScenarioParams) {
 describe('E se? no aparelho', () => {
   const whatIf = createWhatIf(view.pkg, view.ipca)
 
-  it('o plano e os cenários dão exatamente o mesmo do motor, com o mercado sorteado uma vez por horizonte', () => {
+  it('o plano e os cenários dão exatamente o mesmo do motor, com o mercado sorteado uma vez e recortado por horizonte', () => {
     const cases: [ReportScenarioParams, boolean][] = [
       [{}, false],
       [{ retirementAge: 59 }, true],
       [{ spendingMultiplier: 1.1 }, true],
       [{ shockPresetId: 'crise-2008' }, true],
       [{ propertySales: [{ propertyId: 'casa-praia', year: 2030 }], rulesEnabled: false }, true],
-      [{ horizonAge: 100 }, false],
+      [{ horizonAge: 100 }, true],
       [{ horizonAge: 100, essentialMonthly: 50_000 }, true],
+      [{ horizonAge: 85 }, true],
+      [{ horizonAge: 105, retirementAge: 65 }, true],
     ]
     for (const [params, reused] of cases) {
       const r = whatIf.run(params)

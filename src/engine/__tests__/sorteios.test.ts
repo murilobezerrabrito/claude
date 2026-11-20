@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import cmaData from '../../data/premissas-ilustrativas-2026-10.json'
 import { EngineInputError } from '../errors.ts'
 import { cholesky, symmetricEigenvalues } from '../linalg.ts'
-import { classParams, logMgfT, sampleClassReturns } from '../returns.ts'
+import { classParams, generateMarket, logMgfT, sampleClassReturns, sliceMarket } from '../returns.ts'
 import { Rng } from '../rng.ts'
 import type { Cma } from '../types.ts'
 
@@ -135,5 +135,26 @@ describe('T08 matriz de correlação', () => {
     expect(() => cholesky([[1.1, 0], [0, 1]], ['A', 'B'])).toThrowError(/diagonal/)
     expect(() => classParams({ ...cma, nu: 2 })).toThrowError(/inteiro entre 3 e 30/)
     expect(() => classParams({ ...cma, nu: 5.5 })).toThrowError(/inteiro entre 3 e 30/)
+  })
+})
+
+describe('mercado recortado', () => {
+  it('o mercado de um horizonte menor, recortado do maior, é igual ao sorteado direto (também a média dos logaritmos)', () => {
+    const p = classParams(cma)
+    const K = cma.classes.length
+    const pre = new Float64Array(K).fill(1 / K)
+    const post = new Float64Array(K).map((_, k) => (k === 0 ? 0.5 : 0.5 / (K - 1)))
+    const long = generateMarket(p, pre, post, 300, 60, 20261002)
+    for (const T of [1, 23, 46, 59, 60]) {
+      const direct = generateMarket(p, pre, post, 300, T, 20261002)
+      const cut = sliceMarket(long, T)
+      expect(cut.T).toBe(T)
+      expect(Array.from(cut.grossPre)).toEqual(Array.from(direct.grossPre))
+      expect(Array.from(cut.grossPost ?? [])).toEqual(Array.from(direct.grossPost ?? []))
+      expect(cut.meanLogPre).toBe(direct.meanLogPre)
+      expect(cut.meanLogPost).toBe(direct.meanLogPost)
+    }
+    expect(() => sliceMarket(long, 61)).toThrow(EngineInputError)
+    expect(() => sliceMarket(long, 0)).toThrow(EngineInputError)
   })
 })

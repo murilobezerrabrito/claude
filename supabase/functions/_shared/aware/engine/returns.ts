@@ -237,6 +237,35 @@ export function generateMarket(
   }
 }
 
+/**
+ * O mercado de um horizonte menor, recortado de um mercado sorteado para um horizonte maior. Como o ano t da trajetória
+ * i usa sempre os mesmos sorteios, para qualquer horizonte, o recorte é igual ao mercado sorteado direto com T anos
+ * (teste). Serve ao "E se?" do app, que sorteia uma vez para o horizonte máximo e recorta para os demais.
+ */
+export function sliceMarket(m: Market, T: number): Market {
+  if (!Number.isInteger(T) || T < 1 || T > m.T) {
+    throw new EngineInputError('mercado_incompativel', `O recorte do mercado pede de 1 a ${m.T} anos; recebido ${T}.`)
+  }
+  if (T === m.T) return m
+  const cut = (a: Float64Array): Float64Array => {
+    const out = new Float64Array(m.paths * T)
+    for (let i = 0; i < m.paths; i++) out.set(a.subarray(i * m.T, i * m.T + T), i * T)
+    return out
+  }
+  const grossPre = cut(m.grossPre)
+  const grossPost = m.grossPost ? cut(m.grossPost) : null
+  return {
+    paths: m.paths,
+    T,
+    grossPre,
+    grossPost,
+    weightsPre: m.weightsPre,
+    weightsPost: m.weightsPost,
+    meanLogPre: meanLog1p(grossPre),
+    meanLogPost: grossPost ? meanLog1p(grossPost) : null,
+  }
+}
+
 function meanLog1p(values: Float64Array): number {
   let sum = 0
   for (let i = 0; i < values.length; i++) sum += Math.log1p(values[i])
