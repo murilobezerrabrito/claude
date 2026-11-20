@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ProbabilityBand } from '../../engine/metrics.ts'
 import type { Bridge, BridgeStepId } from '../attribution.ts'
-import { BAND_COLORS, benchmarkSentence, bridgeSentence, factorPhrase, medianSentence, methodologyParagraphs, readingSentence, reportFooter, slackSentence, stepDescription } from '../texts.ts'
+import { BAND_COLORS, benchmarkSentence, bridgeHeadline, bridgeSentence, factorPhrase, medianSentence, methodologyParagraphs, readingSentence, reportFooter, slackSentence, stepDescription } from '../texts.ts'
 import type { ExternalFlow } from '../types.ts'
 import { RECOMMENDATION } from './helpers.ts'
 
@@ -104,6 +104,12 @@ describe('textos automáticos', () => {
     )
     expect(bridgeSentence(bridge('mercado', 0, []), { from: 'atencao', to: 'atencao' })).toBe('A chance ficou em 86,5% em outubro. O plano continua na faixa amarela.')
     expect(BAND_COLORS.folga_grande).toBe('azul')
+  })
+
+  it('linha da ponte no app: pontos inteiros, o maior fator e "estável" abaixo de meio ponto', () => {
+    expect(plain(bridgeHeadline(bridge('plano', -181, [])))).toBe('−18 p.p. em outubro, principalmente pela mudança no plano')
+    expect(plain(bridgeHeadline(bridge('mercado', 26, [])))).toBe('+3 p.p. em outubro, principalmente pelo mercado do mês')
+    expect(bridgeHeadline(bridge('mercado', 4, []))).toBe('Estável em outubro')
   })
 
   it('frase do benchmark só acima de 0,1 p.p.', () => {

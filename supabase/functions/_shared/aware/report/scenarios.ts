@@ -165,9 +165,11 @@ const money = (v: number) => `R$${NBSP}${v.toLocaleString('pt-BR', { maximumFrac
 
 /**
  * Confere o cenário com as faixas e os passos do SPEC ("Controles") e o que o plano tem no mês. Devolve os problemas
- * em português, por campo; lista vazia é cenário válido. O console e o servidor usam a mesma conferência.
+ * em português, por campo; lista vazia é cenário válido. O console e o servidor usam a mesma conferência; o app do
+ * cliente AI, sem o limite de mudanças (que é do nome na página 6 do relatório).
  */
-export function scenarioIssues(raw: unknown, ctx: ScenarioContext): ScenarioIssue[] {
+export function scenarioIssues(raw: unknown, ctx: ScenarioContext, opts: { maxChanges?: number } = {}): ScenarioIssue[] {
+  const maxChanges = opts.maxChanges ?? MAX_SCENARIO_CHANGES
   const issues: ScenarioIssue[] = []
   const add = (path: string, message: string) => issues.push({ path, message })
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return [{ path: '', message: 'Cenário inválido.' }]
@@ -176,7 +178,7 @@ export function scenarioIssues(raw: unknown, ctx: ScenarioContext): ScenarioIssu
   const present = KEYS.filter((k) => p[k] !== undefined)
   if (present.length === 0) add('', 'Escolha ao menos uma mudança.')
   const changes = present.reduce((n, k) => n + (Array.isArray(p[k]) ? (p[k] as unknown[]).length : 1), 0)
-  if (changes > MAX_SCENARIO_CHANGES) add('', `Use até ${MAX_SCENARIO_CHANGES} mudanças por cenário.`)
+  if (changes > maxChanges) add('', `Use até ${maxChanges} mudanças por cenário.`)
 
   if (p.retirementAge !== undefined) {
     const v = p.retirementAge

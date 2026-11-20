@@ -118,6 +118,21 @@ export function bridgeSentence(b: Bridge, bands: { from: ProbabilityBand; to: Pr
   return parts.join(' ')
 }
 
+/**
+ * Linha da ponte na Visão geral do app (SPEC, "2. Visão geral"): "−24 p.p. em outubro, principalmente pela mudança no
+ * plano". Em pontos inteiros, como as variações do app; abaixo de meio ponto, "estável".
+ */
+export function bridgeHeadline(b: Bridge): string {
+  const { startTenths, endTenths, bars } = b.display
+  const month = monthName(b.toMonth)
+  const points = Math.round((endTenths - startTenths) / 10)
+  if (points === 0) return `Estável em ${month}`
+  let main = bars[0]
+  for (const bar of bars) if (Math.abs(bar.tenths) > Math.abs(main.tenths)) main = bar
+  const why = !main || main.noEffect ? '' : `, principalmente ${factorPhrase(main.id, b.externalFlows)}`
+  return `${formatPp(points / 100, 0)} em ${month}${why}`
+}
+
 /** Variação do r* acima da qual a ponte também o cita numa frase (0,1 p.p.). */
 export const BENCHMARK_SENTENCE_MIN = 0.001
 
