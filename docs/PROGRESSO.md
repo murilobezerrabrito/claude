@@ -8,7 +8,8 @@
 - **Fase 2 (ciclo mensal interno, com dados reais): em andamento** desde 05/10/2026. Etapa 1 (Supabase local, acesso por linha, segundo fator e pgTAP) concluída. Etapa 2 (importação, conferência, mapeamento de ativos e fechamento do mês) concluída em 06/10/2026, menos a leitura de XLSX, que espera a rede (D-056). Etapa 3 concluída em 30/10/2026: parte 3a (console com login, Mês e Mapeamento) aprovada por Murilo no ponto de parada A; parte 3b (rodada oficial em lote numa Edge Function e famílias com a chance) pronta em 10/10/2026, abaixo do limite do ponto de parada B (1,5 s por chamada) no servidor local; parte 3c (cadastro da família e editor do plano com versões) pronta em 10/10/2026; parte 3d (séries do Banco Central: função de busca, página Mercado e aviso de série atrasada) pronta em 30/10/2026, com respostas gravadas no formato do SGS (a chamada real espera a rede). Etapa 4 (relatórios no banco) concluída em 20/11/2026: o relatório de out/2026 da Andrade feito pelo fluxo do banco foi aprovado por Murilo no ponto de parada D, com os mesmos números do relatório da Fase 1.
 - **Fase 3 (app dos clientes AI): em andamento** desde 20/11/2026, com o portão da Fase 2 pendente nos itens que dependem da nuvem e de dados reais (D-071). Plano aprovado por Murilo em 20/11/2026 ("aprovo"), em cinco etapas: 3a telas com a Família Andrade (ponto de parada E), 3b banco do cliente, 3c convite e entrada, 3d telas ligadas ao banco e ajustes do canal, 3e fechamento.
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026, D-028 e D-045). Não há pull request aberto.
-- **Próximo passo:** com as quatro etapas da Fase 2 feitas no ambiente local, o portão da fase pede o que só existe fora dele: o projeto na nuvem (região São Paulo, só com autorização de Murilo, e antes a escolha do plano do Supabase, D-042), uma família CADM real anonimizada importada, conferida e com relatório aprovado, os textos legais aprovados pela compliance de verdade e a rodada de todas as famílias CADM em menos de 20 minutos. Murilo também confirma os itens da D-070 que vieram da revisão de código. XLSX e a chamada real ao Banco Central esperam a rede (D-044, D-056; em 30/10/2026 o proxy do ambiente ainda recusava os dois endereços). O tempo por chamada da rodada e o agendamento diário das séries ficam para a etapa da nuvem.
+- **Próximo passo da Fase 3:** ponto de parada E (telas da etapa 3a em 375 px nos dois temas e os tempos do "E se?") para a aprovação de Murilo; depois, a etapa 3b (banco do cliente).
+- **Pendente da Fase 2:** com as quatro etapas da Fase 2 feitas no ambiente local, o portão da fase pede o que só existe fora dele: o projeto na nuvem (região São Paulo, só com autorização de Murilo, e antes a escolha do plano do Supabase, D-042), uma família CADM real anonimizada importada, conferida e com relatório aprovado, os textos legais aprovados pela compliance de verdade e a rodada de todas as famílias CADM em menos de 20 minutos. Murilo também confirma os itens da D-070 que vieram da revisão de código. XLSX e a chamada real ao Banco Central esperam a rede (D-044, D-056; em 30/10/2026 o proxy do ambiente ainda recusava os dois endereços). O tempo por chamada da rodada e o agendamento diário das séries ficam para a etapa da nuvem.
 
 ### Comandos de teste
 
@@ -16,12 +17,13 @@
 npm install
 npm run typecheck     # tsc -b: motor (só ES2023), interface, testes e scripts
 npm run lint          # ESLint; barra imports externos e imports sem .ts no motor
-npm test              # Vitest: 390 testes, incluindo T01 a T20, textos, números congelados, o PDF do relatório, o relatório montado das rodadas, os cenários, o seed, a importação, a rodada por partes, o console, o esquema do plano e as séries do Banco Central, com as paridades (~30 s)
+npm test              # Vitest: 399 testes, incluindo T01 a T20, textos, números congelados, o PDF do relatório, o relatório montado das rodadas, os cenários, o seed, a importação, a rodada por partes, o console, o esquema do plano e as séries do Banco Central, com as paridades (~30 s)
 npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 npm run report:snapshot  # regrava src/data/relatorios/andrade-2026-10.json (relatório de exemplo, ~11 s)
 npm run report:pdf    # gera relatorios-pdf/andrade-2026-10.pdf (fora do git) a partir do snapshot
-npm run dev           # página local com a prévia do relatório, "Baixar PDF" e o modo apresentação
+npm run dev           # página local com a prévia do relatório, "Baixar PDF" e o modo apresentação; o app dos clientes AI em /app
+npm run app:example   # regrava src/data/app/andrade-2026-10.json (o mês da Andrade como cliente AI, para o app sem banco)
 
 # Banco local (Fase 2; precisa do Docker ligado)
 npm run db:start      # Supabase local com as migrações e o seed fictício (nesta sessão na nuvem: SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io, D-044)
@@ -35,7 +37,7 @@ npm run db:market-cases  # regrava supabase/tests/14_paridade_mercado.test.sql a
 npm run market:sync   # busca as séries do Banco Central pela função market-sync, no Supabase local, como a gestão (precisa da rede)
 npm run market:check  # só testa a conexão com o SGS (/ultimos/3); nesta sessão na nuvem: NODE_USE_ENV_PROXY=1 npm run market:check
 npm run env:local     # grava .env.local com o Supabase local, para o console (npm run dev)
-npm run test:e2e      # console no navegador (Playwright): login com segundo fator, importação, conferência, mapeamento, rodada em lote, famílias com a chance (famílias e mês próprios, D-064), cadastro e versões do plano, séries do Banco Central (busca simulada, D-069) e o relatório do mês (rascunho, cenário, quatro olhos, PDF guardado, apresentação, banker e auditoria)
+npm run test:e2e      # console no navegador (Playwright): login com segundo fator, importação, conferência, mapeamento, rodada em lote, famílias com a chance (famílias e mês próprios, D-064), cadastro e versões do plano, séries do Banco Central (busca simulada, D-069) e o relatório do mês (rascunho, cenário, quatro olhos, PDF guardado, apresentação, banker e auditoria); e o app dos clientes AI em 375 px nos dois temas, com o fluxo do "E se?"
 npm run db:reset      # refaz o banco local (migrações e seed)
 npm run db:seed       # regrava supabase/seed.sql a partir de src/data
 npm run db:stop
@@ -48,8 +50,31 @@ npm run db:stop
 | 0 | Fundação e motor, sem servidor | `fase-0-motor` | Testes 1 a 14 passando, `npm run reference` dentro das tolerâncias e `revisor-motor` sem divergências abertas | **Cumprido** (02/10/2026) |
 | 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` | Testes do motor e `npm run reference` com os resultados novos; testes da ponte (hashes dos extremos e soma em trajetórias); `revisor-motor` sem divergências; PDF de out/2026 da Andrade aprovado por Murilo e Alex | **Cumprido** (05/10/2026); aprovação do Alex confirmada por Murilo em 06/10/2026 |
 | 2 | Ciclo mensal interno, com dados reais | `fase-2-ciclo-mensal` | pgTAP passando; família CADM real anonimizada importada, conferida e com relatório aprovado; textos do relatório aprovados por compliance; rodada de todas as famílias CADM em menos de 20 minutos | Em andamento (etapas 1 a 4 concluídas no ambiente local; o portão pede a nuvem e dados reais anonimizados; faltam o XLSX da etapa 2 e a chamada real ao SGS, que esperam a rede) |
-| 3 | App dos clientes AI | `fase-3-app-ai` | Tela inicial em 375 px e tema escuro; "E se?" em menos de 1 s num celular intermediário; vazamento do papel cliente_ai bloqueado; uso de ponta a ponta com contas fictícias | Pendente |
+| 3 | App dos clientes AI | `fase-3-app-ai` | Tela inicial em 375 px e tema escuro; "E se?" em menos de 1 s num celular intermediário; vazamento do papel cliente_ai bloqueado; uso de ponta a ponta com contas fictícias | Em andamento (3a feita; ponto de parada E) |
 | 4 | Piloto e operação | `fase-4-piloto` | Dois fechamentos sem erro de conferência e retorno da gestão e dos clientes do piloto | Pendente |
+
+## Fase 3: andamento
+
+Plano aprovado em 20/11/2026 (D-071; escolhas da 3a na D-072): 3a telas com a Família Andrade, sem banco (ponto de parada E); 3b banco do cliente; 3c convite e entrada; 3d telas ligadas ao banco e ajustes do canal; 3e fechamento.
+
+### Etapa 3a: as sete telas com a Família Andrade (20/11/2026)
+
+- **Ponto de entrada próprio:** `app.html` e `src/app/main.tsx`, servidos em `/app` (plugin `appPage` no `vite.config.ts`; no build, `console` e `app` separados). O app pesa 46 kB e o worker 31 kB, sem o código do console. Componentes visuais e tema saíram do console para `src/ui` e `src/lib/theme.ts`.
+- **Dados de exemplo:** `npm run app:example` grava `src/data/app/andrade-2026-10.json` (`ClientMonthView`, `src/app/types.ts`): a Andrade como cliente AI (canal `ai`, pesos da carteira atual), chance oficial de 59%, intermediário fictício e os textos legais do app.
+- **Telas** (`src/app/screens`): Visão geral (chance, faixa, variação do mês com a frase da ponte, retorno necessário e leitura), "E se?", Patrimônio, Plano (sugestão de mudança só local nesta etapa), Histórico, Como calculamos (aviso completo) e Entrar (demonstração em dois passos). A moldura (`AppRoot.tsx`) tem a marca da Aware, o intermediário, o tema (sistema, claro, escuro), "Sair" e a navegação embaixo. Termos com explicação ao tocar e rodapé com a data das posições, a versão das premissas e o aviso curto.
+- **Gráfico de trajetória** (`TrajectoryChart.tsx`): SVG de 260 px, faixas do cenário ruim ao bom e central, mediana grossa, cenário ruim em vermelho, marcos tracejados, eixo em passos redondos e valores ao tocar; nas comparações, a mediana de cada cenário por cima.
+- **"E se?"** (`whatIf.ts`, `controls.ts`, `whatIf.worker.ts`, `useWhatIf.ts`): plano e cenário com 5.000 trajetórias e a mesma semente; a chance oficial (10.000) fica no topo, e a diferença é cenário menos plano nas 5.000. O mercado é sorteado uma vez para 105 anos e recortado para o horizonte de cada cenário (`sliceMarket`, novo no motor; resultado idêntico ao de `simulate`, testado). Roda num Web Worker criado ao abrir o app, que já calcula o plano em segundo plano; controles com 250 ms de espera; até três cenários salvos para comparar (só na sessão nesta etapa); "Quanto posso gastar?" sob demanda.
+- **Tempos** (thread principal com a CPU do Chrome desacelerada; o worker não pega a desaceleração do CDP):
+
+  | Cálculo | 1x | 4x (celular intermediário) | 6x |
+  |---|---|---|---|
+  | Cenário (mercado já sorteado) | ~30 a 40 ms | ~150 a 220 ms | até ~360 ms |
+  | Plano ao abrir (sorteia o mercado; em segundo plano) | 0,84 s | 3,7 s | 5,6 s |
+  | Quanto posso gastar? | 0,37 s | 1,68 s | 2,46 s |
+
+- **Testes:** `src/app/__tests__` (o "E se?" igual ao `simulate` em vários cenários, mercado reaproveitado; controles e faixas do SPEC), teste do recorte no motor (`sorteios.test.ts`) e `e2e/app.spec.ts` (375 px, temas claro e escuro, todas as telas sem rolagem lateral e o fluxo do "E se?").
+- **Revisão do `revisor-motor` (`sliceMarket`):** aprovado, sem divergências. A premissa vale para G e Q (fluxos por trajetória e classe, sem sorteio depois do laço); choques, IPCA e passo final curto ficam fora do mercado; pesos não dependem do horizonte. As três observações menores foram feitas: teste com `paths`, pesos e sem pesos de depois da aposentadoria; `Market` documentado como somente leitura; comentário do `generateMarket` corrigido.
+- **Contagens:** `npm test` 399; pgTAP 578 (sem mudança).
 
 ## Fase 2: andamento
 
