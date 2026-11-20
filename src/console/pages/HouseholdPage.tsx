@@ -14,12 +14,12 @@ import { CHANNEL_LABELS, plural } from '../display.ts'
 import { PlanEditor } from '../plan/PlanEditor.tsx'
 import { useSession } from '../session.tsx'
 import { PageTitle } from '../Shell.tsx'
-import { Alert } from '../ui/alert.tsx'
-import { Badge } from '../ui/badge.tsx'
-import { Button } from '../ui/button.tsx'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card.tsx'
-import { Input, Select } from '../ui/input.tsx'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table.tsx'
+import { Alert } from '../../ui/alert.tsx'
+import { Badge } from '../../ui/badge.tsx'
+import { Button } from '../../ui/button.tsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card.tsx'
+import { Input, Select } from '../../ui/input.tsx'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table.tsx'
 
 interface RegistrationForm {
   code: string

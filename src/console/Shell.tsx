@@ -7,8 +7,8 @@ import { cn } from '../lib/utils.ts'
 import { MarketAlert } from './MarketAlert.tsx'
 import { MarketStatusContext, useMarketStatusSource } from './marketStatus.ts'
 import { ROLE_LABELS, useSession } from './session.tsx'
-import { useTheme, type ThemeChoice } from './theme.ts'
-import { Select } from './ui/input.tsx'
+import { useTheme, type ThemeChoice } from '../lib/theme.ts'
+import { Select } from '../ui/input.tsx'
 
 interface NavItem {
   to: string

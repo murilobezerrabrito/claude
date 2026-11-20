@@ -1,11 +1,11 @@
 // Telas de entrada: senha, cadastro do app autenticador (primeiro acesso) e código do autenticador.
 
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { Alert } from '../ui/alert.tsx'
-import { Button } from '../ui/button.tsx'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card.tsx'
-import { Input } from '../ui/input.tsx'
-import { Label } from '../ui/label.tsx'
+import { Alert } from '../../ui/alert.tsx'
+import { Button } from '../../ui/button.tsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card.tsx'
+import { Input } from '../../ui/input.tsx'
+import { Label } from '../../ui/label.tsx'
 import type { AuthStage } from './useConsoleAuth.ts'
 
 interface Props {

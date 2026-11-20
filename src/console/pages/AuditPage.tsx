@@ -9,12 +9,12 @@ import { errorText, rpc } from '../api.ts'
 import { isoToBrDate } from '../../lib/planForm.ts'
 import { auditActionLabel, dateInBrazil, dateTimeInBrazil, parseBrDate } from '../reports.ts'
 import { PageTitle } from '../Shell.tsx'
-import { Alert } from '../ui/alert.tsx'
-import { Button } from '../ui/button.tsx'
-import { Card, CardContent } from '../ui/card.tsx'
-import { Input, Select } from '../ui/input.tsx'
-import { Label } from '../ui/label.tsx'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table.tsx'
+import { Alert } from '../../ui/alert.tsx'
+import { Button } from '../../ui/button.tsx'
+import { Card, CardContent } from '../../ui/card.tsx'
+import { Input, Select } from '../../ui/input.tsx'
+import { Label } from '../../ui/label.tsx'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table.tsx'
 
 const LIMIT = 200
 

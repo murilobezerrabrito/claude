@@ -20,8 +20,8 @@ import {
   type ChangeKind,
   type ScenarioChange,
 } from '../scenarioForm.ts'
-import { Button } from '../ui/button.tsx'
-import { Input, Select } from '../ui/input.tsx'
+import { Button } from '../../ui/button.tsx'
+import { Input, Select } from '../../ui/input.tsx'
 
 const MONTH_OPTIONS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 

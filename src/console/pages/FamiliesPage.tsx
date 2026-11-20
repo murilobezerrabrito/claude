@@ -15,12 +15,12 @@ import { CHANNEL_LABELS } from '../display.ts'
 import { ATTENTION_LABELS, attentionReasons, bandOf, sortFamilies, tenths, variationTenths, type SortKey } from '../families.ts'
 import { useSession } from '../session.tsx'
 import { PageTitle } from '../Shell.tsx'
-import { Alert } from '../ui/alert.tsx'
-import { Badge } from '../ui/badge.tsx'
-import { Button } from '../ui/button.tsx'
-import { Card, CardContent } from '../ui/card.tsx'
-import { Select } from '../ui/input.tsx'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table.tsx'
+import { Alert } from '../../ui/alert.tsx'
+import { Badge } from '../../ui/badge.tsx'
+import { Button } from '../../ui/button.tsx'
+import { Card, CardContent } from '../../ui/card.tsx'
+import { Select } from '../../ui/input.tsx'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table.tsx'
 
 const BAND_TONES: Record<ProbabilityBand, 'blue' | 'green' | 'yellow' | 'red'> = {
   folga_grande: 'blue',

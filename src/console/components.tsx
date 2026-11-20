@@ -2,8 +2,8 @@ import { CircleAlert, OctagonX } from 'lucide-react'
 import type { CheckItem, MonthStatus } from '../lib/apiTypes.ts'
 import { useState } from 'react'
 import { recentMonths, STATUS_LABELS, STATUS_TONES } from './display.ts'
-import { Badge } from './ui/badge.tsx'
-import { Select } from './ui/input.tsx'
+import { Badge } from '../ui/badge.tsx'
+import { Select } from '../ui/input.tsx'
 
 export function StatusBadge({ status }: { status: MonthStatus | 'pendente' }) {
   return <Badge tone={STATUS_TONES[status]}>{STATUS_LABELS[status]}</Badge>

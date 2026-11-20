@@ -1,6 +1,6 @@
 import { cva, type VariantProps } from 'class-variance-authority'
 import type { ComponentProps } from 'react'
-import { cn } from '../../lib/utils.ts'
+import { cn } from '../lib/utils.ts'
 
 const alertVariants = cva('rounded-md border px-4 py-3 text-sm', {
   variants: {

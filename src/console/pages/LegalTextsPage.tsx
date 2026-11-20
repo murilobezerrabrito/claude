@@ -8,12 +8,12 @@ import { errorText, rpc } from '../api.ts'
 import { dateTimeInBrazil, LEGAL_TEXT_LABELS } from '../reports.ts'
 import { useSession } from '../session.tsx'
 import { PageTitle } from '../Shell.tsx'
-import { Alert } from '../ui/alert.tsx'
-import { Badge } from '../ui/badge.tsx'
-import { Button } from '../ui/button.tsx'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card.tsx'
-import { ConfirmDialog } from '../ui/dialog.tsx'
-import { Textarea } from '../ui/input.tsx'
+import { Alert } from '../../ui/alert.tsx'
+import { Badge } from '../../ui/badge.tsx'
+import { Button } from '../../ui/button.tsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card.tsx'
+import { ConfirmDialog } from '../../ui/dialog.tsx'
+import { Textarea } from '../../ui/input.tsx'
 
 const TEXT_MIN = 10
 const TEXT_MAX = 3000

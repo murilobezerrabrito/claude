@@ -12,11 +12,11 @@ import { seriesValueText, seriesViews, SOURCE_LABELS } from '../market.ts'
 import { useMarketStatus } from '../marketStatus.ts'
 import { useSession } from '../session.tsx'
 import { PageTitle } from '../Shell.tsx'
-import { Alert } from '../ui/alert.tsx'
-import { Badge } from '../ui/badge.tsx'
-import { Button } from '../ui/button.tsx'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card.tsx'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table.tsx'
+import { Alert } from '../../ui/alert.tsx'
+import { Badge } from '../../ui/badge.tsx'
+import { Button } from '../../ui/button.tsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card.tsx'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table.tsx'
 
 const when = (iso: string) => new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
 

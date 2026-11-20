@@ -16,7 +16,7 @@ import { ReportsPage } from './console/pages/ReportsPage.tsx'
 import { ReportPreview } from './console/report/ReportPreview.tsx'
 import { makeSession, SessionContext } from './console/session.tsx'
 import { Shell } from './console/Shell.tsx'
-import { Alert } from './console/ui/alert.tsx'
+import { Alert } from './ui/alert.tsx'
 import { supabaseConfigured } from './lib/supabase.ts'
 
 export default function App() {

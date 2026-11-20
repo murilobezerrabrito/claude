@@ -1,5 +1,5 @@
 import type { ComponentProps } from 'react'
-import { cn } from '../../lib/utils.ts'
+import { cn } from '../lib/utils.ts'
 
 export function Card({ className, ...props }: ComponentProps<'section'>) {
   return <section className={cn('rounded-lg border bg-card text-card-foreground shadow-xs', className)} {...props} />
