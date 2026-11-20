@@ -5,9 +5,9 @@
 - **Rota 2 adotada** em 02/10/2026 (D-024): app para os clientes AI; relatório mensal da gestão para os clientes CADM. A documentação foi atualizada para a nova rota; o `docs/SPEC.md` é a fonte única, e `docs/ROTA-2.md` fica como registro da mudança.
 - **Fase 0 (fundação e motor, sem servidor): concluída** em 02/10/2026, no commit `b875e27` (último commit de código: `c1006e0`), com a integração contínua verde.
 - **Fase 1 (relatório de exemplo, sem servidor):** iniciada em 04/10/2026 e **concluída** em 05/10/2026: Murilo aprovou o PDF de out/2026, com as cores da AWARE (azul-escuro e branco), e confirmou em 06/10/2026 a aprovação do Alex.
-- **Fase 2 (ciclo mensal interno, com dados reais): em andamento** desde 05/10/2026. Etapa 1 (Supabase local, acesso por linha, segundo fator e pgTAP) concluída. Etapa 2 (importação, conferência, mapeamento de ativos e fechamento do mês) concluída em 06/10/2026, menos a leitura de XLSX, que espera a rede (D-056). Etapa 3 concluída em 30/10/2026: parte 3a (console com login, Mês e Mapeamento) aprovada por Murilo no ponto de parada A; parte 3b (rodada oficial em lote numa Edge Function e famílias com a chance) pronta em 10/10/2026, abaixo do limite do ponto de parada B (1,5 s por chamada) no servidor local; parte 3c (cadastro da família e editor do plano com versões) pronta em 10/10/2026; parte 3d (séries do Banco Central: função de busca, página Mercado e aviso de série atrasada) pronta em 30/10/2026, com respostas gravadas no formato do SGS (a chamada real espera a rede). Etapa 4 (relatórios no banco) em andamento desde 06/11/2026: partes 4a a 4d prontas em 08/11/2026; o relatório de out/2026 da Andrade feito pelo fluxo do banco está no ponto de parada D.
+- **Fase 2 (ciclo mensal interno, com dados reais): em andamento** desde 05/10/2026. Etapa 1 (Supabase local, acesso por linha, segundo fator e pgTAP) concluída. Etapa 2 (importação, conferência, mapeamento de ativos e fechamento do mês) concluída em 06/10/2026, menos a leitura de XLSX, que espera a rede (D-056). Etapa 3 concluída em 30/10/2026: parte 3a (console com login, Mês e Mapeamento) aprovada por Murilo no ponto de parada A; parte 3b (rodada oficial em lote numa Edge Function e famílias com a chance) pronta em 10/10/2026, abaixo do limite do ponto de parada B (1,5 s por chamada) no servidor local; parte 3c (cadastro da família e editor do plano com versões) pronta em 10/10/2026; parte 3d (séries do Banco Central: função de busca, página Mercado e aviso de série atrasada) pronta em 30/10/2026, com respostas gravadas no formato do SGS (a chamada real espera a rede). Etapa 4 (relatórios no banco) concluída em 20/11/2026: o relatório de out/2026 da Andrade feito pelo fluxo do banco foi aprovado por Murilo no ponto de parada D, com os mesmos números do relatório da Fase 1.
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026, D-028 e D-045). Não há pull request aberto.
-- **Próximo passo:** ponto de parada D: Murilo confere o relatório de out/2026 da Andrade feito pelo fluxo do banco (comparado com o PDF da Fase 1) e as telas. Depois, a parte 4e (teste de ponta a ponta no navegador, `db:import exemplo` com o relatório, `/code-review`, D-070, integração contínua). XLSX e a chamada real ao Banco Central esperam a rede (D-044, D-056; em 30/10/2026 o proxy do ambiente ainda recusava os dois endereços). O tempo por chamada da rodada e o agendamento diário das séries ficam para a etapa da nuvem.
+- **Próximo passo:** com as quatro etapas da Fase 2 feitas no ambiente local, o portão da fase pede o que só existe fora dele: o projeto na nuvem (região São Paulo, só com autorização de Murilo, e antes a escolha do plano do Supabase, D-042), uma família CADM real anonimizada importada, conferida e com relatório aprovado, os textos legais aprovados pela compliance de verdade e a rodada de todas as famílias CADM em menos de 20 minutos. Murilo também confirma os itens da D-070 que vieram da revisão de código. XLSX e a chamada real ao Banco Central esperam a rede (D-044, D-056; em 30/10/2026 o proxy do ambiente ainda recusava os dois endereços). O tempo por chamada da rodada e o agendamento diário das séries ficam para a etapa da nuvem.
 
 ### Comandos de teste
 
@@ -15,7 +15,7 @@
 npm install
 npm run typecheck     # tsc -b: motor (só ES2023), interface, testes e scripts
 npm run lint          # ESLint; barra imports externos e imports sem .ts no motor
-npm test              # Vitest: 389 testes, incluindo T01 a T20, textos, números congelados, o PDF do relatório, o relatório montado das rodadas, os cenários, o seed, a importação, a rodada por partes, o console, o esquema do plano e as séries do Banco Central, com as paridades (~30 s)
+npm test              # Vitest: 390 testes, incluindo T01 a T20, textos, números congelados, o PDF do relatório, o relatório montado das rodadas, os cenários, o seed, a importação, a rodada por partes, o console, o esquema do plano e as séries do Banco Central, com as paridades (~30 s)
 npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 npm run report:snapshot  # regrava src/data/relatorios/andrade-2026-10.json (relatório de exemplo, ~11 s)
@@ -24,9 +24,9 @@ npm run dev           # página local com a prévia do relatório, "Baixar PDF" 
 
 # Banco local (Fase 2; precisa do Docker ligado)
 npm run db:start      # Supabase local com as migrações e o seed fictício (nesta sessão na nuvem: SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io, D-044)
-npm run db:test       # testes pgTAP (571)
+npm run db:test       # testes pgTAP (578)
 npx supabase functions serve   # funções do servidor (official-run, market-sync e report), num terminal à parte, quando o db:start exclui o edge-runtime
-npm run db:import -- exemplo   # importação de exemplo de ponta a ponta, com login e segundo fator: setembro rodado e fechado, outubro rodado, a Andrade conferida contra src/report
+npm run db:import -- exemplo   # importação de exemplo de ponta a ponta, com login e segundo fator: setembro rodado e fechado, outubro rodado, a Andrade conferida contra src/report e o rascunho do relatório de out/2026 (com os três cenários) conferido contra o da Fase 1
 npm run db:import             # lista os comandos: previa, pl, conferir, fila, mapear, situacao, rodar, fechar
 npm run sync:engine   # copia o motor, src/report, src/market e a formatação para supabase/functions/_shared/aware (--check só confere)
 npm run db:plan-cases # regrava supabase/tests/12_paridade_plano.test.sql a partir de src/data/plano/casos-invalidos.json
@@ -34,7 +34,7 @@ npm run db:market-cases  # regrava supabase/tests/14_paridade_mercado.test.sql a
 npm run market:sync   # busca as séries do Banco Central pela função market-sync, no Supabase local, como a gestão (precisa da rede)
 npm run market:check  # só testa a conexão com o SGS (/ultimos/3); nesta sessão na nuvem: NODE_USE_ENV_PROXY=1 npm run market:check
 npm run env:local     # grava .env.local com o Supabase local, para o console (npm run dev)
-npm run test:e2e      # console no navegador (Playwright): login com segundo fator, importação, conferência, mapeamento, rodada em lote, famílias com a chance (famílias e mês próprios, D-064), cadastro e versões do plano, séries do Banco Central (busca simulada, D-069)
+npm run test:e2e      # console no navegador (Playwright): login com segundo fator, importação, conferência, mapeamento, rodada em lote, famílias com a chance (famílias e mês próprios, D-064), cadastro e versões do plano, séries do Banco Central (busca simulada, D-069) e o relatório do mês (rascunho, cenário, quatro olhos, PDF guardado, apresentação, banker e auditoria)
 npm run db:reset      # refaz o banco local (migrações e seed)
 npm run db:seed       # regrava supabase/seed.sql a partir de src/data
 npm run db:stop
@@ -46,7 +46,7 @@ npm run db:stop
 |---|---|---|---|---|
 | 0 | Fundação e motor, sem servidor | `fase-0-motor` | Testes 1 a 14 passando, `npm run reference` dentro das tolerâncias e `revisor-motor` sem divergências abertas | **Cumprido** (02/10/2026) |
 | 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` | Testes do motor e `npm run reference` com os resultados novos; testes da ponte (hashes dos extremos e soma em trajetórias); `revisor-motor` sem divergências; PDF de out/2026 da Andrade aprovado por Murilo e Alex | **Cumprido** (05/10/2026); aprovação do Alex confirmada por Murilo em 06/10/2026 |
-| 2 | Ciclo mensal interno, com dados reais | `fase-2-ciclo-mensal` | pgTAP passando; família CADM real anonimizada importada, conferida e com relatório aprovado; textos do relatório aprovados por compliance; rodada de todas as famílias CADM em menos de 20 minutos | Em andamento (etapas 1 a 3 de 4 concluídas, etapa 4 no ponto de parada D; faltam o XLSX da etapa 2 e a chamada real ao SGS, que esperam a rede) |
+| 2 | Ciclo mensal interno, com dados reais | `fase-2-ciclo-mensal` | pgTAP passando; família CADM real anonimizada importada, conferida e com relatório aprovado; textos do relatório aprovados por compliance; rodada de todas as famílias CADM em menos de 20 minutos | Em andamento (etapas 1 a 4 concluídas no ambiente local; o portão pede a nuvem e dados reais anonimizados; faltam o XLSX da etapa 2 e a chamada real ao SGS, que esperam a rede) |
 | 3 | App dos clientes AI | `fase-3-app-ai` | Tela inicial em 375 px e tema escuro; "E se?" em menos de 1 s num celular intermediário; vazamento do papel cliente_ai bloqueado; uso de ponta a ponta com contas fictícias | Pendente |
 | 4 | Piloto e operação | `fase-4-piloto` | Dois fechamentos sem erro de conferência e retorno da gestão e dos clientes do piloto | Pendente |
 
@@ -59,7 +59,7 @@ Plano da etapa 1 aprovado por Murilo em 05/10/2026, com a opção (a) para o reg
 | 1 | Supabase local: migrações, acesso por linha, segundo fator e pgTAP | Concluída |
 | 2 | Importação de posições e de aportes e resgates, conferência, mapeamento de ativos e fechamento do mês | Concluída, menos a leitura de XLSX (espera a rede, D-056) |
 | 3 | Console, rodada oficial em lote numa Edge Function (tempo de CPU medido) e séries do Banco Central | Concluída em 30/10/2026 (3a aprovada no ponto de parada A; 3b, 3c e 3d prontas); a chamada real ao SGS espera a rede, e o agendamento diário, a etapa da nuvem |
-| 4 | Relatórios no banco: rascunho, revisão, quatro olhos, PDF no Storage, apresentação e auditoria | Em andamento: 4a a 4d prontas em 08/11/2026; ponto de parada D com Murilo; falta a 4e |
+| 4 | Relatórios no banco: rascunho, revisão, quatro olhos, PDF no Storage, apresentação e auditoria | Concluída em 20/11/2026 (ponto de parada D aprovado por Murilo; D-070) |
 | — | Nuvem (região São Paulo), só com autorização de Murilo | Pendente |
 
 ### Etapa 4: relatórios no banco
@@ -87,7 +87,13 @@ Plano aprovado por Murilo em 06/11/2026 ("yes, continue"), com as decisões 1 a 
 - Conferido pelas telas no Chromium, com o Supabase local depois do `db:import exemplo`: compliance aprova os textos; gestão 1 põe o banker no cadastro, prepara, comenta, roda os três cenários do exemplo (11%, 50% e 28%, iguais aos da Fase 1), envia e fecha a família; o banker não vê a versão em revisão; gestão 2 aprova (PDF de 60 KB guardado), baixa, apresenta e registra; o banker vê e baixa o aprovado; a auditoria mostra cada passo.
 - PDF guardado contra o PDF da Fase 1, página a página: páginas 2, 3 e 5 iguais pixel a pixel; as diferenças são as esperadas: capa sem a marca de exemplo e com o gestor do cadastro, CDI na página 4 (série fictícia do seed), nomes automáticos dos cenários e o comentário na página 6, e o registro do cálculo na página 7 (as entradas do banco têm os identificadores do banco).
 
-**Falta (4e):** o teste de ponta a ponta do relatório no navegador; ajustar `e2e/mercado.spec.ts` (o seed agora tem CDI, e o teste espera "nenhum dado gravado"); `db:import exemplo` com o relatório e a comparação com o exemplo; `/code-review`; D-070 (decisões do relatório); integração contínua.
+**Ponto de parada D (aprovado por Murilo em 20/11/2026, "prossiga"):** o relatório de out/2026 da Andrade feito pelo fluxo do banco, com a comparação página a página com o PDF da Fase 1, as telas e as decisões que entraram na D-070.
+
+**4e, fechamento (pronta em 20/11/2026):**
+- `db:import exemplo` termina com o rascunho do relatório de out/2026 da Andrade: a compliance aprova os textos legais, a gestão prepara o rascunho pela função e roda os três cenários do exemplo; 470 números conferidos contra o relatório da Fase 1 (tolerância de 1e-9), com as diferenças esperadas listadas. Pode rodar de novo. Os passos da importação foram para `scripts/importSteps.ts`.
+- Teste no navegador `e2e/relatorio.spec.ts`: prepara o próprio mês pela API e passa por todas as telas e papéis (compliance, duas pessoas da gestão, banker); `e2e/mercado.spec.ts` deixou de depender do CDI do seed.
+- `/code-review` da etapa 4 (de `f5e3d56` em diante): 10 achados, todos corrigidos: aporte, resgate ou venda depois do horizonte do cenário (passava e não mudava nada); PDF guardado por quem preparou e dois envios ao mesmo tempo (agora só quem aprovou, um arquivo por envio, migração `20261120000100_relatorios_revisao.sql`); valores na auditoria para quem não pode vê-los; ordem de avaliação nas conversões do cenário; rodapé com campo repetido; observação da devolução que voltava; descarte sem ação própria na auditoria; campos da página que passavam de uma versão para outra; dois valores acima de R$ 1 mi com o mesmo nome. O motor não mudou (sem `revisor-motor`).
+- Verificação local na ordem da integração contínua: typecheck, lint, 390 testes, referência, 578 testes pgTAP, `db:import exemplo` e 7 testes no navegador.
 
 ### Etapa 3: console, rodada oficial em lote e séries do Banco Central
 
