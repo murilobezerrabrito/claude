@@ -58,6 +58,11 @@ async function signedPdf(reportId: string): Promise<{ url: string; fileName: str
 
 export function ReportPage() {
   const { id = '' } = useParams()
+  // Uma página por versão: ao trocar de versão, mensagens e campos digitados começam do zero.
+  return <ReportView key={id} id={id} />
+}
+
+function ReportView({ id }: { id: string }) {
   const session = useSession()
   const [loaded, setLoaded] = useState<{ id: string; detail: ReportDetail } | null>(null)
   const [loadError, setLoadError] = useState<{ id: string; message: string } | null>(null)

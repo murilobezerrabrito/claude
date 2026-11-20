@@ -3,7 +3,7 @@
 -- família fechada e os textos legais do rascunho em vigor; PDF uma vez; apresentação; leitura por papel; descarte; nova
 -- versão; textos legais da compliance; trilha de auditoria; gestor responsável no cadastro.
 begin;
-select plan(89);
+select plan(96);
 
 \set G1 'ac000000-0000-4000-8000-000000000001'
 \set G2 'ac000000-0000-4000-8000-000000000002'
@@ -193,6 +193,7 @@ select lives_ok(format($$ select public.return_report(%L, 'Revise o comentário.
 select pg_temp.entrar(:'G1');
 select is(public.report_detail(:'r1') ->> 'review_note', 'Revise o comentário.', 'quem prepara vê a observação');
 select public.submit_report(:'r1');
+select is(public.report_detail(:'r1') ->> 'review_note', null, 'no envio, a observação da devolução sai (não volta depois)');
 select throws_ok(format($$ select public.approve_report(%L) $$, :'r1'), '42501', null, 'quem prepara não aprova (quatro olhos)');
 select pg_temp.entrar(:'G2');
 select throws_ok(format($$ select public.approve_report(%L) $$, :'r1'), 'P0001',
@@ -211,6 +212,8 @@ select throws_ok(format($$ select public.discard_report(%L, '') $$, :'r1'), '220
 select lives_ok(format($$ select public.discard_report(%L, 'Texto legal novo da nota da ponte.') $$, :'r1'), 'a gestão descarta, com motivo');
 reset role;
 select throws_ok(format($$ update public.reports set comment = 'outro' where id = %L $$, :'r1'), 'P0001', null, 'versão descartada não muda');
+select ok(exists (select 1 from public.audit_log where action = 'descartar_relatorio' and target_id = :'r1'
+                   and details ->> 'motivo' = 'Texto legal novo da nota da ponte.'), 'o descarte vai para a auditoria, com o motivo');
 select is((select status::text from public.legal_texts where id = :'nota_v1'), 'arquivado', 'a versão anterior do texto fica arquivada');
 select pg_temp.snap(:'H', '2026-09', 'hash-set') as snap_set2 \gset
 
@@ -252,17 +255,24 @@ reset role;
 
 set local role service_role;
 select pg_temp.servidor();
-select is(public.report_pdf_target(:'r2', :'G2') ->> 'path', :'H' || '/2026-09-30/v2.pdf', 'o PDF vai para a pasta da família, do mês e da versão');
-select throws_ok(format($$ select public.attach_report_pdf(%L, %L, %L, 1234) $$, :'r2', :'G2', repeat('a', 64)), 'P0001',
+select throws_ok(format($$ select public.report_pdf_target(%L, %L) $$, :'r2', :'G2'), '42501',
+  'Só quem aprovou guarda o PDF do relatório.', 'quem preparou não guarda o PDF (quatro olhos até o arquivo)');
+select public.report_pdf_target(:'r2', :'G1') ->> 'path' as pdf_path \gset
+select ok(:'pdf_path' ~ ('^' || :'H' || '/2026-09-30/v2-[0-9a-f-]{36}\.pdf$'), 'o PDF vai para a pasta da família, do mês e da versão, um arquivo por envio');
+select throws_ok(format($$ select public.attach_report_pdf(%L, %L, %L, %L, 1234) $$, :'r2', :'G1', :'pdf_path', repeat('a', 64)), 'P0001',
   'O PDF não está guardado como esperado.', 'sem o arquivo na pasta, não anexa');
 reset role;
-insert into storage.objects (bucket_id, name, metadata) values ('relatorios', :'H' || '/2026-09-30/v2.pdf', '{"size": 1234, "mimetype": "application/pdf"}');
+insert into storage.objects (bucket_id, name, metadata) values ('relatorios', :'pdf_path', '{"size": 1234, "mimetype": "application/pdf"}');
 set local role service_role;
 select pg_temp.servidor();
-select throws_ok(format($$ select public.attach_report_pdf(%L, %L, %L, 999) $$, :'r2', :'G2', repeat('a', 64)), 'P0001', null,
+select throws_ok(format($$ select public.attach_report_pdf(%L, %L, %L, %L, 1234) $$, :'r2', :'G1', :'H' || '/2026-09-30/v2.pdf', repeat('a', 64)),
+  '22023', null, 'caminho fora do envio, não anexa');
+select throws_ok(format($$ select public.attach_report_pdf(%L, %L, %L, %L, 1234) $$, :'r2', :'G2', :'pdf_path', repeat('a', 64)), '42501', null,
+  'quem preparou não anexa');
+select throws_ok(format($$ select public.attach_report_pdf(%L, %L, %L, %L, 999) $$, :'r2', :'G1', :'pdf_path', repeat('a', 64)), 'P0001', null,
   'com outro tamanho, não anexa');
-select lives_ok(format($$ select public.attach_report_pdf(%L, %L, %L, 1234) $$, :'r2', :'G2', repeat('a', 64)), 'anexa o PDF guardado, com o hash');
-select throws_ok(format($$ select public.attach_report_pdf(%L, %L, %L, 1234) $$, :'r2', :'G2', repeat('b', 64)), 'P0001', null,
+select lives_ok(format($$ select public.attach_report_pdf(%L, %L, %L, %L, 1234) $$, :'r2', :'G1', :'pdf_path', repeat('a', 64)), 'anexa o PDF guardado, com o hash');
+select throws_ok(format($$ select public.attach_report_pdf(%L, %L, %L, %L, 1234) $$, :'r2', :'G1', :'pdf_path', repeat('b', 64)), 'P0001', null,
   'o PDF é anexado uma vez');
 reset role;
 
@@ -354,9 +364,20 @@ select ok((select bool_or(x ->> 'action' = 'aprovar_relatorio')
 select ok((select coalesce(bool_and(not ((x -> 'details') ? 'snapshot')), true)
              from jsonb_array_elements(public.audit_trail(:'hoje'::date - 1, :'hoje'::date + 1, :'H') -> 'rows') x
             where x ->> 'target_table' = 'reports'), 'sem o snapshot dos relatórios');
+select ok((select bool_or((x -> 'details') ? 'official_pl')
+             from jsonb_array_elements(public.audit_trail(:'hoje'::date - 1, :'hoje'::date + 1, :'H') -> 'rows') x),
+  'quem vê valores vê os valores dos registros');
 select pg_temp.entrar(:'C');
 select ok(jsonb_array_length(public.audit_trail(:'hoje'::date, :'hoje'::date, null, 'baixar_relatorio') -> 'rows') >= 1, 'o comitê também, com filtro por ação');
 reset role;
+update public.user_roles set can_see_amounts = false where user_id = :'C';
+set local role authenticated;
+select pg_temp.entrar(:'C');
+select ok((select coalesce(bool_and(not ((x -> 'details') ? 'official_pl')), true)
+             from jsonb_array_elements(public.audit_trail(:'hoje'::date - 1, :'hoje'::date + 1, :'H') -> 'rows') x),
+  'sem permissão para valores, a trilha vem sem os valores');
+reset role;
+update public.user_roles set can_see_amounts = true where user_id = :'C';
 
 -- Gestor responsável no cadastro ------------------------------------------------------------------------------------
 

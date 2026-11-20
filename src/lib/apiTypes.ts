@@ -266,6 +266,8 @@ export interface ReportSummary {
   status: ReportStatus
   prepared_by: string
   prepared_by_email: string | null
+  /** Quem aprovou (só ele guarda o PDF). */
+  approved_by: string | null
   approved_by_email: string | null
   approved_at: string | null
   presented_at: string | null

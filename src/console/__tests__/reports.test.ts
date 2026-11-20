@@ -31,6 +31,7 @@ function detail(over: Partial<ReportDetail> = {}): ReportDetail {
     status: 'rascunho',
     prepared_by: ME,
     prepared_by_email: 'eu@exemplo.invalid',
+    approved_by: null,
     approved_by_email: null,
     approved_at: null,
     presented_at: null,
@@ -90,8 +91,9 @@ describe('ações do relatório por papel e situação', () => {
     expect(on(reportActions(d, leitor))).toEqual([])
   })
 
-  it('aprovado: sem PDF, a gestão guarda; com PDF, registra a apresentação e quem vê valores baixa', () => {
-    expect(on(reportActions(detail({ status: 'aprovado' }), outraGestao))).toEqual(['storePdf'])
+  it('aprovado: sem PDF, quem aprovou guarda; com PDF, a gestão registra a apresentação e quem vê valores baixa', () => {
+    expect(on(reportActions(detail({ status: 'aprovado', approved_by: OTHER }), outraGestao))).toEqual(['storePdf'])
+    expect(on(reportActions(detail({ status: 'aprovado', approved_by: OTHER }), gestao))).toEqual([])
     expect(on(reportActions(detail({ status: 'aprovado', has_pdf: true }), outraGestao))).toEqual(['download', 'present'])
     expect(on(reportActions(detail({ status: 'aprovado', has_pdf: true }), leitor))).toEqual(['download'])
     expect(on(reportActions(detail({ status: 'apresentado', has_pdf: true }), gestao))).toEqual(['download'])

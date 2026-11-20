@@ -3,7 +3,8 @@
 //     simular) e grava a versão nova; com versão anterior, o motivo é obrigatório;
 //   { acao: 'cenario', report_id, cenario }  roda um cenário "E se?" da conversa do mês (uma simulação de 10.000
 //     trajetórias por chamada, com os sorteios da rodada oficial) e grava hipóteses, nome e resultado;
-//   { acao: 'pdf', report_id, pdf_base64 }  guarda o PDF do relatório aprovado na pasta privada, com o hash SHA-256;
+//   { acao: 'pdf', report_id, pdf_base64 }  guarda o PDF do relatório aprovado na pasta privada, com o hash SHA-256 (só
+//     quem aprovou; cada envio num arquivo próprio, e só o anexado vale);
 //   { acao: 'baixar', report_id }  link assinado de 60 segundos para o PDF, com o download na auditoria.
 // Rascunho, cenário e PDF são da gestão, com segundo fator; baixar é de quem pode ler o relatório (o banco confere
 // com o token de quem pede). Entradas e gravação usam a chave do servidor, que nunca vai ao navegador.
@@ -26,7 +27,7 @@ import {
   type ReportMonthRun,
   type ReportScenarioParams,
 } from '../_shared/aware/report/index.ts'
-import { bearer, CORS, HttpError, reply, rpc, storageSignedPath, storageUpload } from '../_shared/server.ts'
+import { bearer, CORS, HttpError, reply, rpc, storageRemove, storageSignedPath, storageUpload } from '../_shared/server.ts'
 
 interface Request_ {
   acao?: 'rascunho' | 'cenario' | 'pdf' | 'baixar'
@@ -157,7 +158,12 @@ Deno.serve(async (req) => {
       const target = await rpc<{ path: string }>('report_pdf_target', { p_report: reportId, p_actor: actor }, 'servidor')
       const sha256 = await sha256Hex(bytes)
       await storageUpload('relatorios', target.path, bytes, 'application/pdf')
-      await rpc('attach_report_pdf', { p_report: reportId, p_actor: actor, p_sha256: sha256, p_size: bytes.length }, 'servidor')
+      try {
+        await rpc('attach_report_pdf', { p_report: reportId, p_actor: actor, p_path: target.path, p_sha256: sha256, p_size: bytes.length }, 'servidor')
+      } catch (e) {
+        await storageRemove('relatorios', target.path)
+        throw e
+      }
       return reply(200, { caminho: target.path, sha256, bytes: bytes.length })
     }
 

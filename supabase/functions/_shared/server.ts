@@ -45,17 +45,30 @@ export async function rpc<T>(fn: string, args: Record<string, unknown>, as: { us
   return body as T
 }
 
-/** Envia um arquivo para uma pasta privada do Storage, com a chave do servidor (substitui um arquivo ainda não anexado). */
+/** Envia um arquivo novo para uma pasta privada do Storage, com a chave do servidor (nunca sobrescreve). */
 export async function storageUpload(bucket: string, path: string, bytes: Uint8Array<ArrayBuffer>, contentType: string): Promise<void> {
   const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
     method: 'POST',
-    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': contentType, 'x-upsert': 'true' },
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': contentType, 'x-upsert': 'false' },
     body: bytes,
   })
   if (!res.ok) {
     const text = await res.text()
     if (res.status >= 500) throw new HttpError(503, 'O Storage não respondeu agora. Tente de novo em instantes.')
     throw new HttpError(422, `O Storage recusou o arquivo (${res.status}): ${text.slice(0, 200)}`)
+  }
+}
+
+/** Apaga um arquivo de uma pasta privada do Storage (o envio que não chegou a ser anexado); falha não interrompe. */
+export async function storageRemove(bucket: string, path: string): Promise<void> {
+  try {
+    await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}`, {
+      method: 'DELETE',
+      headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefixes: [path] }),
+    })
+  } catch {
+    // Fica um arquivo sem uso na pasta privada; ninguém o baixa (o link sai só do caminho anexado).
   }
 }
 

@@ -63,7 +63,7 @@ export interface ReportActions {
   review: boolean
   /** Descartar com motivo: a gestão, com a versão aberta. */
   discard: boolean
-  /** Guardar o PDF: a gestão, com o relatório aprovado ainda sem PDF. */
+  /** Guardar o PDF: quem aprovou, com o relatório aprovado ainda sem PDF (o banco confere). */
   storePdf: boolean
   /** Registrar a apresentação: a gestão, com o relatório aprovado e o PDF guardado. */
   present: boolean
@@ -81,7 +81,7 @@ export function reportActions(d: ReportSummary & { amounts_visible: boolean }, v
     withdraw: preparer && d.status === 'em_revisao',
     review: otherGestao && d.status === 'em_revisao',
     discard: viewer.gestao && isOpen(d.status),
-    storePdf: viewer.gestao && approved && !d.has_pdf && d.amounts_visible,
+    storePdf: viewer.gestao && approved && !d.has_pdf && d.amounts_visible && d.approved_by === viewer.userId,
     present: viewer.gestao && d.status === 'aprovado' && d.has_pdf,
     download: d.amounts_visible && d.has_pdf && d.status !== 'descartado',
   }
@@ -198,6 +198,7 @@ const AUDIT_ACTIONS: Record<string, string> = {
   confirmar_importacao: 'Confirmou uma importação',
   confirmar_rentabilidade: 'Confirmou a rentabilidade fora da faixa',
   desbloqueio: 'Desbloqueou um usuário',
+  descartar_relatorio: 'Descartou uma versão do relatório',
   descartar_previa: 'Descartou a prévia de uma importação',
   devolver_relatorio: 'Devolveu o relatório para ajuste',
   enviar_relatorio: 'Enviou o relatório para a aprovação',
