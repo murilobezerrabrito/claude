@@ -75,6 +75,27 @@ describe('cenários da conversa do mês', () => {
     expect(paths({ extraFlows: flows })).toEqual([''])
   })
 
+  it('aportes, resgates e vendas só até o fim do horizonte do cenário (depois dele, nada entraria no cálculo)', () => {
+    // O plano da Andrade vai até ago/2071: o membro mais jovem do casal, nascido em ago/1976, chega aos 95.
+    expect([ctx.lastMonth, ctx.youngestBirthMonth]).toEqual(['2071-08', '1976-08'])
+    const flow = (year: number, month: number, horizonAge?: number) =>
+      paths({ extraFlows: [{ kind: 'aporte', amount: 100_000, year, month }], ...(horizonAge === undefined ? {} : { horizonAge }) })
+    expect(flow(2071, 8)).toEqual([])
+    expect(flow(2071, 9)).toEqual(['extraFlows.0.month'])
+    expect(flow(2076, 8, 100)).toEqual([])
+    expect(flow(2066, 9, 90)).toEqual(['extraFlows.0.month'])
+    expect(scenarioIssues({ extraFlows: [{ kind: 'aporte', amount: 100_000, year: 2071, month: 9 }] }, ctx)[0].message).toBe(
+      'Escolha um mês depois de out/2026 e até ago/2071 (fim do horizonte).',
+    )
+    const sale = (year: number, horizonAge?: number) =>
+      paths({ propertySales: [{ propertyId: 'casa-praia', year }], ...(horizonAge === undefined ? {} : { horizonAge }) })
+    expect(sale(2071)).toEqual([])
+    expect(sale(2072)).toEqual(['propertySales.0.year'])
+    expect(sale(2070, 90)).toEqual(['propertySales.0.year'])
+    expect(sale(2066, 90)).toEqual([])
+    expect(sale(2076, 100)).toEqual([])
+  })
+
   it('nome automático, em português', () => {
     const name = (p: ReportScenarioParams) => plain(scenarioName(p, ctx))
     expect(name({ retirementAge: 59 })).toBe('Aposentar 3 anos antes (aos 59)')
@@ -88,6 +109,9 @@ describe('cenários da conversa do mês', () => {
     )
     expect(name({ incomes: [{ name: 'Pró-labore do Ricardo', monthly: 0 }] })).toBe('Sem pró-labore do Ricardo')
     expect(name({ extraFlows: [{ kind: 'resgate', amount: 1_250_000, year: 2027, month: 3 }] })).toBe('Resgate de R$ 1,25 mi em mar/2027')
+    // Acima de R$ 1 mi, o valor sai exato no passo de R$ 1 mil (dois valores diferentes, dois nomes diferentes).
+    expect(name({ lifestyleMonthly: 1_234_000 })).toBe('Estilo de vida de R$ 1,234 mi por mês')
+    expect(name({ lifestyleMonthly: 1_231_000 })).toBe('Estilo de vida de R$ 1,231 mi por mês')
     expect(name({ propertySales: [{ propertyId: 'casa-praia', year: 2030 }] })).toBe('Imóvel Casa de praia vendido em 2030')
     expect(name({ firstYearShock: -0.2, rulesEnabled: false })).toBe('Choque de −20% no 1º ano e sem ajustes de gasto em anos ruins')
   })

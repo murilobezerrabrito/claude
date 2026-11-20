@@ -78,8 +78,12 @@ export interface ScenarioContext {
   incomes: { name: string; monthly: number }[]
   /** Patrimônio simulado na data de referência. */
   wealth: number
-  /** Imóveis que podem ser vendidos, com os anos possíveis da venda (em julho, como no motor). */
+  /** Imóveis que podem ser vendidos, com os anos possíveis da venda no plano (em julho, como no motor). */
   properties: { id: string; name: string; firstYear: number; lastYear: number }[]
+  /** Último mês simulado no plano (AAAA-MM): aportes e resgates depois dele não entrariam no cálculo. */
+  lastMonth: string
+  /** Mês de nascimento do membro mais jovem do casal (AAAA-MM): o horizonte do cenário conta a partir dele. */
+  youngestBirthMonth: string
   horizonAge: number
   rulesEnabled: boolean
 }
@@ -112,6 +116,8 @@ export function scenarioContext(pkg: MonthPackage, ipca: IpcaSeries): ScenarioCo
   const people = month.input.household.people
   const titular = people.find((p) => p.role === 'titular') ?? people[0]
   const titularAge = Math.floor((monthIndex(refMonth) - monthIndex(titular.birthDate.slice(0, 7))) / 12)
+  const couple = people.filter((p) => p.role === 'titular' || p.role === 'conjuge')
+  const youngest = (couple.length > 0 ? couple : people).reduce((a, b) => (b.birthDate > a.birthDate ? b : a))
   const incomes = new Map<string, number>()
   for (const cf of month.input.household.cashFlows) {
     if (cf.kind === 'renda' && cf.startYear <= refYear && cf.endYear >= refYear && !incomes.has(cf.name)) incomes.set(cf.name, cf.annualAmountReal / 12)
@@ -133,9 +139,22 @@ export function scenarioContext(pkg: MonthPackage, ipca: IpcaSeries): ScenarioCo
     properties: month.input.household.otherAssets
       .filter((a) => a.kind === 'imovel' && a.canBeSold === true)
       .map((a) => ({ id: a.id, name: a.name, firstYear, lastYear })),
+    lastMonth: monthOfIndex(lastMonth),
+    youngestBirthMonth: youngest.birthDate.slice(0, 7),
     horizonAge: pkg.household.horizonAge,
     rulesEnabled: pkg.planVersion.snapshot.rules.enabled,
   }
+}
+
+const monthOfIndex = (idx: number) => `${Math.floor(idx / 12)}-${String((idx % 12) + 1).padStart(2, '0')}`
+
+/**
+ * Último mês simulado no cenário: o do plano ou, com outro horizonte, o mês em que o membro mais jovem do casal chega à
+ * idade-limite (como no motor).
+ */
+function scenarioLastMonth(ctx: ScenarioContext, horizonAge: unknown): number {
+  const valid = isNumber(horizonAge) && Number.isInteger(horizonAge) && horizonAge >= HORIZON_RANGE.min && horizonAge <= HORIZON_RANGE.max
+  return valid ? monthIndex(ctx.youngestBirthMonth) + horizonAge * 12 : monthIndex(ctx.lastMonth)
 }
 
 // Entre "R$" e o número, e antes de "mil" e "mi", o espaço que não quebra a linha (D-036).
@@ -199,6 +218,9 @@ export function scenarioIssues(raw: unknown, ctx: ScenarioContext): ScenarioIssu
       })
     }
   }
+  const lastIdx = scenarioLastMonth(ctx, p.horizonAge)
+  // Ano de venda como no motor: em julho, até o último mês simulado.
+  const lastSaleYear = Math.floor(lastIdx / 12) - ((lastIdx % 12) + 1 < DEFAULT_EVENT_MONTH ? 1 : 0)
   if (p.extraFlows !== undefined) {
     if (!Array.isArray(p.extraFlows) || p.extraFlows.length === 0) add('extraFlows', 'Lista de aportes e resgates inválida.')
     else {
@@ -210,8 +232,9 @@ export function scenarioIssues(raw: unknown, ctx: ScenarioContext): ScenarioIssu
           add(`extraFlows.${i}.amount`, `Use de R$ 50 mil a ${money(Math.floor(max / STEP_FLOW) * STEP_FLOW)}, de R$ 50 mil em R$ 50 mil.`)
         }
         const ok = isNumber(it.year) && Number.isInteger(it.year) && isNumber(it.month) && Number.isInteger(it.month) && it.month >= 1 && it.month <= 12
-        if (!ok || monthIndex(`${String(it.year)}-${String(it.month).padStart(2, '0')}`) <= monthIndex(ctx.refMonth)) {
-          add(`extraFlows.${i}.month`, `Escolha um mês depois de ${formatMonthLabel(ctx.refMonth)}.`)
+        const idx = ok ? monthIndex(`${String(it.year)}-${String(it.month).padStart(2, '0')}`) : NaN
+        if (!ok || idx <= monthIndex(ctx.refMonth) || idx > lastIdx) {
+          add(`extraFlows.${i}.month`, `Escolha um mês depois de ${formatMonthLabel(ctx.refMonth)} e até ${formatMonthLabel(monthOfIndex(lastIdx))} (fim do horizonte).`)
         }
       })
     }
@@ -225,8 +248,8 @@ export function scenarioIssues(raw: unknown, ctx: ScenarioContext): ScenarioIssu
         const prop = ctx.properties.find((x) => x.id === it.propertyId)
         if (!prop) add(`propertySales.${i}.propertyId`, 'Escolha um imóvel que pode ser vendido.')
         else if (seen.has(prop.id)) add(`propertySales.${i}.propertyId`, 'Esse imóvel já está no cenário.')
-        else if (!isNumber(it.year) || !Number.isInteger(it.year) || it.year < prop.firstYear || it.year > prop.lastYear) {
-          add(`propertySales.${i}.year`, `Use um ano de ${prop.firstYear} a ${prop.lastYear}.`)
+        else if (!isNumber(it.year) || !Number.isInteger(it.year) || it.year < prop.firstYear || it.year > lastSaleYear) {
+          add(`propertySales.${i}.year`, `Use um ano de ${prop.firstYear} a ${lastSaleYear}.`)
         }
         if (prop) seen.add(prop.id)
       })
@@ -251,10 +274,10 @@ export function scenarioIssues(raw: unknown, ctx: ScenarioContext): ScenarioIssu
   return issues
 }
 
-/** Valor em reais no nome: "R$ 30 mil", "R$ 1,25 mi" (os passos do SPEC deixam o valor exato). */
+/** Valor em reais no nome, exato nos passos do SPEC: "R$ 30 mil", "R$ 1,25 mi", "R$ 1,234 mi". */
 function moneyName(v: number): string {
   if (v >= 999_500) {
-    const decimals = multipleOf(v, 100_000) ? 1 : 2
+    const decimals = multipleOf(v, 100_000) ? 1 : multipleOf(v, 10_000) ? 2 : 3
     return `R$${NBSP}${(v / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}${NBSP}mi`
   }
   return v >= 1_000 ? `R$${NBSP}${(v / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}${NBSP}mil` : money(v)

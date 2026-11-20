@@ -184,7 +184,9 @@ export const REPORT_FOOTER_TEMPLATE =
 
 /** Rodapé de toda página do relatório: o texto aprovado com o mês das posições e a versão das premissas. */
 export function reportFooter(refMonth: string, cmaVersion: string, template = REPORT_FOOTER_TEMPLATE): string {
-  return template.replace('[mês]', formatMonthLabel(refMonth)).replace('[versão]', cmaVersion)
+  // Todas as ocorrências, e o texto entra como está (sem os padrões "$&" do replace).
+  const month = formatMonthLabel(refMonth)
+  return template.replaceAll('[mês]', () => month).replaceAll('[versão]', () => cmaVersion)
 }
 
 export const BRIDGE_NOTE = 'A variação foi separada trocando um fator de cada vez. A ordem dos fatores muda a divisão entre eles, não o total.'

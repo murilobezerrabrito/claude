@@ -702,6 +702,8 @@
         "lastYear": 2071
       }
     ],
+    "lastMonth": "2071-08",
+    "youngestBirthMonth": "1976-08",
     "horizonAge": 95,
     "rulesEnabled": true
   },

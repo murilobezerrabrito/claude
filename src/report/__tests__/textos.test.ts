@@ -131,5 +131,7 @@ describe('textos automáticos', () => {
     expect(reportFooter('2026-10', 'ilustrativa-2026-10')).toBe(
       'Relatório de acompanhamento do plano, preparado pela gestão da Aware Investments com as posições de out/2026 e as premissas ilustrativa-2026-10. Simulação ilustrativa; não é promessa de rentabilidade nem recomendação de investimento.',
     )
+    // Rodapé aprovado pela compliance com um campo repetido e "$" no texto: todos trocados, o resto como escrito.
+    expect(reportFooter('2026-10', 'v$&1', 'Posições de [mês], premissas [versão] ([mês]).')).toBe('Posições de out/2026, premissas v$&1 (out/2026).')
   })
 })
