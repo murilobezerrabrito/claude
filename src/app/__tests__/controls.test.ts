@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { APP_EXAMPLE_PATH } from '../../../scripts/appExample.ts'
 import { scenarioIssues, scenarioName } from '../../report/scenarios.ts'
-import { planValues, presets, ranges, toParams } from '../controls.ts'
+import { fromParams, planValues, presets, ranges, toParams } from '../controls.ts'
 import type { ClientMonthView } from '../types.ts'
 
 const view = JSON.parse(readFileSync(new URL(`../../../${APP_EXAMPLE_PATH}`, import.meta.url), 'utf8')) as ClientMonthView
@@ -66,5 +66,16 @@ describe('controles do E se? no app', () => {
     expect(v.essentialMonthly % 1_000).toBe(0)
     expect(toParams({ ...v, essentialMonthly: v.essentialMonthly + 1_000 }, ctx)).toEqual({ essentialMonthly: v.essentialMonthly + 1_000 })
     expect(toParams({ ...v, flowAmount: -100_000 }, ctx).extraFlows).toEqual([{ kind: 'resgate', amount: 100_000, year: 2026, month: 11 }])
+  })
+  it('um cenário salvo volta aos controles: toParams(fromParams(p)) = p, para os prontos e um cenário com várias mudanças', () => {
+    const plan = planValues(ctx)
+    const many = toParams(
+      { ...plan, essentialMonthly: plan.essentialMonthly + 2_000, flowAmount: 150_000, saleProperty: ctx.properties[0].id, saleYear: ctx.properties[0].firstYear, shock: -0.15 },
+      ctx,
+    )
+    for (const p of [...presets(ctx).map((x) => toParams(x.apply(plan), ctx)), many, {}]) {
+      expect(toParams(fromParams(p, ctx), ctx)).toEqual(p)
+    }
+    expect(fromParams({}, ctx)).toEqual(plan)
   })
 })

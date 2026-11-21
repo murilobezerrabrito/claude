@@ -103,6 +103,32 @@ export function toParams(v: ControlValues, ctx: ScenarioContext): ReportScenario
   return p
 }
 
+/**
+ * Os controles de um cenário salvo (o inverso de `toParams`): o que o cenário não muda fica como no plano. Um cenário
+ * salvo num mês pode não caber no seguinte; quem abre confere com `scenarioIssues`.
+ */
+export function fromParams(p: ReportScenarioParams, ctx: ScenarioContext): ControlValues {
+  const v = planValues(ctx)
+  const flow = p.extraFlows?.[0]
+  const sale = p.propertySales?.[0]
+  return {
+    retirementAge: p.retirementAge ?? v.retirementAge,
+    essentialMonthly: p.essentialMonthly ?? v.essentialMonthly,
+    lifestyleMonthly: p.lifestyleMonthly ?? v.lifestyleMonthly,
+    spendingMultiplier: p.spendingMultiplier ?? 1,
+    incomes: { ...v.incomes, ...Object.fromEntries((p.incomes ?? []).map((i) => [i.name, i.monthly])) },
+    flowAmount: flow ? (flow.kind === 'aporte' ? flow.amount : -flow.amount) : 0,
+    flowYear: flow?.year ?? v.flowYear,
+    flowMonth: flow?.month ?? v.flowMonth,
+    saleProperty: sale?.propertyId ?? '',
+    saleYear: sale?.year ?? v.saleYear,
+    shock: p.firstYearShock ?? 0,
+    shockPresetId: p.shockPresetId ?? null,
+    horizonAge: p.horizonAge ?? v.horizonAge,
+    rulesEnabled: p.rulesEnabled ?? v.rulesEnabled,
+  }
+}
+
 export interface Preset {
   id: string
   label: string
