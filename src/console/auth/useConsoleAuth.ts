@@ -6,7 +6,7 @@ import type { User } from '@supabase/supabase-js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AppRole } from '../../lib/apiTypes.ts'
 import { supabase } from '../../lib/supabase.ts'
-import { authMessage } from './messages.ts'
+import { authMessage } from '../../lib/authMessages.ts'
 
 export interface UserRole {
   role: AppRole
