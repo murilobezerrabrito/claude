@@ -1,6 +1,6 @@
-// App dos clientes AI na etapa 3a (telas com a Família Andrade, sem banco): em 375 px, nos temas claro e escuro, sem
-// rolagem horizontal; a entrada do exemplo, as sete telas e o "E se?" (cenário pronto contra o plano oficial,
-// comparação de cenários e gasto sustentável), com o motor no Web Worker.
+// App dos clientes AI no exemplo da Família Andrade (/app/exemplo, sem login): em 375 px, nos temas claro e escuro, sem
+// rolagem horizontal; as sete telas e o "E se?" (cenário pronto contra o plano oficial, comparação de cenários e gasto
+// sustentável), com o motor no Web Worker. A entrada de verdade (convite, senha e autenticador) está em cliente.spec.ts.
 
 import { expect, test, type Page } from '@playwright/test'
 
@@ -11,14 +11,9 @@ async function noHorizontalScroll(page: Page) {
 }
 
 for (const colorScheme of ['light', 'dark'] as const) {
-  test(`entrada do exemplo e as telas em 375 px, tema ${colorScheme === 'light' ? 'claro' : 'escuro'}`, async ({ page }) => {
+  test(`telas do exemplo em 375 px, tema ${colorScheme === 'light' ? 'claro' : 'escuro'}`, async ({ page }) => {
     await page.emulateMedia({ colorScheme })
-    await page.goto('/app/entrar')
-    await page.getByLabel('E-mail').fill('cliente@exemplo.invalid')
-    await page.getByLabel('Senha').fill('qualquer')
-    await page.getByRole('button', { name: 'Entrar' }).click()
-    await page.getByLabel('Código do app autenticador').fill('123456')
-    await page.getByRole('button', { name: 'Confirmar' }).click()
+    await page.goto('/app/exemplo')
 
     await expect(page.getByTestId('probabilidade')).toHaveText('59%')
     await expect(page.getByText('Plano em risco')).toBeVisible()
@@ -45,7 +40,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
 }
 
 test('E se?: cenário pronto contra o plano oficial, comparação, gasto sustentável e volta ao plano', async ({ page }) => {
-  await page.goto('/app/e-se')
+  await page.goto('/app/exemplo/e-se')
   const result = page.getByTestId('chance-cenario')
   await expect(page.getByText(/^Retorno que o plano precisa: IPCA \+ 3,8% a\.a\./)).toBeVisible({ timeout: 60_000 })
   await expect(result).toHaveText('59%')
