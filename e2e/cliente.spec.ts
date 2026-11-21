@@ -1,7 +1,8 @@
 // Convite e entrada do cliente AI (Fase 3, etapa 3c; D-071 e D-074): o responsável convida pelo console, sem ver o link;
 // o e-mail chega só ao cliente (Mailpit, o servidor de e-mail do Supabase local); no celular, o cliente abre o link,
 // cria a senha (as regras valem), cadastra o app autenticador e entra; a família ainda sem mês fechado mostra o aviso;
-// sai e entra de novo com senha e código; o link não vale duas vezes; no console, o cliente aparece ativo.
+// sai e entra de novo com senha e código; o link não vale duas vezes; no console, o cliente aparece ativo. Com o mês
+// fechado da Barbosa: um cenário salvo na conta (volta depois de recarregar) e uma sugestão enviada ao assessor.
 
 import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
@@ -101,4 +102,64 @@ test('o responsável convida; o cliente cria a senha, cadastra o autenticador e 
   await page.reload()
   await expect(card.getByTestId('cliente').getByText('Ativo', { exact: true })).toBeVisible()
   await expect(card.getByRole('button', { name: 'Enviar convite' })).toHaveCount(0)
+})
+
+test('com a conta: o mês fechado da família, um cenário salvo na conta e uma sugestão enviada ao assessor', async ({ browser }) => {
+  // A Barbosa (AI) tem setembro fechado depois do `db:import -- exemplo`, que a integração contínua roda antes.
+  const local = localStack()
+  const email = 'e2e.cliente.barbosa@exemplo.invalid'
+  const password = newPassword()
+  await ensureUser(local, email, 'cliente_ai', password, 'BAR001')
+  const phone = await browser.newContext({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true, locale: 'pt-BR' })
+  const app = await phone.newPage()
+  await app.goto('/app')
+  await app.getByLabel('E-mail').fill(email)
+  await app.getByLabel('Senha').fill(password)
+  await app.getByRole('button', { name: 'Entrar' }).click()
+  const secret = (await app.getByTestId('segredo-totp').textContent()) ?? ''
+  await app.getByLabel('Código do app autenticador').fill(totp(secret))
+  await app.getByRole('button', { name: 'Confirmar' }).click()
+
+  // Visão geral do mês fechado (setembro), sem a marca de exemplo.
+  await expect(app.getByTestId('probabilidade')).toBeVisible()
+  await expect(app.getByText('Números de setembro de 2026')).toBeVisible()
+  await expect(app.getByText('Exemplo com dados fictícios')).toHaveCount(0)
+
+  // E se?: salva um cenário na conta; depois de recarregar, ele continua lá; apagado, some.
+  await app.getByRole('navigation', { name: 'Seções do app' }).getByRole('link', { name: 'E se?' }).click()
+  const result = app.getByTestId('chance-cenario')
+  await expect(app.getByText(/^Retorno que o plano precisa:/)).toBeVisible({ timeout: 60_000 })
+  await app.getByRole('button', { name: 'Gastar 10% a mais' }).click()
+  await expect(result).toHaveText(/ vai para /, { timeout: 30_000 })
+  await app.getByRole('button', { name: 'Salvar este cenário' }).click()
+  await app.getByLabel('Nome do cenário').fill('Gastar mais (e2e)')
+  await app.getByRole('button', { name: 'Salvar', exact: true }).click()
+  await expect(app.getByTestId('meus-cenarios').getByText('Gastar mais (e2e)')).toBeVisible()
+  await expect(app.getByTestId('comparacao')).toContainText('Gastar mais (e2e)')
+  await app.reload()
+  const mine = app.getByTestId('meus-cenarios').getByTestId('cenario-salvo').filter({ hasText: 'Gastar mais (e2e)' })
+  await expect(mine).toBeVisible({ timeout: 30_000 })
+  await mine.getByRole('button', { name: 'Abrir' }).click()
+  await expect(result).toHaveText(/ vai para /, { timeout: 30_000 })
+  await mine.getByRole('button', { name: 'Apagar' }).click()
+  await expect(app.getByTestId('meus-cenarios')).toHaveCount(0)
+
+  // Plano: a sugestão vai para o assessor e aparece esperando a resposta.
+  await app.getByRole('navigation', { name: 'Seções do app' }).getByRole('link', { name: 'Plano' }).click()
+  await app.getByRole('button', { name: 'Sugerir uma mudança' }).click()
+  const text = `A viagem de 2027 foi cancelada (e2e ${Date.now()}).`
+  await app.getByLabel('Sugestão de mudança no plano').fill(text)
+  await app.getByRole('button', { name: 'Enviar ao assessor' }).click()
+  await expect(app.getByText('Sugestão enviada ao seu assessor. Ele confirma a mudança no plano.')).toBeVisible()
+  const item = app.getByTestId('minhas-sugestoes').getByRole('listitem').filter({ hasText: text })
+  await expect(item.getByText('Esperando o assessor')).toBeVisible()
+  await phone.close()
+
+  // Responde a sugestão do teste (o banco limita a 10 pendentes por família).
+  const [request] = (await call(local, `/rest/v1/plan_change_requests?payload->>texto=eq.${encodeURIComponent(text)}&select=id`, { admin: true })) as { id: string }[]
+  await call(local, `/rest/v1/plan_change_requests?id=eq.${request.id}`, {
+    admin: true,
+    method: 'PATCH',
+    body: { status: 'recusada', reviewed_at: new Date().toISOString(), review_note: 'Resposta automática do teste.' },
+  })
 })
