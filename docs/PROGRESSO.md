@@ -8,7 +8,7 @@
 - **Fase 2 (ciclo mensal interno, com dados reais): em andamento** desde 05/10/2026. Etapa 1 (Supabase local, acesso por linha, segundo fator e pgTAP) concluída. Etapa 2 (importação, conferência, mapeamento de ativos e fechamento do mês) concluída em 06/10/2026, menos a leitura de XLSX, que espera a rede (D-056). Etapa 3 concluída em 30/10/2026: parte 3a (console com login, Mês e Mapeamento) aprovada por Murilo no ponto de parada A; parte 3b (rodada oficial em lote numa Edge Function e famílias com a chance) pronta em 10/10/2026, abaixo do limite do ponto de parada B (1,5 s por chamada) no servidor local; parte 3c (cadastro da família e editor do plano com versões) pronta em 10/10/2026; parte 3d (séries do Banco Central: função de busca, página Mercado e aviso de série atrasada) pronta em 30/10/2026, com respostas gravadas no formato do SGS (a chamada real espera a rede). Etapa 4 (relatórios no banco) concluída em 20/11/2026: o relatório de out/2026 da Andrade feito pelo fluxo do banco foi aprovado por Murilo no ponto de parada D, com os mesmos números do relatório da Fase 1.
 - **Fase 3 (app dos clientes AI): em andamento** desde 20/11/2026, com o portão da Fase 2 pendente nos itens que dependem da nuvem e de dados reais (D-071). Plano aprovado por Murilo em 20/11/2026 ("aprovo"), em cinco etapas: 3a telas com a Família Andrade (ponto de parada E), 3b banco do cliente, 3c convite e entrada, 3d telas ligadas ao banco e ajustes do canal, 3e fechamento.
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026, D-028 e D-045). Não há pull request aberto.
-- **Próximo passo da Fase 3:** etapa 3d (telas ligadas ao banco: cenários salvos e sugestões gravados, estados de erro e os ajustes do canal). Etapas 3b e 3c feitas em 21/11/2026 (D-073 e D-074, a confirmar por Murilo). Ponto de parada E aprovado em 21/11/2026 ("pode prosseguir").
+- **Próximo passo da Fase 3:** etapa 3e (fechamento: `/code-review`, documentação, integração contínua e o portão da fase). Etapas 3b, 3c e 3d feitas em 21/11/2026 (D-073, D-074 e D-075, a confirmar por Murilo). Ponto de parada E aprovado em 21/11/2026 ("pode prosseguir").
 - **Pendente da Fase 2:** com as quatro etapas da Fase 2 feitas no ambiente local, o portão da fase pede o que só existe fora dele: o projeto na nuvem (região São Paulo, só com autorização de Murilo, e antes a escolha do plano do Supabase, D-042), uma família CADM real anonimizada importada, conferida e com relatório aprovado, os textos legais aprovados pela compliance de verdade e a rodada de todas as famílias CADM em menos de 20 minutos. Murilo também confirma os itens da D-070 que vieram da revisão de código. XLSX e a chamada real ao Banco Central esperam a rede (D-044, D-056; em 30/10/2026 o proxy do ambiente ainda recusava os dois endereços). O tempo por chamada da rodada e o agendamento diário das séries ficam para a etapa da nuvem.
 
 ### Comandos de teste
@@ -17,7 +17,7 @@
 npm install
 npm run typecheck     # tsc -b: motor (só ES2023), interface, testes e scripts
 npm run lint          # ESLint; barra imports externos e imports sem .ts no motor
-npm test              # Vitest: 406 testes, incluindo T01 a T20, textos, números congelados, o PDF do relatório, o relatório montado das rodadas, os cenários, o seed, a importação, a rodada por partes, o console, o esquema do plano e as séries do Banco Central, com as paridades (~30 s)
+npm test              # Vitest: 407 testes, incluindo T01 a T20, textos, números congelados, o PDF do relatório, o relatório montado das rodadas, os cenários, o seed, a importação, a rodada por partes, o console, o esquema do plano e as séries do Banco Central, com as paridades (~30 s)
 npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 npm run report:snapshot  # regrava src/data/relatorios/andrade-2026-10.json (relatório de exemplo, ~11 s)
@@ -50,12 +50,21 @@ npm run db:stop
 | 0 | Fundação e motor, sem servidor | `fase-0-motor` | Testes 1 a 14 passando, `npm run reference` dentro das tolerâncias e `revisor-motor` sem divergências abertas | **Cumprido** (02/10/2026) |
 | 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` | Testes do motor e `npm run reference` com os resultados novos; testes da ponte (hashes dos extremos e soma em trajetórias); `revisor-motor` sem divergências; PDF de out/2026 da Andrade aprovado por Murilo e Alex | **Cumprido** (05/10/2026); aprovação do Alex confirmada por Murilo em 06/10/2026 |
 | 2 | Ciclo mensal interno, com dados reais | `fase-2-ciclo-mensal` | pgTAP passando; família CADM real anonimizada importada, conferida e com relatório aprovado; textos do relatório aprovados por compliance; rodada de todas as famílias CADM em menos de 20 minutos | Em andamento (etapas 1 a 4 concluídas no ambiente local; o portão pede a nuvem e dados reais anonimizados; faltam o XLSX da etapa 2 e a chamada real ao SGS, que esperam a rede) |
-| 3 | App dos clientes AI | `fase-3-app-ai` | Tela inicial em 375 px e tema escuro; "E se?" em menos de 1 s num celular intermediário; vazamento do papel cliente_ai bloqueado; uso de ponta a ponta com contas fictícias | Em andamento (3a, 3b e 3c feitas; 3d a seguir) |
+| 3 | App dos clientes AI | `fase-3-app-ai` | Tela inicial em 375 px e tema escuro; "E se?" em menos de 1 s num celular intermediário; vazamento do papel cliente_ai bloqueado; uso de ponta a ponta com contas fictícias | Em andamento (3a a 3d feitas; 3e, o fechamento, a seguir) |
 | 4 | Piloto e operação | `fase-4-piloto` | Dois fechamentos sem erro de conferência e retorno da gestão e dos clientes do piloto | Pendente |
 
 ## Fase 3: andamento
 
 Plano aprovado em 20/11/2026 (D-071; escolhas da 3a na D-072): 3a telas com a Família Andrade, sem banco (ponto de parada E); 3b banco do cliente; 3c convite e entrada; 3d telas ligadas ao banco e ajustes do canal; 3e fechamento.
+
+### Etapa 3d: telas ligadas ao banco (21/11/2026)
+
+- **Ações do cliente** (`src/app/actions.ts`, D-075): salvar e apagar cenário e sugerir mudança, pelo banco com a conta (`save_client_scenario`, `delete_client_scenario`, `suggest_plan_change`) e só na tela no exemplo.
+- **"E se?":** salvar grava na conta e põe o cenário na comparação (até 3); "Meus cenários" abre nos controles (`fromParams`, com teste de ida e volta), compara ou apaga; o salvo que não cabe mais no mês fica marcado.
+- **Plano:** a sugestão vai para o assessor; a lista mostra a situação e a nota da resposta.
+- **Ajustes do canal:** já cobertos (carteira atual e custo do cadastro nas entradas, linha da ponte, rodapé e aviso aprovados, intermediário no topo).
+- **Testes:** e2e `cliente.spec.ts` ganhou o caso com a conta e o mês fechado da Barbosa (o cenário salvo volta depois de recarregar e é apagado; a sugestão aparece esperando o assessor); `controls.test.ts` com `fromParams`.
+- **Contagens:** `npm test` 407; pgTAP 678; e2e 13. Build: app 69 kB, worker 31 kB.
 
 ### Etapa 3c: convite e entrada do cliente (21/11/2026)
 
