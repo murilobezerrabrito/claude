@@ -51,6 +51,21 @@ export function readAuthLink(hash: string):
 }
 
 /**
+ * Marca de "falta criar a senha" na aba: quem entrou pelo link do e-mail só segue para o autenticador depois de criar a
+ * senha, mesmo que recarregue a página (o link já saiu do endereço, mas a sessão dele fica no sessionStorage).
+ */
+const MUST_SET_PASSWORD = 'aware.app.criar_senha'
+function mustSetPassword(value?: boolean): boolean {
+  try {
+    if (value === true) window.sessionStorage.setItem(MUST_SET_PASSWORD, '1')
+    else if (value === false) window.sessionStorage.removeItem(MUST_SET_PASSWORD)
+    return window.sessionStorage.getItem(MUST_SET_PASSWORD) === '1'
+  } catch {
+    return false
+  }
+}
+
+/**
  * Lê o link do e-mail uma vez por carregamento da página (o React pode montar a tela duas vezes): tira o # do endereço,
  * entra com a sessão do link e devolve a etapa de criar senha (ou o erro do link); sem link, null.
  */
@@ -64,6 +79,7 @@ function startFromLink(): Promise<ClientAuthStage | null> {
       if (link.kind === 'erro') return { kind: 'link_invalido', message: link.message }
       const { data, error } = await supabase.auth.setSession({ access_token: link.accessToken, refresh_token: link.refreshToken })
       if (error || !data.user) throw error ?? new Error('Link sem usuário.')
+      mustSetPassword(true)
       return { kind: 'criar_senha', email: data.user.email ?? '' }
     })()
   }
@@ -136,7 +152,8 @@ export function useClientAuth() {
       }
       const { data } = await supabase.auth.getSession()
       if (cancelled) return
-      if (data.session) await resolve()
+      if (data.session && mustSetPassword()) setStage({ kind: 'criar_senha', email: data.session.user.email ?? '' })
+      else if (data.session) await resolve()
       else setStage({ kind: 'entrar' })
     }
     start().catch((e: unknown) => {
@@ -148,6 +165,7 @@ export function useClientAuth() {
       if (event !== 'SIGNED_OUT') return
       // Fim da sessão (30 minutos) ou saída pelo botão.
       const notice = signingOut.current || !signedIn.current ? undefined : 'Sua sessão terminou. Entre de novo para continuar.'
+      mustSetPassword(false)
       signingOut.current = false
       signedIn.current = false
       setStage({ kind: 'entrar', notice })
@@ -171,6 +189,7 @@ export function useClientAuth() {
       if (issue) throw new Error(issue)
       const { error: e } = await supabase.auth.updateUser({ password })
       if (e) throw e
+      mustSetPassword(false)
       await resolve()
     })
 
