@@ -190,9 +190,9 @@ set local role authenticated;
 select pg_temp.entrar(:'G1');
 select throws_ok($$ select * from app.import_staging $$, '42501', null, 'ninguém lê a área da prévia direto');
 select pg_temp.entrar(:'K');
-select is((select count(*)::integer from public.household_months), 1, 'o cliente AI lê o status do mês da própria família');
+select is((select count(*)::integer from public.household_months), 0, 'o cliente AI não lê o status do mês direto (só pela função do app, D-073)');
 select throws_ok($$ select checks, return_confirmed_by from public.household_months $$, '42501', null,
-  'mas não a conferência interna nem quem confirmou');
+  'nem a conferência interna ou quem confirmou');
 reset role;
 
 -- PL oficial ----------------------------------------------------------------------------------------------------

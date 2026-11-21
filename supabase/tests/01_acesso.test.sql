@@ -1,7 +1,7 @@
 -- Acesso por linha e vazamento entre famílias (SPEC, "Usuários e permissões" e critérios de aceite).
 -- Dados de teste próprios, desfeitos no fim (rollback). Cada bloco entra como um papel, com o token simulado.
 begin;
-select plan(44);
+select plan(45);
 
 \set G  'a0000000-0000-4000-8000-000000000001'
 \set C  'a0000000-0000-4000-8000-000000000002'
@@ -50,11 +50,12 @@ insert into public.reports (household_id, ref_date, prepared_by, snapshot) value
 -- Cliente AI da família A, com segundo fator ------------------------------------------------------------------------
 select pg_temp.entrar(:'KA');
 set local role authenticated;
-select is((select array_agg(id) from public.households), array[:'HA']::uuid[], 'cliente A vê só a própria família');
+-- O cliente lê só pelas funções próprias (client_month, auditada; D-073): nada direto, nem da própria família.
+select is((select count(*)::int from public.households), 0, 'cliente A não lê as famílias direto, nem a própria');
 select is((select count(*)::int from public.people where household_id <> :'HA'), 0, 'cliente A não vê pessoas de outra família');
-select is((select count(*)::int from public.people where household_id = :'HA'), 1, 'cliente A vê as pessoas da própria família');
+select is((select count(*)::int from public.people where household_id = :'HA'), 0, 'cliente A não lê nem as pessoas da própria família direto');
 select is((select count(*)::int from public.positions where household_id <> :'HA'), 0, 'cliente A não vê posições de outra família');
-select is((select count(*)::int from public.positions where household_id = :'HA'), 1, 'cliente A vê as próprias posições');
+select is((select count(*)::int from public.positions where household_id = :'HA'), 0, 'cliente A não lê as próprias posições direto');
 select is((select count(*)::int from public.plan_versions where household_id <> :'HA'), 0, 'cliente A não vê planos de outra família');
 select is((select count(*)::int from public.reports), 0, 'cliente A não lê relatórios, nem os da própria família');
 select is((select count(*)::int from public.audit_log), 0, 'cliente A não lê a auditoria');
@@ -62,11 +63,11 @@ select is((select count(*)::int from public.households where channel = 'cadm'), 
 select is((select count(*)::int from public.user_roles), 1, 'cliente A vê só o próprio papel');
 select throws_ok(format($$ insert into public.scenarios (household_id, owner_id, name, params) values (%L, %L, 'x', '{}') $$, :'HB', :'KA'),
   '42501', null, 'cliente A não cria cenário na família B');
-select lives_ok(format($$ insert into public.scenarios (household_id, owner_id, name, params) values (%L, %L, 'Aposentar antes', '{}') $$, :'HA', :'KA'),
-  'cliente A cria cenário na própria família');
-select throws_ok(format('select public.household_detail(%L)', :'HB'), '42501', null, 'cliente A não lê a família B pela API');
-select is((select public.household_detail(:'HA') -> 'household' ->> 'id'), :'HA', 'cliente A lê a própria família pela API');
-select is((select array_agg(id) from public.list_households() where id = any (:FIXTURES)), array[:'HA']::uuid[], 'a lista do cliente A tem só a família A');
+select throws_ok(format($$ insert into public.scenarios (household_id, owner_id, name, params) values (%L, %L, 'Aposentar antes', '{}') $$, :'HA', :'KA'),
+  '42501', null, 'cliente A não grava cenário direto, nem na própria família (só pela função)');
+select throws_ok(format('select public.household_detail(%L)', :'HB'), '42501', null, 'cliente A não lê a família B pela API interna');
+select throws_ok(format('select public.household_detail(%L)', :'HA'), '42501', null, 'nem a própria: o detalhe interno mostra o mês aberto e a conferência');
+select is((select count(*)::int from public.list_households() where id = any (:FIXTURES)), 0, 'a lista interna não traz famílias para o cliente');
 
 -- Cliente AI sem o segundo fator ------------------------------------------------------------------------------------
 reset role;
@@ -74,6 +75,7 @@ select pg_temp.entrar(:'KA', 'aal1');
 set local role authenticated;
 select is((select count(*)::int from public.households), 0, 'sem segundo fator, o cliente não vê nem a própria família');
 select throws_ok('select * from public.list_households()', '42501', null, 'sem segundo fator, a API recusa');
+select throws_ok('select public.client_month()', '42501', null, 'sem segundo fator, o mês do cliente recusa');
 
 -- Gestão: lê tudo, mas só pela API, que registra a leitura ----------------------------------------------------------
 reset role;

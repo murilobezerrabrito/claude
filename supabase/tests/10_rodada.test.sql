@@ -201,16 +201,16 @@ insert into public.monthly_snapshots (household_id, ref_date, probability, wealt
 select :'HK', '2026-09-30', 0.9, 500000, :'V', id, 'db000000-0000-4000-8000-000000000003' from public.plan_versions where household_id = :'HK';
 set local role authenticated;
 select pg_temp.entrar(:'K');
-select is((select count(*)::integer from public.monthly_snapshots where household_id = :'HK'), 0, 'cliente AI não lê o retrato de mês só rodado');
-select is((select count(*)::integer from public.simulation_runs where household_id = :'HK'), 0, 'nem as rodadas (as dos cenários ganham regra na Fase 3)');
-select is(public.household_detail(:'HK') -> 'snapshot', 'null'::jsonb, 'nem pelo detalhe da família');
+select is(public.client_month() ->> 'ref_date', null, 'cliente AI não lê o retrato de mês só rodado');
+select is(jsonb_array_length(public.client_month() -> 'months'), 0, 'nem a rodada');
+select throws_ok(format('select public.household_detail(%L)', :'HK'), '42501', null, 'nem pelo detalhe interno da família');
 reset role;
 update public.household_months set status = 'fechado' where household_id = :'HK';
 set local role authenticated;
 select pg_temp.entrar(:'K');
-select is((select count(*)::integer from public.monthly_snapshots where household_id = :'HK'), 1, 'mês fechado: o cliente AI lê o retrato');
-select is((select id from public.simulation_runs where household_id = :'HK'), 'db000000-0000-4000-8000-000000000003'::uuid, 'e só a rodada publicada');
-select is((public.household_detail(:'HK') -> 'snapshot' ->> 'probability'), '0.900000', 'e o detalhe da família traz o retrato');
+select is(public.client_month() ->> 'ref_date', '2026-09-30', 'mês fechado: o cliente AI lê o mês');
+select is(jsonb_array_length(public.client_month() -> 'months'), 1, 'e a rodada publicada');
+select is(public.client_month() #>> '{household,id}', :'HK', 'da própria família');
 reset role;
 
 select * from finish();
