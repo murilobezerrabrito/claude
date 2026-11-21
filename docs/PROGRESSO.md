@@ -8,7 +8,7 @@
 - **Fase 2 (ciclo mensal interno, com dados reais): em andamento** desde 05/10/2026. Etapa 1 (Supabase local, acesso por linha, segundo fator e pgTAP) concluída. Etapa 2 (importação, conferência, mapeamento de ativos e fechamento do mês) concluída em 06/10/2026, menos a leitura de XLSX, que espera a rede (D-056). Etapa 3 concluída em 30/10/2026: parte 3a (console com login, Mês e Mapeamento) aprovada por Murilo no ponto de parada A; parte 3b (rodada oficial em lote numa Edge Function e famílias com a chance) pronta em 10/10/2026, abaixo do limite do ponto de parada B (1,5 s por chamada) no servidor local; parte 3c (cadastro da família e editor do plano com versões) pronta em 10/10/2026; parte 3d (séries do Banco Central: função de busca, página Mercado e aviso de série atrasada) pronta em 30/10/2026, com respostas gravadas no formato do SGS (a chamada real espera a rede). Etapa 4 (relatórios no banco) concluída em 20/11/2026: o relatório de out/2026 da Andrade feito pelo fluxo do banco foi aprovado por Murilo no ponto de parada D, com os mesmos números do relatório da Fase 1.
 - **Fase 3 (app dos clientes AI): em andamento** desde 20/11/2026, com o portão da Fase 2 pendente nos itens que dependem da nuvem e de dados reais (D-071). Plano aprovado por Murilo em 20/11/2026 ("aprovo"), em cinco etapas: 3a telas com a Família Andrade (ponto de parada E), 3b banco do cliente, 3c convite e entrada, 3d telas ligadas ao banco e ajustes do canal, 3e fechamento.
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026, D-028 e D-045). Não há pull request aberto.
-- **Próximo passo da Fase 3:** etapa 3c (convite por e-mail e entrada do cliente com segundo fator). Etapa 3b feita em 21/11/2026 (D-073, a confirmar por Murilo). Ponto de parada E aprovado em 21/11/2026 ("pode prosseguir").
+- **Próximo passo da Fase 3:** etapa 3d (telas ligadas ao banco: cenários salvos e sugestões gravados, estados de erro e os ajustes do canal). Etapas 3b e 3c feitas em 21/11/2026 (D-073 e D-074, a confirmar por Murilo). Ponto de parada E aprovado em 21/11/2026 ("pode prosseguir").
 - **Pendente da Fase 2:** com as quatro etapas da Fase 2 feitas no ambiente local, o portão da fase pede o que só existe fora dele: o projeto na nuvem (região São Paulo, só com autorização de Murilo, e antes a escolha do plano do Supabase, D-042), uma família CADM real anonimizada importada, conferida e com relatório aprovado, os textos legais aprovados pela compliance de verdade e a rodada de todas as famílias CADM em menos de 20 minutos. Murilo também confirma os itens da D-070 que vieram da revisão de código. XLSX e a chamada real ao Banco Central esperam a rede (D-044, D-056; em 30/10/2026 o proxy do ambiente ainda recusava os dois endereços). O tempo por chamada da rodada e o agendamento diário das séries ficam para a etapa da nuvem.
 
 ### Comandos de teste
@@ -22,12 +22,12 @@ npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 npm run report:snapshot  # regrava src/data/relatorios/andrade-2026-10.json (relatório de exemplo, ~11 s)
 npm run report:pdf    # gera relatorios-pdf/andrade-2026-10.pdf (fora do git) a partir do snapshot
-npm run dev           # página local com a prévia do relatório, "Baixar PDF" e o modo apresentação; o app dos clientes AI em /app
+npm run dev           # página local com a prévia do relatório, "Baixar PDF" e o modo apresentação; o app dos clientes AI em /app (entrada de verdade) e /app/exemplo (Andrade, sem login); os e-mails do Auth local no Mailpit (http://127.0.0.1:54324)
 npm run app:example   # regrava src/data/app/andrade-2026-10.json (o mês da Andrade como cliente AI, para o app sem banco)
 
 # Banco local (Fase 2; precisa do Docker ligado)
 npm run db:start      # Supabase local com as migrações e o seed fictício (nesta sessão na nuvem: SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io, D-044)
-npm run db:test       # testes pgTAP (647)
+npm run db:test       # testes pgTAP (678)
 npx supabase functions serve   # funções do servidor (official-run, market-sync e report), num terminal à parte, quando o db:start exclui o edge-runtime
 npm run db:import -- exemplo   # importação de exemplo de ponta a ponta, com login e segundo fator: setembro rodado e fechado, outubro rodado, a Andrade conferida contra src/report e o rascunho do relatório de out/2026 (com os três cenários) conferido contra o da Fase 1, e o app do cliente AI da Barbosa pelo banco (mês fechado montado no aparelho, "E se?" igual à rodada oficial, cenário salvo e sugestão confirmada)
 npm run db:import             # lista os comandos: previa, pl, conferir, fila, mapear, situacao, rodar, fechar
@@ -37,7 +37,7 @@ npm run db:market-cases  # regrava supabase/tests/14_paridade_mercado.test.sql a
 npm run market:sync   # busca as séries do Banco Central pela função market-sync, no Supabase local, como a gestão (precisa da rede)
 npm run market:check  # só testa a conexão com o SGS (/ultimos/3); nesta sessão na nuvem: NODE_USE_ENV_PROXY=1 npm run market:check
 npm run env:local     # grava .env.local com o Supabase local, para o console (npm run dev)
-npm run test:e2e      # console no navegador (Playwright): login com segundo fator, importação, conferência, mapeamento, rodada em lote, famílias com a chance (famílias e mês próprios, D-064), cadastro e versões do plano, séries do Banco Central (busca simulada, D-069) e o relatório do mês (rascunho, cenário, quatro olhos, PDF guardado, apresentação, banker e auditoria); o app dos clientes AI em 375 px nos dois temas, com o fluxo do "E se?"; e a sugestão do cliente respondida pelo responsável no console
+npm run test:e2e      # console no navegador (Playwright): login com segundo fator, importação, conferência, mapeamento, rodada em lote, famílias com a chance (famílias e mês próprios, D-064), cadastro e versões do plano, séries do Banco Central (busca simulada, D-069) e o relatório do mês (rascunho, cenário, quatro olhos, PDF guardado, apresentação, banker e auditoria); o app dos clientes AI em 375 px nos dois temas, com o fluxo do "E se?"; a sugestão do cliente respondida pelo responsável no console; e o convite do cliente (console → e-mail no Mailpit → senha, autenticador e entrada no celular)
 npm run db:reset      # refaz o banco local (migrações e seed)
 npm run db:seed       # regrava supabase/seed.sql a partir de src/data
 npm run db:stop
@@ -50,12 +50,22 @@ npm run db:stop
 | 0 | Fundação e motor, sem servidor | `fase-0-motor` | Testes 1 a 14 passando, `npm run reference` dentro das tolerâncias e `revisor-motor` sem divergências abertas | **Cumprido** (02/10/2026) |
 | 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` | Testes do motor e `npm run reference` com os resultados novos; testes da ponte (hashes dos extremos e soma em trajetórias); `revisor-motor` sem divergências; PDF de out/2026 da Andrade aprovado por Murilo e Alex | **Cumprido** (05/10/2026); aprovação do Alex confirmada por Murilo em 06/10/2026 |
 | 2 | Ciclo mensal interno, com dados reais | `fase-2-ciclo-mensal` | pgTAP passando; família CADM real anonimizada importada, conferida e com relatório aprovado; textos do relatório aprovados por compliance; rodada de todas as famílias CADM em menos de 20 minutos | Em andamento (etapas 1 a 4 concluídas no ambiente local; o portão pede a nuvem e dados reais anonimizados; faltam o XLSX da etapa 2 e a chamada real ao SGS, que esperam a rede) |
-| 3 | App dos clientes AI | `fase-3-app-ai` | Tela inicial em 375 px e tema escuro; "E se?" em menos de 1 s num celular intermediário; vazamento do papel cliente_ai bloqueado; uso de ponta a ponta com contas fictícias | Em andamento (3a e 3b feitas; 3c a seguir) |
+| 3 | App dos clientes AI | `fase-3-app-ai` | Tela inicial em 375 px e tema escuro; "E se?" em menos de 1 s num celular intermediário; vazamento do papel cliente_ai bloqueado; uso de ponta a ponta com contas fictícias | Em andamento (3a, 3b e 3c feitas; 3d a seguir) |
 | 4 | Piloto e operação | `fase-4-piloto` | Dois fechamentos sem erro de conferência e retorno da gestão e dos clientes do piloto | Pendente |
 
 ## Fase 3: andamento
 
 Plano aprovado em 20/11/2026 (D-071; escolhas da 3a na D-072): 3a telas com a Família Andrade, sem banco (ponto de parada E); 3b banco do cliente; 3c convite e entrada; 3d telas ligadas ao banco e ajustes do canal; 3e fechamento.
+
+### Etapa 3c: convite e entrada do cliente (21/11/2026)
+
+- **Banco** (`20261121000200_convite.sql`, D-074): `client_invite_check` (com o token de quem convida: gestão ou responsável da família AI ativa, segundo fator, e-mail válido, não interno, não de outra família, família sem cliente ativo), `record_client_invite` (só a chave do servidor: grava o papel, troca o convite pendente, auditoria `convidar_cliente`), `client_access_of` (situação no console: pendente ou ativo) e `revoke_client_access` (auditoria `tirar_acesso_cliente`). O pgTAP pegou uma falha antes do commit: o Supabase dá execução às funções para `authenticated` por padrão, e `record_client_invite` ficava ao alcance do navegador; a permissão foi tirada e o teste ficou.
+- **Função** `client-invite`: confere, convida pelo Auth (`/auth/v1/invite`) ou, para quem abriu o convite e não terminou, manda o link de criar senha (`/auth/v1/recover`), e grava; a resposta não traz o link.
+- **Auth** (`config.toml`): `/app/entrar` na lista de endereços; links de 24 horas; e-mails em português (`supabase/templates/convite.html` e `criar-senha.html`).
+- **Console:** cartão "Acesso do cliente" na página da família AI (`ClientAccess.tsx`): convidar, reenviar, trocar o e-mail pendente e tirar o acesso.
+- **App:** `useClientAuth` (link do e-mail lido uma vez, senha nova com as regras, cadastro do autenticador, senha e código, fim da sessão) e a tela Entrar de verdade; `/app` mostra o mês fechado da própria família (`loadClientView`) ou, sem mês fechado, o aviso de boas-vindas com o intermediário; `/app/exemplo` mostra a Andrade sem login.
+- **Testes:** pgTAP `17_convite.test.sql` (31); e2e `cliente.spec.ts` (o responsável convida sem ver o link; o e-mail chega no Mailpit; no celular, senha recusada pelas regras, senha boa, autenticador, aviso sem mês, sair e entrar com senha e código, link usado de novo recusado; no console, cliente ativo e sem novo convite); `app.spec.ts` passa a usar `/app/exemplo`. A integração contínua sobe o Mailpit.
+- **Contagens:** `npm test` 406; pgTAP 678; e2e 12.
 
 ### Etapa 3b: o banco do cliente AI (21/11/2026)
 
