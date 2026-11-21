@@ -17,7 +17,7 @@
       "planVersionId": "andrade-v2",
       "seed": 20261002,
       "paths": 10000,
-      "inputsHash": "12be951604dabb16fed576413f23"
+      "inputsHash": "1683ad060fc7291a3c061f2b29a2"
     },
     "planVersion": {
       "id": "andrade-v2",
@@ -50,18 +50,18 @@
       "published": {
         "successCount": 8700,
         "requiredReturn": 0.032439839839935314,
-        "inputsHash": "1d76f7e3bcedba00e8e5b3ba96e1",
+        "inputsHash": "0fb260adc2f9dd1dd8b60d015a24",
         "engineVersion": "0.5.0"
       },
       "start": {
-        "inputsHash": "1d76f7e3bcedba00e8e5b3ba96e1",
+        "inputsHash": "0fb260adc2f9dd1dd8b60d015a24",
         "successCount": 8700,
         "requiredReturn": 0.032439839839935314,
         "wealth": 13800000
       },
       "steps": [
         {
-          "inputsHash": "1c679b81ea28871d211eab70b691",
+          "inputsHash": "1fe29655fda9fb0baee5f2d6f563",
           "successCount": 8663,
           "requiredReturn": 0.0325178623199463,
           "wealth": 13917448,
@@ -71,7 +71,7 @@
           "requiredReturnDelta": 0.00007802248001098633
         },
         {
-          "inputsHash": "000df5143011731a0ddc23f7a276",
+          "inputsHash": "13b9da3e339ffe0aafa3bc4fc515",
           "successCount": 8381,
           "requiredReturn": 0.033319783210754406,
           "wealth": 13617153.880000003,
@@ -81,7 +81,7 @@
           "requiredReturnDelta": 0.0008019208908081055
         },
         {
-          "inputsHash": "0007e7deace38e12ea69d185a9ec",
+          "inputsHash": "0c2236cb5877f2100c33d7bf735f",
           "successCount": 7980,
           "requiredReturn": 0.03430379629135133,
           "wealth": 13258161.29,
@@ -91,7 +91,7 @@
           "requiredReturnDelta": 0.0009840130805969238
         },
         {
-          "inputsHash": "0556a3d669e6ef181f721dbbb2f4",
+          "inputsHash": "0f0d7dd5ac555e1f90db872d7b9c",
           "successCount": 8005,
           "requiredReturn": 0.03430379629135133,
           "wealth": 13258161.29,
@@ -101,7 +101,7 @@
           "requiredReturnDelta": 0
         },
         {
-          "inputsHash": "12be951604dabb16fed576413f23",
+          "inputsHash": "1683ad060fc7291a3c061f2b29a2",
           "successCount": 5927,
           "requiredReturn": 0.03806872367858888,
           "wealth": 13258161.29,
@@ -111,7 +111,7 @@
           "requiredReturnDelta": 0.003764927387237549
         },
         {
-          "inputsHash": "12be951604dabb16fed576413f23",
+          "inputsHash": "1683ad060fc7291a3c061f2b29a2",
           "successCount": 5927,
           "requiredReturn": 0.03806872367858888,
           "wealth": 13258161.29,
@@ -769,7 +769,6 @@
       "id": "andrade",
       "name": "Família Andrade (fictícia)",
       "channel": "ai",
-      "bankerId": "alex",
       "profileId": "moderado",
       "weightsSource": "carteira_atual",
       "suitability": "moderado",
@@ -1164,50 +1163,7 @@
         }
       ]
     },
-    "profiles": [
-      {
-        "id": "conservador",
-        "name": "Conservador",
-        "weightsPre": {
-          "POS": 0.4,
-          "INF": 0.2,
-          "PRE": 0.05,
-          "CRED": 0.2,
-          "MM": 0.1,
-          "ACOES": 0,
-          "FII": 0,
-          "INTL": 0.05
-        }
-      },
-      {
-        "id": "moderado",
-        "name": "Moderado",
-        "weightsPre": {
-          "POS": 0.25,
-          "INF": 0.25,
-          "PRE": 0.05,
-          "CRED": 0.15,
-          "MM": 0.1,
-          "ACOES": 0.08,
-          "FII": 0.04,
-          "INTL": 0.08
-        }
-      },
-      {
-        "id": "arrojado",
-        "name": "Arrojado",
-        "weightsPre": {
-          "POS": 0.1,
-          "INF": 0.2,
-          "PRE": 0.05,
-          "CRED": 0.1,
-          "MM": 0.1,
-          "ACOES": 0.2,
-          "FII": 0.07,
-          "INTL": 0.18
-        }
-      }
-    ]
+    "profiles": []
   },
   "ipca": {
     "2026-10": 0.004
@@ -1242,5 +1198,7 @@
       "version": 1,
       "body": "As projeções deste relatório e deste aplicativo são simulações estatísticas. Elas usam premissas de retorno, risco e correlação definidas pelo comitê de investimentos da Aware Investments e as informações do seu plano. Não garantem resultados futuros, não constituem recomendação de investimento e não substituem a análise da gestão ou do seu assessor. Rentabilidade obtida no passado não representa garantia de rentabilidade futura. Os valores estão em reais de hoje, corrigidos pela inflação. Quando as premissas ou o seu plano mudam, os resultados mudam junto."
     }
-  }
+  },
+  "scenarios": [],
+  "requests": []
 }
