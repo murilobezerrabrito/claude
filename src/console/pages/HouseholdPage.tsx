@@ -1,5 +1,5 @@
 // Página da família (SPEC, "Console interno": "Cadastro e plano"): o cadastro (só a gestão muda), o editor do plano
-// (a gestão, ou o responsável nas suas famílias AI) e as versões do plano. Em /familias/nova, só o cadastro; depois
+// (a gestão, ou o responsável nas suas famílias AI), as sugestões do cliente (famílias AI) e as versões do plano. Em /familias/nova, só o cadastro; depois
 // de criada, a família abre aqui com o plano em branco.
 
 import { ArrowLeft } from 'lucide-react'
@@ -12,6 +12,7 @@ import { parseDecimalBr, parseIntBr } from '../../lib/planForm.ts'
 import { errorText, rpc } from '../api.ts'
 import { CHANNEL_LABELS, plural } from '../display.ts'
 import { PlanEditor } from '../plan/PlanEditor.tsx'
+import { PlanRequests } from './PlanRequests.tsx'
 import { useSession } from '../session.tsx'
 import { PageTitle } from '../Shell.tsx'
 import { Alert } from '../../ui/alert.tsx'
@@ -369,6 +370,8 @@ export function HouseholdPage() {
             </CardContent>
           </Card>
         ) : null}
+
+        {h && h.channel === 'ai' && !isNew ? <PlanRequests household={id} /> : null}
 
         {data && data.versions.length > 0 ? (
           <Card>

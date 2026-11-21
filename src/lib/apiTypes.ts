@@ -370,3 +370,22 @@ export interface AuditTrail {
   /** Ações registradas no período, para o filtro. */
   actions: string[]
 }
+
+/** Sugestão de mudança no plano feita pelo cliente AI, como `plan_change_requests_of` devolve. */
+export interface PlanChangeRequestRow {
+  id: string
+  text: string
+  plan_version_id: string | null
+  status: 'pendente' | 'confirmada' | 'recusada'
+  requested_by: string | null
+  created_at: string
+  reviewed_by: string | null
+  reviewed_at: string | null
+  review_note: string | null
+}
+
+/** Resposta de `plan_change_requests_of`: a fila da família e se quem pede pode responder. */
+export interface PlanChangeRequests {
+  can_review: boolean
+  requests: PlanChangeRequestRow[]
+}
