@@ -61,6 +61,9 @@ test('o responsável convida; o cliente cria a senha, cadastra o autenticador e 
   await expect(app.getByRole('heading', { name: 'Crie a sua senha' })).toBeVisible()
   await expect(app.getByText(`Primeiro acesso de ${clientEmail}.`)).toBeVisible()
   expect(new URL(app.url()).hash).toBe('')
+  // Recarregar a página não pula a senha (a sessão do link fica na aba).
+  await app.reload()
+  await expect(app.getByRole('heading', { name: 'Crie a sua senha' })).toBeVisible()
   await app.getByLabel('Senha nova').fill('curta')
   await app.getByLabel('Repita a senha').fill('curta')
   await app.getByRole('button', { name: 'Criar senha' }).click()
@@ -153,6 +156,7 @@ test('com a conta: o mês fechado da família, um cenário salvo na conta e uma 
   await expect(app.getByText('Sugestão enviada ao seu assessor. Ele confirma a mudança no plano.')).toBeVisible()
   const item = app.getByTestId('minhas-sugestoes').getByRole('listitem').filter({ hasText: text })
   await expect(item.getByText('Esperando o assessor')).toBeVisible()
+  await expect(app.getByRole('button', { name: 'Sugerir outra mudança' })).toBeVisible()
   await phone.close()
 
   // Responde a sugestão do teste (o banco limita a 10 pendentes por família).
