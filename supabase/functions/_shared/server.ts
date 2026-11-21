@@ -96,3 +96,41 @@ export function bearer(req: Request, refusal: string): string {
   if (!authorization.startsWith('Bearer ')) throw new HttpError(401, refusal)
   return authorization
 }
+
+/**
+ * Convite por e-mail pelo Auth, com a chave do servidor: o Auth cria a conta (sem senha) e manda o link para o próprio
+ * cliente; o link nunca volta para quem convidou (D-071). `redirectTo` precisa estar na lista do Auth
+ * (site_url ou additional_redirect_urls); fora dela, o Auth usa o site_url. Devolve o id da conta.
+ */
+export async function authInvite(email: string, redirectTo: string): Promise<string> {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/invite?redirect_to=${encodeURIComponent(redirectTo)}`, {
+    method: 'POST',
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  const body = (await res.json().catch(() => ({}))) as { id?: string; msg?: string; message?: string; error_code?: string }
+  if (!res.ok || !body.id) {
+    if (res.status >= 500) throw new HttpError(503, 'O serviço de e-mail não respondeu agora. Tente de novo em instantes.')
+    if (res.status === 429) throw new HttpError(422, 'Convite enviado há pouco para este e-mail. Espere um minuto antes de reenviar.')
+    throw new HttpError(422, `O Auth recusou o convite: ${body.msg ?? body.message ?? res.status}`)
+  }
+  return body.id
+}
+
+/**
+ * Link de criar senha para quem já abriu o convite e não terminou o cadastro (o Auth não convida de novo uma conta com
+ * e-mail confirmado). Vai para o e-mail da conta, como o convite.
+ */
+export async function authRecover(email: string, redirectTo: string): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
+    method: 'POST',
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  if (!res.ok) {
+    if (res.status >= 500) throw new HttpError(503, 'O serviço de e-mail não respondeu agora. Tente de novo em instantes.')
+    if (res.status === 429) throw new HttpError(422, 'E-mail enviado há pouco para este endereço. Espere um minuto antes de reenviar.')
+    const body = (await res.json().catch(() => ({}))) as { msg?: string; message?: string }
+    throw new HttpError(422, `O Auth recusou o envio: ${body.msg ?? body.message ?? res.status}`)
+  }
+}
