@@ -74,7 +74,11 @@ insert into public.scenarios (household_id, owner_id, name, params) values (:'HB
 insert into public.plan_change_requests (household_id, requested_by, payload) values (:'HB', :'KB', '{"texto": "Sugestão de B"}');
 insert into public.market_series (series_code, date, value, source) values ('ipca', '2026-08-01', 0.2, 'teste'), ('cdi', '2026-09-15', 0.05, 'teste')
 on conflict (series_code, date) do update set value = excluded.value;
-update public.legal_texts set status = 'aprovado', approved_by = :'P', approved_at = now() where key in ('rodape_app', 'aviso_completo') and status = 'rascunho';
+update public.legal_texts set status = 'aprovado', approved_by = :'P', approved_at = now()
+ where key in ('rodape_app', 'aviso_completo') and status = 'rascunho'
+   and not exists (select 1 from public.legal_texts a where a.key = legal_texts.key and a.status = 'aprovado');
+-- Um rascunho novo do rodapé do app, que o cliente não pode receber.
+insert into public.legal_texts (key, version, body) values ('rodape_app', 99, 'Rascunho do teste, ainda não aprovado.');
 
 -- Cliente A, com segundo fator: o mês fechado da própria família -------------------------------------------------------
 
@@ -90,7 +94,11 @@ select is((:'ma'::jsonb) #>> '{bridge,mes}', '2026-08-31', 'e a ponte do mês fe
 select ok(not ((:'ma'::jsonb) #> '{months,0,pkg,household}' ? 'bankerId'), 'as entradas vão sem o banker');
 select is((:'ma'::jsonb) #> '{months,0,pkg,profiles}', '[]'::jsonb, 'e sem os perfis-modelo');
 select ok((:'ma'::jsonb) -> 'legal' ? 'rodape_app' and (:'ma'::jsonb) -> 'legal' ? 'aviso_completo', 'com os textos legais aprovados');
-select ok(not ((:'ma'::jsonb) -> 'legal' ? 'rodape_relatorio'), 'e nenhum rascunho de texto legal');
+select ok((:'ma'::jsonb) #>> '{legal,rodape_app,version}' <> '99'
+          and not exists (select 1 from jsonb_each((:'ma'::jsonb) -> 'legal') e
+                           where not exists (select 1 from public.legal_texts t where t.key = e.key and t.status = 'aprovado'
+                                               and t.version = (e.value ->> 'version')::int)),
+  'e nenhum rascunho de texto legal');
 select is((:'ma'::jsonb) -> 'cdi', '{}'::jsonb, 'CDI só do período acompanhado (até o mês fechado)');
 select is((:'ma'::jsonb) -> 'scenarios', '[]'::jsonb, 'sem os cenários de outra família');
 select is((:'ma'::jsonb) -> 'requests', '[]'::jsonb, 'nem as sugestões de outra família');
