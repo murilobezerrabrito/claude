@@ -11,8 +11,11 @@ import type { WhatIfRequest, WhatIfResponse } from './whatIfMessages.ts'
 type Pending = Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>
 type Body = WhatIfRequest extends infer R ? (R extends WhatIfRequest ? Omit<R, 'id'> : never) : never
 
+/** O worker não carregou ou caiu: os pedidos pendentes e os seguintes recebem esta mensagem, em vez de esperar para sempre. */
+export const WORKER_FAILED = 'Não foi possível calcular neste aparelho. Recarregue a página; se continuar, use outro navegador.'
+
 export function useWhatIf(pkg: MonthPackage | null, ipca: IpcaSeries | null) {
-  const state = useRef<{ worker: Worker; pending: Pending; next: number } | null>(null)
+  const state = useRef<{ worker: Worker; pending: Pending; next: number; failed: boolean } | null>(null)
   // Pedidos feitos antes de o worker existir (a tela filha roda os efeitos antes da moldura): saem quando ele nasce.
   const queue = useRef<{ body: Body; resolve: (v: unknown) => void; reject: (e: Error) => void }[]>([])
   useEffect(() => {
@@ -26,7 +29,14 @@ export function useWhatIf(pkg: MonthPackage | null, ipca: IpcaSeries | null) {
       if (e.data.ok) p.resolve(e.data.result)
       else p.reject(new Error(e.data.error))
     }
-    state.current = { worker, pending, next: 1 }
+    const fail = () => {
+      if (state.current) state.current.failed = true
+      for (const p of pending.values()) p.reject(new Error(WORKER_FAILED))
+      pending.clear()
+    }
+    worker.onerror = fail
+    worker.onmessageerror = fail
+    state.current = { worker, pending, next: 1, failed: false }
     worker.postMessage({ id: 0, type: 'init', pkg, ipca } satisfies WhatIfRequest)
     // Aquece: o plano oficial sorteia o mercado do horizonte máximo; a resposta não é usada aqui.
     pending.set(-1, { resolve: () => undefined, reject: () => undefined })
@@ -49,6 +59,10 @@ export function useWhatIf(pkg: MonthPackage | null, ipca: IpcaSeries | null) {
       const s = state.current
       if (!s) {
         queue.current.push({ body, resolve: resolve as (v: unknown) => void, reject })
+        return
+      }
+      if (s.failed) {
+        reject(new Error(WORKER_FAILED))
         return
       }
       const id = s.next++
