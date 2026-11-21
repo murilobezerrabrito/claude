@@ -125,7 +125,9 @@ export function bridgeSentence(b: Bridge, bands: { from: ProbabilityBand; to: Pr
 export function bridgeHeadline(b: Bridge): string {
   const { startTenths, endTenths, bars } = b.display
   const month = monthName(b.toMonth)
-  const points = Math.round((endTenths - startTenths) / 10)
+  // Arredonda o tamanho e devolve o sinal, para subir e cair meio ponto darem o mesmo resultado.
+  const d = endTenths - startTenths
+  const points = Math.sign(d) * Math.round(Math.abs(d) / 10)
   if (points === 0) return `Estável em ${month}`
   let main = bars[0]
   for (const bar of bars) if (Math.abs(bar.tenths) > Math.abs(main.tenths)) main = bar

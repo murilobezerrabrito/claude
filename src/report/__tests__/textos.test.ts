@@ -106,10 +106,14 @@ describe('textos automáticos', () => {
     expect(BAND_COLORS.folga_grande).toBe('azul')
   })
 
-  it('linha da ponte no app: pontos inteiros, o maior fator e "estável" abaixo de meio ponto', () => {
+  it('linha da ponte no app: pontos inteiros, o maior fator e "estável" abaixo de meio ponto, nos dois sentidos', () => {
     expect(plain(bridgeHeadline(bridge('plano', -181, [])))).toBe('−18 p.p. em outubro, principalmente pela mudança no plano')
     expect(plain(bridgeHeadline(bridge('mercado', 26, [])))).toBe('+3 p.p. em outubro, principalmente pelo mercado do mês')
     expect(bridgeHeadline(bridge('mercado', 4, []))).toBe('Estável em outubro')
+    expect(bridgeHeadline(bridge('mercado', -4, []))).toBe('Estável em outubro')
+    // Meio ponto para cima ou para baixo dá o mesmo tamanho.
+    expect(plain(bridgeHeadline(bridge('mercado', 5, [])))).toBe('+1 p.p. em outubro, principalmente pelo mercado do mês')
+    expect(plain(bridgeHeadline(bridge('mercado', -5, [])))).toBe('−1 p.p. em outubro, principalmente pelo mercado do mês')
   })
 
   it('frase do benchmark só acima de 0,1 p.p.', () => {
