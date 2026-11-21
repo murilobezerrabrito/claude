@@ -11,19 +11,25 @@ import { scenarioIssues, scenarioName, SHOCK_PRESETS, type ReportScenarioParams 
 import { Alert } from '../../ui/alert.tsx'
 import { Button } from '../../ui/button.tsx'
 import { Input, Select } from '../../ui/input.tsx'
-import { planValues, presets, ranges, toParams, type ControlValues, type Range } from '../controls.ts'
+import { fromParams, planValues, presets, ranges, toParams, type ControlValues, type Range } from '../controls.ts'
+import { useClientActions } from '../actions.ts'
 import { useClientView } from '../data.ts'
 import { Footer, ScreenTitle, Section, Term } from '../parts.tsx'
 import { TrajectoryChart, type Overlay } from '../TrajectoryChart.tsx'
+import type { SavedScenario } from '../types.ts'
 import { useWhatIfApi } from '../useWhatIf.ts'
 import type { SustainableResult, WhatIfRun } from '../whatIf.ts'
 
 const DEBOUNCE_MS = 250
 const MAX_SAVED = 3
+/** Cenários salvos na conta (o banco recusa o 21º). */
+const MAX_MINE = 20
 const SAVED_COLORS = ['var(--band-blue)', 'var(--band-yellow)', 'var(--band-green)']
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
 interface Saved {
+  /** Cenário salvo na conta que está na comparação. */
+  id?: string
   name: string
   params: ReportScenarioParams
   run: WhatIfRun
@@ -42,8 +48,13 @@ export function ESe() {
   const [plan, setPlan] = useState<WhatIfRun | null>(null)
   const [result, setResult] = useState<{ key: string; run: WhatIfRun } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const actions = useClientActions()
+  // Na comparação (até 3, nesta tela) e na conta (os salvos, pessoais).
   const [saved, setSaved] = useState<Saved[]>([])
+  const [mine, setMine] = useState(view.scenarios)
   const [saveName, setSaveName] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   const [spending, setSpending] = useState<{ key: string; r: SustainableResult } | 'calculando' | null>(null)
 
   const params = useMemo(() => toParams(values, ctx), [values, ctx])
@@ -259,8 +270,11 @@ export function ESe() {
         {saveName === null ? (
           <Button
             variant="outline"
-            disabled={!changed || !current || saved.length >= MAX_SAVED || saved.some((s) => JSON.stringify(s.params) === key)}
-            onClick={() => setSaveName(name)}
+            disabled={!changed || !current || mine.length >= MAX_MINE || mine.some((s) => JSON.stringify(s.params) === key)}
+            onClick={() => {
+              setSaveError(null)
+              setSaveName(name)
+            }}
           >
             Salvar este cenário
           </Button>
@@ -269,10 +283,21 @@ export function ESe() {
             <Input aria-label="Nome do cenário" value={saveName} maxLength={80} onChange={(e) => setSaveName(e.target.value)} />
             <div className="flex gap-2">
               <Button
-                disabled={saveName.trim() === '' || !current}
+                disabled={saveName.trim() === '' || !current || saving}
                 onClick={() => {
-                  if (current) setSaved((s) => [...s, { name: saveName.trim(), params, run: current }])
-                  setSaveName(null)
+                  if (!current) return
+                  const shownRun = current
+                  setSaving(true)
+                  setSaveError(null)
+                  actions
+                    .saveScenario(saveName, params)
+                    .then((s) => {
+                      setMine((m) => [...m, s])
+                      setSaved((c) => (c.length >= MAX_SAVED ? c : [...c, { id: s.id, name: s.name, params, run: shownRun }]))
+                      setSaveName(null)
+                    })
+                    .catch((e: unknown) => setSaveError(e instanceof Error ? e.message : String(e)))
+                    .finally(() => setSaving(false))
                 }}
               >
                 Salvar
@@ -283,10 +308,39 @@ export function ESe() {
             </div>
           </div>
         )}
+        {saveError ? (
+          <Alert tone="error" className="mt-2">
+            {saveError}
+          </Alert>
+        ) : null}
         <p className="mt-2 text-xs text-muted-foreground">
-          Até {MAX_SAVED} cenários, com os mesmos sorteios do plano oficial.{view.example ? ' No exemplo, os cenários salvos ficam só nesta tela.' : ''}
+          Até {MAX_SAVED} cenários lado a lado, com os mesmos sorteios do plano oficial.
+          {view.example ? ' No exemplo, os cenários salvos ficam só nesta tela.' : ` Os cenários salvos ficam na sua conta (até ${MAX_MINE}); só você os vê.`}
         </p>
       </Section>
+
+      {mine.length > 0 ? (
+        <MineSection
+          mine={mine}
+          compared={saved.map((s) => s.id)}
+          full={saved.length >= MAX_SAVED}
+          onOpen={(s) => setValues(fromParams(s.params, ctx))}
+          onCompare={(s) =>
+            run(s.params)
+              .then((r) => setSaved((c) => (c.length >= MAX_SAVED || c.some((x) => x.id === s.id) ? c : [...c, { id: s.id, name: s.name, params: s.params, run: r }])))
+              .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+          }
+          onDelete={(s) =>
+            actions
+              .deleteScenario(s.id)
+              .then(() => {
+                setMine((m) => m.filter((x) => x.id !== s.id))
+                setSaved((c) => c.filter((x) => x.id !== s.id))
+              })
+              .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+          }
+        />
+      ) : null}
 
       <Section title="Quanto posso gastar?">
         <SpendingAnswer state={spending} currentKey={key} />
@@ -389,6 +443,44 @@ function SpendingAnswer({ state, currentKey }: { state: { key: string; r: Sustai
       {text}
       {stale ? <span className="block text-xs text-muted-foreground">Calculado para as hipóteses anteriores.</span> : null}
     </p>
+  )
+}
+
+/** Os cenários salvos na conta: abrir nos controles, pôr na comparação ou apagar. O que não cabe mais no mês fica marcado. */
+function MineSection(props: {
+  mine: SavedScenario[]
+  compared: (string | undefined)[]
+  full: boolean
+  onOpen: (s: SavedScenario) => void
+  onCompare: (s: SavedScenario) => void
+  onDelete: (s: SavedScenario) => void
+}) {
+  const ctx = useClientView().snapshot.scenarioContext
+  return (
+    <Section title="Meus cenários" testId="meus-cenarios">
+      <ul className="flex flex-col divide-y">
+        {props.mine.map((s) => {
+          const issues = scenarioIssues(s.params, ctx, { maxChanges: Infinity })
+          return (
+            <li key={s.id} className="flex flex-col gap-1.5 py-2" data-testid="cenario-salvo">
+              <p className="text-sm font-medium">{s.name}</p>
+              {issues.length > 0 ? <p className="text-xs text-muted-foreground">Não cabe mais no plano deste mês: {issues.map((i) => i.message).join(' ')}</p> : null}
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" disabled={issues.length > 0} onClick={() => props.onOpen(s)}>
+                  Abrir
+                </Button>
+                <Button size="sm" variant="outline" disabled={issues.length > 0 || props.full || props.compared.includes(s.id)} onClick={() => props.onCompare(s)}>
+                  Comparar
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => props.onDelete(s)}>
+                  Apagar
+                </Button>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </Section>
   )
 }
 

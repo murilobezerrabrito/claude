@@ -1,6 +1,6 @@
 // Plano (SPEC, "5. Plano"): a linha do tempo da família (idades, aposentadoria, eventos e metas), as rendas e os gastos e
 // as metas, como estão na versão do plano em vigor no mês. O cliente sugere mudanças; elas vão para o responsável
-// confirmar (na etapa 3a, o exemplo não envia nada).
+// confirmar, e a resposta aparece aqui (no exemplo, nada é enviado).
 
 import { useState } from 'react'
 import type { CashFlow, PlanEvent, PersonRole } from '../../engine/types.ts'
@@ -8,7 +8,10 @@ import { formatMoney, formatMonthLabel } from '../../lib/format.ts'
 import { Button } from '../../ui/button.tsx'
 import { Textarea } from '../../ui/input.tsx'
 import { Alert } from '../../ui/alert.tsx'
+import { Badge } from '../../ui/badge.tsx'
+import { useClientActions } from '../actions.ts'
 import { useClientView } from '../data.ts'
+import type { PlanRequest } from '../types.ts'
 import { Footer, ScreenTitle, Section } from '../parts.tsx'
 
 const ROLE: Record<PersonRole, string> = { titular: 'Titular', conjuge: 'Cônjuge', filho: 'Filho ou filha' }
@@ -28,6 +31,11 @@ function eventText(e: PlanEvent): string {
 }
 
 const SUGGESTION_MAX = 1000
+const REQUEST_STATUS: Record<PlanRequest['status'], { label: string; tone: 'yellow' | 'green' | 'neutral' }> = {
+  pendente: { label: 'Esperando o assessor', tone: 'yellow' },
+  confirmada: { label: 'Confirmada', tone: 'green' },
+  recusada: { label: 'Não entrou no plano', tone: 'neutral' },
+}
 
 export function Plano() {
   const view = useClientView()
@@ -44,6 +52,24 @@ export function Plano() {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const [sent, setSent] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
+  const [requests, setRequests] = useState(view.requests)
+  const actions = useClientActions()
+  const send = () => {
+    setSending(true)
+    setFailure(null)
+    actions
+      .suggest(text.trim())
+      .then((r) => {
+        setRequests((q) => [r, ...q])
+        setText('')
+        setOpen(false)
+        setSent(true)
+      })
+      .catch((e: unknown) => setFailure(e instanceof Error ? e.message : String(e)))
+      .finally(() => setSending(false))
+  }
 
   return (
     <>
@@ -137,7 +163,8 @@ export function Plano() {
               placeholder="Por exemplo: a faculdade da Laura vai começar um ano antes."
             />
             <div className="flex gap-2">
-              <Button disabled={text.trim().length < 5} onClick={() => setSent(true)}>
+              {failure ? <Alert tone="error">{failure}</Alert> : null}
+              <Button disabled={text.trim().length < 5 || sending} onClick={send}>
                 Enviar ao assessor
               </Button>
               <Button variant="ghost" onClick={() => setOpen(false)}>
@@ -153,6 +180,17 @@ export function Plano() {
             </Button>
           </>
         )}
+        {requests.length > 0 ? (
+          <ul className="mt-4 flex flex-col gap-3" data-testid="minhas-sugestoes">
+            {requests.map((r) => (
+              <li key={r.id} className="rounded-lg border p-3 text-sm">
+                <Badge tone={REQUEST_STATUS[r.status].tone}>{REQUEST_STATUS[r.status].label}</Badge>
+                <p className="mt-1 whitespace-pre-wrap">{r.text}</p>
+                {r.review_note ? <p className="mt-1 text-xs text-muted-foreground">Resposta do assessor: {r.review_note}</p> : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </Section>
       <Footer />
     </>

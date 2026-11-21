@@ -10,6 +10,7 @@ import { cn } from '../lib/utils.ts'
 import { useTheme, type ThemeChoice } from '../lib/theme.ts'
 import { Alert } from '../ui/alert.tsx'
 import { Button } from '../ui/button.tsx'
+import { ClientActionsContext, exampleActions, serverActions, type ClientActions } from './actions.ts'
 import { useClientAuth } from './auth/useClientAuth.ts'
 import { ClientViewContext, loadClientView, loadExampleView } from './data.ts'
 import { ComoCalculamos } from './screens/ComoCalculamos.tsx'
@@ -36,7 +37,11 @@ const EXAMPLE_BASE = '/app/exemplo'
 
 type Theme = ReturnType<typeof useTheme>
 /** O que a moldura mostra: carregando, o mês, a família ainda sem mês fechado ou o erro. */
-type ViewState = { kind: 'carregando' } | { kind: 'pronto'; view: ClientMonthView } | { kind: 'sem_mes'; intermediary: string | null } | { kind: 'erro'; message: string }
+type ViewState =
+  | { kind: 'carregando' }
+  | { kind: 'pronto'; view: ClientMonthView }
+  | { kind: 'sem_mes'; intermediary: string | null }
+  | { kind: 'erro'; message: string }
 
 const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -51,12 +56,13 @@ export function AppRoot() {
 /** Os números fictícios da Andrade, sem login (demonstração do assessor). */
 function ExampleApp({ theme }: { theme: Theme }) {
   const [state, setState] = useState<ViewState>({ kind: 'carregando' })
+  const [example] = useState(exampleActions)
   useEffect(() => {
     loadExampleView()
       .then((view) => setState({ kind: 'pronto', view }))
       .catch((e: unknown) => setState({ kind: 'erro', message: errorMessage(e) }))
   }, [])
-  return <Screens basename={EXAMPLE_BASE} state={state} theme={theme} onSignOut={() => window.location.assign('/app')} />
+  return <Screens basename={EXAMPLE_BASE} state={state} theme={theme} actions={example} onSignOut={() => window.location.assign('/app')} />
 }
 
 /** O cliente: entra (convite, senha e autenticador) e vê o mês fechado da própria família. */
@@ -77,14 +83,14 @@ function SignedIn({ theme, onSignOut }: { theme: Theme; onSignOut: () => void })
       cancelled = true
     }
   }, [])
-  return <Screens basename="/app" state={state} theme={theme} onSignOut={onSignOut} />
+  return <Screens basename="/app" state={state} theme={theme} actions={serverActions} onSignOut={onSignOut} />
 }
 
-function Screens(props: { basename: string; state: ViewState; theme: Theme; onSignOut: () => void }) {
+function Screens(props: { basename: string; state: ViewState; theme: Theme; actions: ClientActions; onSignOut: () => void }) {
   return (
     <BrowserRouter basename={props.basename}>
       <Routes>
-        <Route element={<Frame state={props.state} theme={props.theme} onSignOut={props.onSignOut} />}>
+        <Route element={<Frame state={props.state} theme={props.theme} actions={props.actions} onSignOut={props.onSignOut} />}>
           <Route index element={<VisaoGeral />} />
           <Route path="e-se" element={<ESe />} />
           <Route path="patrimonio" element={<Patrimonio />} />
@@ -106,7 +112,17 @@ const NAV: { to: string; label: string; icon: ReactNode }[] = [
   { to: '/historico', label: 'Histórico', icon: <History /> },
 ]
 
-function Frame({ state, theme: [theme, setTheme], onSignOut }: { state: ViewState; theme: Theme; onSignOut: () => void }) {
+function Frame({
+  state,
+  theme: [theme, setTheme],
+  actions,
+  onSignOut,
+}: {
+  state: ViewState
+  theme: Theme
+  actions: ClientActions
+  onSignOut: () => void
+}) {
   const view = state.kind === 'pronto' ? state.view : null
   const intermediary = view?.intermediary ?? (state.kind === 'sem_mes' ? state.intermediary : null)
   const whatIf = useWhatIf(view?.pkg ?? null, view?.ipca ?? null)
@@ -160,7 +176,9 @@ function Frame({ state, theme: [theme, setTheme], onSignOut }: { state: ViewStat
         {view ? (
           <ClientViewContext.Provider value={view}>
             <WhatIfContext.Provider value={whatIf}>
-              <Outlet />
+              <ClientActionsContext.Provider value={actions}>
+                <Outlet />
+              </ClientActionsContext.Provider>
             </WhatIfContext.Provider>
           </ClientViewContext.Provider>
         ) : null}
