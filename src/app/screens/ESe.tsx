@@ -2,12 +2,13 @@
 // prontos em botões, o recálculo 250 ms depois de soltar o controle, com indicador, e sempre a diferença para o plano
 // oficial ("59% → 47%"): a chance oficial é a da rodada do mês, e a diferença sai do aparelho, cenário menos plano, os
 // dois com 5.000 trajetórias e os mesmos sorteios. Até três cenários salvos lado a lado, o gasto sustentável sob demanda
-// e "Voltar ao plano oficial". Na etapa 3a, os cenários salvos ficam só nesta tela.
+// e "Voltar ao plano oficial". Os cenários salvos ficam na conta do cliente (no exemplo, só nesta tela; D-075).
 
 import { LoaderCircle, RotateCcw, X } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { formatAge, formatMoney, formatMonthLabel, formatPercent, formatPp, formatProbability, formatRealReturn } from '../../lib/format.ts'
-import { scenarioIssues, scenarioName, SHOCK_PRESETS, type ReportScenarioParams } from '../../report/scenarios.ts'
+import { canonicalJson } from '../../engine/hash.ts'
+import { scenarioIssues, scenarioName, SHOCK_PRESETS, type ReportScenarioParams, type ScenarioContext } from '../../report/scenarios.ts'
 import { Alert } from '../../ui/alert.tsx'
 import { Button } from '../../ui/button.tsx'
 import { Input, Select } from '../../ui/input.tsx'
@@ -53,6 +54,8 @@ export function ESe() {
   const [saved, setSaved] = useState<Saved[]>([])
   const [mine, setMine] = useState(view.scenarios)
   const [saveName, setSaveName] = useState<string | null>(null)
+  // O que vai ser salvo: as hipóteses e o resultado de quando o formulário abriu (o nome sugerido é o delas).
+  const [toSave, setToSave] = useState<{ params: ReportScenarioParams; run: WhatIfRun } | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [spending, setSpending] = useState<{ key: string; r: SustainableResult } | 'calculando' | null>(null)
@@ -60,6 +63,8 @@ export function ESe() {
   const params = useMemo(() => toParams(values, ctx), [values, ctx])
   const key = JSON.stringify(params)
   const changed = key !== '{}'
+  // O banco devolve as hipóteses com as chaves em outra ordem: a comparação usa a forma canônica.
+  const sameAsCurrent = (p: ReportScenarioParams) => canonicalJson(p) === canonicalJson(params)
   const issues = useMemo(() => (Object.keys(params).length === 0 ? [] : scenarioIssues(params, ctx, { maxChanges: Infinity })), [params, ctx])
 
   useEffect(() => {
@@ -71,6 +76,7 @@ export function ESe() {
   useEffect(() => {
     if (!changed || issues.length > 0) return
     const timer = setTimeout(() => {
+      setError(null)
       run(params)
         .then((r) => setResult({ key, run: r }))
         .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
@@ -137,7 +143,15 @@ export function ESe() {
             {p.label}
           </Button>
         ))}
-        <Button size="sm" variant="ghost" disabled={!changed} onClick={() => setValues(planValues(ctx))}>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={!changed}
+          onClick={() => {
+            setError(null)
+            setValues(planValues(ctx))
+          }}
+        >
           <RotateCcw /> Voltar ao plano oficial
         </Button>
       </div>
@@ -196,7 +210,15 @@ export function ESe() {
           {ctx.properties.length > 0 ? (
             <Field label="Venda de imóvel">
               <div className="grid grid-cols-2 gap-2">
-                <Select aria-label="Imóvel vendido" value={values.saleProperty} onChange={(e) => set({ saleProperty: e.target.value })}>
+                <Select
+                  aria-label="Imóvel vendido"
+                  value={values.saleProperty}
+                  onChange={(e) => {
+                    // Cada imóvel tem os seus anos de venda possíveis: a venda começa no primeiro.
+                    const property = ctx.properties.find((p) => p.id === e.target.value)
+                    set({ saleProperty: e.target.value, ...(property ? { saleYear: property.firstYear } : {}) })
+                  }}
+                >
                   <option value="">Nenhum</option>
                   {ctx.properties.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -210,7 +232,7 @@ export function ESe() {
                   value={values.saleYear}
                   onChange={(e) => set({ saleYear: Number(e.target.value) })}
                 >
-                  {years({ min: ctx.properties[0].firstYear, max: ctx.properties[0].lastYear, step: 1 }).map((y) => (
+                  {years(saleYears(ctx, values.saleProperty)).map((y) => (
                     <option key={y} value={y}>
                       {y}
                     </option>
@@ -270,9 +292,11 @@ export function ESe() {
         {saveName === null ? (
           <Button
             variant="outline"
-            disabled={!changed || !current || mine.length >= MAX_MINE || mine.some((s) => JSON.stringify(s.params) === key)}
+            disabled={!changed || !current || mine.length >= MAX_MINE || mine.some((s) => sameAsCurrent(s.params))}
             onClick={() => {
+              if (!current) return
               setSaveError(null)
+              setToSave({ params, run: current })
               setSaveName(name)
             }}
           >
@@ -283,18 +307,19 @@ export function ESe() {
             <Input aria-label="Nome do cenário" value={saveName} maxLength={80} onChange={(e) => setSaveName(e.target.value)} />
             <div className="flex gap-2">
               <Button
-                disabled={saveName.trim() === '' || !current || saving}
+                disabled={saveName.trim() === '' || !toSave || saving}
                 onClick={() => {
-                  if (!current) return
-                  const shownRun = current
+                  if (!toSave) return
+                  const draft = toSave
                   setSaving(true)
                   setSaveError(null)
                   actions
-                    .saveScenario(saveName, params)
+                    .saveScenario(saveName, draft.params)
                     .then((s) => {
                       setMine((m) => [...m, s])
-                      setSaved((c) => (c.length >= MAX_SAVED ? c : [...c, { id: s.id, name: s.name, params, run: shownRun }]))
+                      setSaved((c) => (c.length >= MAX_SAVED ? c : [...c, { id: s.id, name: s.name, params: draft.params, run: draft.run }]))
                       setSaveName(null)
+                      setToSave(null)
                     })
                     .catch((e: unknown) => setSaveError(e instanceof Error ? e.message : String(e)))
                     .finally(() => setSaving(false))
@@ -302,7 +327,13 @@ export function ESe() {
               >
                 Salvar
               </Button>
-              <Button variant="ghost" onClick={() => setSaveName(null)}>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setSaveName(null)
+                  setToSave(null)
+                }}
+              >
                 Cancelar
               </Button>
             </div>
@@ -447,6 +478,12 @@ function SpendingAnswer({ state, currentKey }: { state: { key: string; r: Sustai
 }
 
 /** Os cenários salvos na conta: abrir nos controles, pôr na comparação ou apagar. O que não cabe mais no mês fica marcado. */
+/** Os anos possíveis da venda do imóvel escolhido (sem imóvel escolhido, os do primeiro). */
+function saleYears(ctx: ScenarioContext, propertyId: string): Range {
+  const property = ctx.properties.find((p) => p.id === propertyId) ?? ctx.properties[0]
+  return { min: property.firstYear, max: property.lastYear, step: 1 }
+}
+
 function MineSection(props: {
   mine: SavedScenario[]
   compared: (string | undefined)[]

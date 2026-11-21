@@ -147,12 +147,13 @@ export function Plano() {
       </Section>
       <Section title="Algo mudou na vida da família?">
         {sent ? (
-          <Alert tone="success">
+          <Alert tone="success" className="mb-3">
             {view.example
               ? 'No exemplo, a sugestão não é enviada. Com a sua conta, ela vai para o seu assessor, que confirma a mudança no plano.'
               : 'Sugestão enviada ao seu assessor. Ele confirma a mudança no plano.'}
           </Alert>
-        ) : open ? (
+        ) : null}
+        {open ? (
           <div className="flex flex-col gap-2">
             <Textarea
               aria-label="Sugestão de mudança no plano"
@@ -162,8 +163,8 @@ export function Plano() {
               onChange={(e) => setText(e.target.value)}
               placeholder="Por exemplo: a faculdade da Laura vai começar um ano antes."
             />
+            {failure ? <Alert tone="error">{failure}</Alert> : null}
             <div className="flex gap-2">
-              {failure ? <Alert tone="error">{failure}</Alert> : null}
               <Button disabled={text.trim().length < 5 || sending} onClick={send}>
                 Enviar ao assessor
               </Button>
@@ -174,9 +175,15 @@ export function Plano() {
           </div>
         ) : (
           <>
-            <p className="mb-2 text-sm text-muted-foreground">Sugira a mudança; o seu assessor confirma antes de ela entrar no plano.</p>
-            <Button variant="outline" onClick={() => setOpen(true)}>
-              Sugerir uma mudança
+            {sent ? null : <p className="mb-2 text-sm text-muted-foreground">Sugira a mudança; o seu assessor confirma antes de ela entrar no plano.</p>}
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSent(false)
+                setOpen(true)
+              }}
+            >
+              {sent ? 'Sugerir outra mudança' : 'Sugerir uma mudança'}
             </Button>
           </>
         )}
