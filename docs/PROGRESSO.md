@@ -8,7 +8,7 @@
 - **Fase 2 (ciclo mensal interno, com dados reais): em andamento** desde 05/10/2026. Etapa 1 (Supabase local, acesso por linha, segundo fator e pgTAP) concluída. Etapa 2 (importação, conferência, mapeamento de ativos e fechamento do mês) concluída em 06/10/2026, menos a leitura de XLSX, que espera a rede (D-056). Etapa 3 concluída em 30/10/2026: parte 3a (console com login, Mês e Mapeamento) aprovada por Murilo no ponto de parada A; parte 3b (rodada oficial em lote numa Edge Function e famílias com a chance) pronta em 10/10/2026, abaixo do limite do ponto de parada B (1,5 s por chamada) no servidor local; parte 3c (cadastro da família e editor do plano com versões) pronta em 10/10/2026; parte 3d (séries do Banco Central: função de busca, página Mercado e aviso de série atrasada) pronta em 30/10/2026, com respostas gravadas no formato do SGS (a chamada real espera a rede). Etapa 4 (relatórios no banco) concluída em 20/11/2026: o relatório de out/2026 da Andrade feito pelo fluxo do banco foi aprovado por Murilo no ponto de parada D, com os mesmos números do relatório da Fase 1.
 - **Fase 3 (app dos clientes AI): em andamento** desde 20/11/2026, com o portão da Fase 2 pendente nos itens que dependem da nuvem e de dados reais (D-071). Plano aprovado por Murilo em 20/11/2026 ("aprovo"), em cinco etapas: 3a telas com a Família Andrade (ponto de parada E), 3b banco do cliente, 3c convite e entrada, 3d telas ligadas ao banco e ajustes do canal, 3e fechamento.
 - **Branch:** `claude/bold-pascal-rd6kif`, hoje o branch principal do repositório (D-002, D-026, D-028 e D-045). Não há pull request aberto.
-- **Próximo passo da Fase 3:** etapa 3b (banco do cliente: leituras do papel cliente_ai, cenários salvos, sugestões de mudança no plano e pgTAP de vazamento). Ponto de parada E aprovado por Murilo em 21/11/2026 ("pode prosseguir").
+- **Próximo passo da Fase 3:** etapa 3c (convite por e-mail e entrada do cliente com segundo fator). Etapa 3b feita em 21/11/2026 (D-073, a confirmar por Murilo). Ponto de parada E aprovado em 21/11/2026 ("pode prosseguir").
 - **Pendente da Fase 2:** com as quatro etapas da Fase 2 feitas no ambiente local, o portão da fase pede o que só existe fora dele: o projeto na nuvem (região São Paulo, só com autorização de Murilo, e antes a escolha do plano do Supabase, D-042), uma família CADM real anonimizada importada, conferida e com relatório aprovado, os textos legais aprovados pela compliance de verdade e a rodada de todas as famílias CADM em menos de 20 minutos. Murilo também confirma os itens da D-070 que vieram da revisão de código. XLSX e a chamada real ao Banco Central esperam a rede (D-044, D-056; em 30/10/2026 o proxy do ambiente ainda recusava os dois endereços). O tempo por chamada da rodada e o agendamento diário das séries ficam para a etapa da nuvem.
 
 ### Comandos de teste
@@ -17,7 +17,7 @@
 npm install
 npm run typecheck     # tsc -b: motor (só ES2023), interface, testes e scripts
 npm run lint          # ESLint; barra imports externos e imports sem .ts no motor
-npm test              # Vitest: 399 testes, incluindo T01 a T20, textos, números congelados, o PDF do relatório, o relatório montado das rodadas, os cenários, o seed, a importação, a rodada por partes, o console, o esquema do plano e as séries do Banco Central, com as paridades (~30 s)
+npm test              # Vitest: 406 testes, incluindo T01 a T20, textos, números congelados, o PDF do relatório, o relatório montado das rodadas, os cenários, o seed, a importação, a rodada por partes, o console, o esquema do plano e as séries do Banco Central, com as paridades (~30 s)
 npm run test:engine   # só o motor
 npm run reference     # Família Andrade com 50.000 trajetórias contra reference/resultados_referencia.json (~6 a 12 s)
 npm run report:snapshot  # regrava src/data/relatorios/andrade-2026-10.json (relatório de exemplo, ~11 s)
@@ -27,9 +27,9 @@ npm run app:example   # regrava src/data/app/andrade-2026-10.json (o mês da And
 
 # Banco local (Fase 2; precisa do Docker ligado)
 npm run db:start      # Supabase local com as migrações e o seed fictício (nesta sessão na nuvem: SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io, D-044)
-npm run db:test       # testes pgTAP (578)
+npm run db:test       # testes pgTAP (647)
 npx supabase functions serve   # funções do servidor (official-run, market-sync e report), num terminal à parte, quando o db:start exclui o edge-runtime
-npm run db:import -- exemplo   # importação de exemplo de ponta a ponta, com login e segundo fator: setembro rodado e fechado, outubro rodado, a Andrade conferida contra src/report e o rascunho do relatório de out/2026 (com os três cenários) conferido contra o da Fase 1
+npm run db:import -- exemplo   # importação de exemplo de ponta a ponta, com login e segundo fator: setembro rodado e fechado, outubro rodado, a Andrade conferida contra src/report e o rascunho do relatório de out/2026 (com os três cenários) conferido contra o da Fase 1, e o app do cliente AI da Barbosa pelo banco (mês fechado montado no aparelho, "E se?" igual à rodada oficial, cenário salvo e sugestão confirmada)
 npm run db:import             # lista os comandos: previa, pl, conferir, fila, mapear, situacao, rodar, fechar
 npm run sync:engine   # copia o motor, src/report, src/market e a formatação para supabase/functions/_shared/aware (--check só confere)
 npm run db:plan-cases # regrava supabase/tests/12_paridade_plano.test.sql a partir de src/data/plano/casos-invalidos.json
@@ -37,7 +37,7 @@ npm run db:market-cases  # regrava supabase/tests/14_paridade_mercado.test.sql a
 npm run market:sync   # busca as séries do Banco Central pela função market-sync, no Supabase local, como a gestão (precisa da rede)
 npm run market:check  # só testa a conexão com o SGS (/ultimos/3); nesta sessão na nuvem: NODE_USE_ENV_PROXY=1 npm run market:check
 npm run env:local     # grava .env.local com o Supabase local, para o console (npm run dev)
-npm run test:e2e      # console no navegador (Playwright): login com segundo fator, importação, conferência, mapeamento, rodada em lote, famílias com a chance (famílias e mês próprios, D-064), cadastro e versões do plano, séries do Banco Central (busca simulada, D-069) e o relatório do mês (rascunho, cenário, quatro olhos, PDF guardado, apresentação, banker e auditoria); e o app dos clientes AI em 375 px nos dois temas, com o fluxo do "E se?"
+npm run test:e2e      # console no navegador (Playwright): login com segundo fator, importação, conferência, mapeamento, rodada em lote, famílias com a chance (famílias e mês próprios, D-064), cadastro e versões do plano, séries do Banco Central (busca simulada, D-069) e o relatório do mês (rascunho, cenário, quatro olhos, PDF guardado, apresentação, banker e auditoria); o app dos clientes AI em 375 px nos dois temas, com o fluxo do "E se?"; e a sugestão do cliente respondida pelo responsável no console
 npm run db:reset      # refaz o banco local (migrações e seed)
 npm run db:seed       # regrava supabase/seed.sql a partir de src/data
 npm run db:stop
@@ -50,12 +50,30 @@ npm run db:stop
 | 0 | Fundação e motor, sem servidor | `fase-0-motor` | Testes 1 a 14 passando, `npm run reference` dentro das tolerâncias e `revisor-motor` sem divergências abertas | **Cumprido** (02/10/2026) |
 | 1 | Relatório de exemplo, sem servidor | `fase-1-relatorio-exemplo` | Testes do motor e `npm run reference` com os resultados novos; testes da ponte (hashes dos extremos e soma em trajetórias); `revisor-motor` sem divergências; PDF de out/2026 da Andrade aprovado por Murilo e Alex | **Cumprido** (05/10/2026); aprovação do Alex confirmada por Murilo em 06/10/2026 |
 | 2 | Ciclo mensal interno, com dados reais | `fase-2-ciclo-mensal` | pgTAP passando; família CADM real anonimizada importada, conferida e com relatório aprovado; textos do relatório aprovados por compliance; rodada de todas as famílias CADM em menos de 20 minutos | Em andamento (etapas 1 a 4 concluídas no ambiente local; o portão pede a nuvem e dados reais anonimizados; faltam o XLSX da etapa 2 e a chamada real ao SGS, que esperam a rede) |
-| 3 | App dos clientes AI | `fase-3-app-ai` | Tela inicial em 375 px e tema escuro; "E se?" em menos de 1 s num celular intermediário; vazamento do papel cliente_ai bloqueado; uso de ponta a ponta com contas fictícias | Em andamento (3a feita e aprovada no ponto de parada E; 3b em curso) |
+| 3 | App dos clientes AI | `fase-3-app-ai` | Tela inicial em 375 px e tema escuro; "E se?" em menos de 1 s num celular intermediário; vazamento do papel cliente_ai bloqueado; uso de ponta a ponta com contas fictícias | Em andamento (3a e 3b feitas; 3c a seguir) |
 | 4 | Piloto e operação | `fase-4-piloto` | Dois fechamentos sem erro de conferência e retorno da gestão e dos clientes do piloto | Pendente |
 
 ## Fase 3: andamento
 
 Plano aprovado em 20/11/2026 (D-071; escolhas da 3a na D-072): 3a telas com a Família Andrade, sem banco (ponto de parada E); 3b banco do cliente; 3c convite e entrada; 3d telas ligadas ao banco e ajustes do canal; 3e fechamento.
+
+### Etapa 3b: o banco do cliente AI (21/11/2026)
+
+- **Migração** `20261121000100_cliente_ai.sql` (D-073):
+  - o cliente lê só por `client_month`: o mês fechado mais recente da própria família, os meses fechados até ele (pacote de entradas e rodada publicada), a ponte, o IPCA, o CDI do período, os textos legais aprovados, os seus cenários salvos e as suas sugestões; cada leitura vai para a auditoria (`cliente_ver_mes`);
+  - saem as políticas de leitura direta das tabelas de família para o cliente; `list_households` e `household_detail` deixam de atendê-lo (`app.can_read_household` sem o cliente);
+  - as entradas vão sem o banker e sem perfis-modelo (`app.client_pkg`);
+  - cenários: `save_client_scenario` (até 20, nome único, até 4 KB) e `delete_client_scenario`;
+  - sugestões: `suggest_plan_change` (5 a 1.000 caracteres, até 10 pendentes, com a versão do plano em vigor); `plan_change_requests_of` e `review_plan_change` para o responsável e a gestão (recusar pede a nota; coluna nova `review_note`).
+- **App** (`src/app/clientView.ts`): `buildClientView` monta a visão do mês no aparelho com `assembleReportSnapshot` (sem simular) e o histórico de cada mês; `npm run app:example` passa a gravar o exemplo da Andrade pelo mesmo caminho, com as entradas no formato do banco. Os números do exemplo não mudaram (só os hashes de entrada, sem os perfis-modelo).
+- **Console:** cartão "Sugestões do cliente" na página da família AI (`PlanRequests.tsx`), com confirmar e recusar.
+- **Testes:**
+  - pgTAP `16_cliente_ai.test.sql` (68), o teste de vazamento do portão: o cliente não lê outra família, famílias CADM, relatórios, a auditoria, mês só rodado nem rascunho de texto legal; nada direto das tabelas; sem segundo fator, nada; conta com duas famílias e família encerrada recusadas; cenários, sugestões, a fila do responsável e a auditoria. `01_acesso`, `06_importacao` e `10_rodada` ajustados à leitura só pela função;
+  - `clientView.test.ts`: o exemplo gravado sai de `buildClientView`, histórico, família sem mês fechado e erros de montagem;
+  - `db:import exemplo`: o cliente fictício da Barbosa entra com segundo fator, lê setembro (o último mês fechado da AI), a chance no app é a publicada, e o "E se?" sem mudanças com 10.000 trajetórias dá o mesmo número; salva e apaga um cenário; sugere, e a gestão confirma;
+  - e2e `sugestoes.spec.ts`: o cliente sugere, o responsável vê a fila no console, recusar pede a nota, confirma, e o cliente recebe a resposta.
+- **Contagens:** `npm test` 406; pgTAP 647; e2e 11.
+- **Ordem do pgTAP:** `15_relatorios_fluxo` espera os textos legais do seed em rascunho e falha se rodar depois do `db:import exemplo` (que os aprova); já era assim antes da 3b. A integração contínua roda o pgTAP antes da importação; o `16_cliente_ai` passa nas duas ordens.
 
 ### Etapa 3a: as sete telas com a Família Andrade (20/11/2026; ponto de parada E aprovado em 21/11/2026)
 
