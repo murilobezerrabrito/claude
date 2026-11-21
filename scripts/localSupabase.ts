@@ -74,13 +74,21 @@ export const newPassword = () => `${randomBytes(18).toString('base64url')}aA1!`
  * Usuário fictício no Auth local, com o papel, a senha dada e nenhum segundo fator cadastrado (cada uso cadastra de
  * novo). Devolve o id.
  */
-export async function ensureUser(local: Local, email: string, role: string, password: string): Promise<string> {
+export async function ensureUser(local: Local, email: string, role: string, password: string, household?: string): Promise<string> {
   const list = (await call(local, '/auth/v1/admin/users?per_page=1000', { admin: true })) as { users: { id: string; email: string }[] }
   let user = list.users.find((u) => u.email === email)
   if (user) await call(local, `/auth/v1/admin/users/${user.id}`, { method: 'PUT', admin: true, body: { password } })
   else user = (await call(local, '/auth/v1/admin/users', { admin: true, body: { email, password, email_confirm: true } })) as { id: string; email: string }
-  const roles = (await call(local, `/rest/v1/user_roles?user_id=eq.${user.id}&role=eq.${role}&select=id`, { admin: true })) as unknown[]
-  if (roles.length === 0) await call(local, '/rest/v1/user_roles', { admin: true, body: { user_id: user.id, role } })
+  // O cliente AI fica ligado à família (pelo código); os papéis internos, a nenhuma.
+  let householdId: string | null = null
+  if (household) {
+    const found = (await call(local, `/rest/v1/households?code=eq.${encodeURIComponent(household)}&select=id`, { admin: true })) as { id: string }[]
+    if (found.length !== 1) throw new Error(`Família ${household} não encontrada no banco local.`)
+    householdId = found[0].id
+  }
+  const byHousehold = householdId ? `household_id=eq.${householdId}` : 'household_id=is.null'
+  const roles = (await call(local, `/rest/v1/user_roles?user_id=eq.${user.id}&role=eq.${role}&${byHousehold}&select=id`, { admin: true })) as unknown[]
+  if (roles.length === 0) await call(local, '/rest/v1/user_roles', { admin: true, body: { user_id: user.id, role, household_id: householdId } })
   const factors = (await call(local, `/auth/v1/admin/users/${user.id}/factors`, { admin: true })) as { id: string }[]
   for (const f of factors) await call(local, `/auth/v1/admin/users/${user.id}/factors/${f.id}`, { method: 'DELETE', admin: true })
   return user.id
@@ -90,9 +98,9 @@ export async function ensureUser(local: Local, email: string, role: string, pass
  * Entra como o usuário fictício (criado com o papel e uma senha nova), com senha e segundo fator novo (aal2).
  * Devolve o token de acesso.
  */
-export async function signIn(local: Local, email: string, role: string, label: string): Promise<string> {
+export async function signIn(local: Local, email: string, role: string, label: string, household?: string): Promise<string> {
   const password = newPassword()
-  await ensureUser(local, email, role, password)
+  await ensureUser(local, email, role, password, household)
   const session = (await call(local, '/auth/v1/token?grant_type=password', { body: { email, password } })) as { access_token: string }
   const factor = (await call(local, '/auth/v1/factors', { token: session.access_token, body: { factor_type: 'totp', friendly_name: label } })) as {
     id: string
@@ -106,6 +114,13 @@ export async function signIn(local: Local, email: string, role: string, label: s
   return verified.access_token
 }
 
+/** Usuário fictício de um comando: e-mail, papel e, para o cliente AI, o código da família. */
+export interface LocalUser {
+  email: string
+  role: string
+  household?: string
+}
+
 /**
  * A API do Supabase local em nome de usuários fictícios (os comandos `db:import` e `market:sync`): funções do banco e
  * funções do servidor; cada usuário entra uma vez, com segundo fator.
@@ -113,10 +128,10 @@ export async function signIn(local: Local, email: string, role: string, label: s
 export class LocalApi<K extends string> {
   private tokens = new Map<K, string>()
   private local: Local
-  private users: Record<K, { email: string; role: string }>
+  private users: Record<K, LocalUser>
   private label: string
 
-  constructor(local: Local, users: Record<K, { email: string; role: string }>, label: string) {
+  constructor(local: Local, users: Record<K, LocalUser>, label: string) {
     this.local = local
     this.users = users
     this.label = label
@@ -127,7 +142,7 @@ export class LocalApi<K extends string> {
     let token = this.tokens.get(as)
     if (!token) {
       const user = this.users[as]
-      token = await signIn(this.local, user.email, user.role, this.label)
+      token = await signIn(this.local, user.email, user.role, this.label, user.household)
       this.tokens.set(as, token)
       console.log(`  (entrou como ${user.email}, com segundo fator)`)
     }

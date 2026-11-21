@@ -14,7 +14,10 @@
 //   exemplo                                                set e out/2026 das famílias fictícias, de ponta a ponta,
 //                                                          com as rodadas e a comparação com src/report, e o rascunho
 //                                                          do relatório de out/2026 da Andrade (com os três cenários
-//                                                          do exemplo) conferido contra o relatório da Fase 1
+//                                                          do exemplo) conferido contra o relatório da Fase 1, e o
+//                                                          app do cliente AI da Barbosa: o mês fechado montado no
+//                                                          aparelho, o "E se?" contra a rodada oficial, um cenário
+//                                                          salvo e uma sugestão confirmada pela gestão
 
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -26,6 +29,9 @@ import { planVersionFor } from '../src/report/monthInputs.ts'
 import { officialRun, type MonthPackage } from '../src/report/officialRun.ts'
 import { monthReturn } from '../src/report/performance.ts'
 import type { HouseholdMonths } from '../src/report/types.ts'
+import { buildClientView } from '../src/app/clientView.ts'
+import type { ClientMonthInputs, PlanRequest, SavedScenario } from '../src/app/types.ts'
+import { createWhatIf } from '../src/app/whatIf.ts'
 import { check, mapAsset, officialPl, overview, preview, queue, runMonth } from './importSteps.ts'
 import { LocalApi, localStack } from './localSupabase.ts'
 
@@ -36,6 +42,7 @@ const USERS = {
   gestao: { email: 'importacao.gestao@exemplo.invalid', role: 'gestao' },
   comite: { email: 'importacao.comite@exemplo.invalid', role: 'comite' },
   compliance: { email: 'importacao.compliance@exemplo.invalid', role: 'compliance' },
+  cliente: { email: 'importacao.cliente@exemplo.invalid', role: 'cliente_ai', household: 'BAR001' },
 } as const
 type UserKind = keyof typeof USERS
 
@@ -112,9 +119,53 @@ async function example(api: Api) {
     console.log(`  ⚠ ${r.code}: uma chamada levou ${r.maxPartMs} ms de cálculo, acima de 1,5 s (ponto de parada B; medir no Supabase hospedado).`)
   }
   await exampleReport(api)
+  await exampleClient(api)
   console.log(
     `\n✔ Exemplo conferido: 3 famílias rodadas em out/2026; Andrade com a chance (${(expectedRun.probability * 100).toFixed(2).replace('.', ',')}%), a variação no mês (${expectedBridge.totalSuccessDelta} trajetórias) e a rentabilidade real (${formatSignedPercent(expected.real, 4)}) iguais às de src/report; cálculo por chamada até ${maxMs} ms.`,
   )
+}
+
+/**
+ * O app do cliente AI pelo banco (Fase 3, etapa 3b): o cliente fictício da Barbosa entra com segundo fator e lê o mês
+ * fechado mais recente (setembro: outubro da AI ainda não fechou); a visão montada no aparelho tem a chance publicada,
+ * e o "E se?" sem mudanças, com as 10.000 trajetórias da rodada oficial, dá o mesmo número. Depois salva e apaga um
+ * cenário e sugere uma mudança no plano, que a gestão confirma.
+ */
+async function exampleClient(api: Api) {
+  console.log('\n▸ App do cliente AI da Barbosa pelo banco')
+  const texts = await api.rpc<LegalTextRow[]>('compliance', 'legal_texts_overview')
+  const footer = texts.find((t) => t.key === 'rodape_app')
+  if (footer?.draft && !footer.approved) {
+    await api.rpc('compliance', 'approve_legal_text', { p_id: footer.draft.id })
+    console.log(`  Texto legal aprovado pela compliance: rodape_app (versão ${footer.draft.version})`)
+  }
+  const inputs = await api.rpc<ClientMonthInputs>('cliente', 'client_month')
+  const view = buildClientView(inputs)
+  if (!view) throw new Error('O cliente da Barbosa não recebeu mês fechado.')
+  const september = await api.rpc<MonthOverview>('gestao', 'month_overview', { p_ref_date: '2026-09-30' })
+  const published = september.families.find((f) => f.code === 'BAR001')?.probability
+  const problems: string[] = []
+  if (inputs.ref_date !== '2026-09-30') problems.push(`mês do cliente ${inputs.ref_date}, e não set/2026 (o último fechado da AI)`)
+  if (view.snapshot.summary.probability !== published) problems.push(`chance no app ${view.snapshot.summary.probability}, diferente da publicada (${published})`)
+  const plan = createWhatIf(view.pkg, view.ipca, 10_000).run({})
+  if (plan.probability !== view.snapshot.summary.probability) problems.push(`"E se?" sem mudanças com 10.000 trajetórias dá ${plan.probability}, e não a chance oficial`)
+  console.log(`  Mês ${inputs.ref_date}: chance ${(view.snapshot.summary.probability * 100).toFixed(2).replace('.', ',')}%, ${view.history.length} ${view.history.length === 1 ? 'mês' : 'meses'} no histórico; "E se?" sem mudanças igual à rodada oficial.`)
+
+  for (const old of view.scenarios.filter((x) => x.name === 'Aposentar antes (db:import)')) {
+    await api.rpc('cliente', 'delete_client_scenario', { p_scenario: old.id })
+  }
+  const saved = await api.rpc<SavedScenario>('cliente', 'save_client_scenario', { p_name: 'Aposentar antes (db:import)', p_params: { retirementAge: 60 } })
+  const after = await api.rpc<ClientMonthInputs>('cliente', 'client_month')
+  if (!after.scenarios.some((x) => x.id === saved.id)) problems.push('o cenário salvo não voltou no mês do cliente')
+  await api.rpc('cliente', 'delete_client_scenario', { p_scenario: saved.id })
+  console.log('  Cenário salvo e apagado pelo cliente.')
+
+  const request = await api.rpc<PlanRequest>('cliente', 'suggest_plan_change', { p_text: 'Sugestão de exemplo do db:import: a reforma da casa fica para 2028.' })
+  await api.rpc('gestao', 'review_plan_change', { p_request: request.id, p_decision: 'confirmada', p_note: 'Confirmada no exemplo.' })
+  const answered = (await api.rpc<ClientMonthInputs>('cliente', 'client_month')).requests.find((q) => q.id === request.id)
+  if (answered?.status !== 'confirmada') problems.push(`a sugestão ficou ${answered?.status ?? 'sem resposta'} para o cliente`)
+  console.log('  Sugestão do cliente confirmada pela gestão.')
+  if (problems.length > 0) throw new Error(`App do cliente com problema: ${problems.join('; ')}.`)
 }
 
 /** Diferenças esperadas entre o relatório feito pelo banco e o da Fase 1 (src/data/relatorios/andrade-2026-10.json). */
