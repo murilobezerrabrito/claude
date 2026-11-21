@@ -389,3 +389,23 @@ export interface PlanChangeRequests {
   can_review: boolean
   requests: PlanChangeRequestRow[]
 }
+
+/** Resposta de `client_access_of`: a conta do cliente AI da família (o titular) e se quem pede cuida do acesso. */
+export interface ClientAccess {
+  can_manage: boolean
+  clients: {
+    user_id: string
+    email: string
+    invited_at: string
+    last_sign_in_at: string | null
+    /** Ativo depois de cadastrar o app autenticador; pendente antes disso. */
+    state: 'ativo' | 'pendente'
+  }[]
+}
+
+/** Resposta da função `client-invite` (o link vai só para o e-mail do cliente). */
+export interface ClientInviteResult {
+  email: string
+  envio: 'novo' | 'reenvio'
+  situacao: 'ativo' | 'pendente'
+}
